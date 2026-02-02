@@ -93,6 +93,20 @@ docker-compose up -d
 
 ---
 
+## رفع المشروع إلى GitHub | Push to GitHub
+
+بعد إنشاء مستودع جديد على [GitHub](https://github.com/new) (بدون README أو .gitignore):
+
+```bash
+git remote add origin https://github.com/YOUR_USERNAME/ysvs-project.git
+git branch -M main
+git push -u origin main
+```
+
+استبدل `YOUR_USERNAME` باسم مستخدمك أو اسم المنظمة.
+
+---
+
 ## المساهمة | Contributing
 
 1. Fork المستودع
