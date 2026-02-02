@@ -1,0 +1,75 @@
+# ===========================================
+# Dependencies
+# ===========================================
+node_modules/
+.pnp
+.pnp.js
+
+# ===========================================
+# Build outputs
+# ===========================================
+dist/
+build/
+*.tsbuildinfo
+.next/
+out/
+dist-ssr/
+
+# ===========================================
+# Environment & secrets (NEVER commit)
+# ===========================================
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ===========================================
+# Logs & debug
+# ===========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ===========================================
+# IDE & OS
+# ===========================================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+
+# ===========================================
+# Uploads & runtime data
+# ===========================================
+uploads/
+*.local
+
+# ===========================================
+# Testing & coverage
+# ===========================================
+coverage/
+.nyc_output/
+*.lcov
+
+# ===========================================
+# Docker (optional - uncomment if needed)
+# ===========================================
+# *.log from containers if mounted
+
+# ===========================================
+# Misc
+# ===========================================
+*.pid
+*.seed
+.cache/

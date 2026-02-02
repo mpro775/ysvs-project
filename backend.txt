@@ -1,0 +1,36 @@
+إليك ملف Markdown (.md) تقني عالي المستوى، موجه لفريق التطوير أو كمرجع تقني للمشروع. يركز هذا الملف على هندسة البرمجيات (Software Architecture)، مع تفصيل دقيق لنظام الكاش، معالجة الأخطاء، وهيكلة الردود الموحدة في NestJS.يمكنك حفظ الملف باسم YSVS_Backend_Execution_Plan.md.Markdown# خطة التنفيذ وهيكلة النظام الخلفي (Backend Architecture)
+## مشروع منصة الجمعية اليمنية لجراحة الأوعية الدموية (YSVS)
+
+**الإصدار:** 1.0.0
+**الإطار البرمجي:** NestJS (Node.js) + TypeScript
+**قاعدة البيانات:** MongoDB (Mongoose)
+**التخزين المؤقت:** Redis / In-Memory Cache
+
+---
+
+## 1. نظرة عامة على البنية التحتية (Architecture Overview)
+سنعتمد نمط تصميم **Modular Monolith** باستخدام NestJS، مما يسمح بفصل الخدمات (Modules) منطقياً مع الحفاظ على سهولة النشر والصيانة. النظام مبني بالكامل على مبادئ **Clean Architecture** و **SOLID Principles**.
+
+### هيكلية المجلدات المقترحة (Project Structure):
+```bash
+src/
+├── common/             # الأدوات المشتركة (Pipes, Guards, Filters, Interceptors)
+├── config/             # إعدادات البيئة (Environment Variables)
+├── modules/            # الأنظمة الفرعية
+│   ├── auth/           # المصادقة والصلاحيات
+│   ├── users/          # إدارة الأعضاء والأطباء
+│   ├── events/         # المؤتمرات ونماذج التسجيل الديناميكية
+│   ├── certificates/   # توليد والتحقق من الشهادات
+│   ├── streaming/      # إدارة البث المباشر
+│   └── content/        # الأخبار والمحتوى
+├── providers/          # خدمات خارجية (MailService, S3Service)
+└── main.ts             # نقطة الدخول
+2. الأنظمة الأساسية (Core Systems)هذه الأنظمة تشكل "العمود الفقري" للتطبيق لضمان الاحترافية والثبات.2.1 نظام الردود الموحد (Standardized Response System)لن نقوم بإرجاع بيانات عشوائية. سنستخدم Global Interceptor (TransformInterceptor) لتوحيد شكل الرد في كامل التطبيق.صيغة الرد القياسية (JSON Response):JSON{
+  "statusCode": 200,
+  "success": true,
+  "message": "Operation completed successfully",
+  "data": { ... },     // البيانات المطلوبة
+  "timestamp": "2026-01-12T10:00:00.000Z",
+  "path": "/api/v1/events"
+}
+2.2 نظام إدارة الأخطاء المركزي (Advanced Error Handling)بدلاً من انهيار السيرفر عند حدوث خطأ، سنستخدم Global Exception Filter. يقوم هذا النظام باصطياد أي خطأ (HTTP or System Error)، تسجيله في ملفات Log، وإرجاع رسالة "صديقة للمستخدم" بدلاً من رسالة الخطأ البرمجية.Log System: تسجيل الأخطاء الحرجة باستخدام Winston Logger لمراجعتها لاحقاً.User Message: تحويل خطأ MongoServerError: E11000 (تكرار بيانات) إلى رسالة: "هذا البريد الإلكتروني مسجل مسبقاً".2.3 استراتيجية التخزين المؤقت (Caching Strategy)لضمان سرعة استجابة فائقة (Low Latency)، سنطبق نظام كاش هجين:Global Cache (GET Requests):تخزين ردود الـ API العامة (مثل: قائمة أعضاء مجلس الإدارة، الأخبار) لمدة 1 ساعة.يتم مسح الكاش (Invalidation) تلقائياً عند قيام الأدمن بتعديل أي بيان.Short-Term Cache:تخزين حالة "البث المباشر" لمدة 30 ثانية فقط لضمان التحديث السريع.التقنية: استخدام CacheManager المدمج في NestJS مع Redis (للبيئة الإنتاجية) لضمان عدم ضياع الكاش عند إعادة تشغيل السيرفر.3. توزيع الأدوار والصلاحيات (RBAC)سنستخدم نظام Role-Based Access Control صارم محمي بواسطة JwtGuard و RolesGuard.الدور (Role)الوصف والصلاحياتSuper Adminالمطور/المالك. له كامل الصلاحيات بما فيها حذف المشرفين والوصول للوجات النظام.Adminإدارة الجمعية. صلاحيات إدارة المؤتمرات، الأخبار، الأعضاء، وتفعيل البث. (لا يملك صلاحية حذف النظام).Memberالطبيب المسجل. صلاحيات: التسجيل في المؤتمرات، مشاهدة البث، تحميل شهاداته الشخصية.Publicالزائر. صلاحيات القراءة فقط (عرض الأخبار، التحقق من الشهادات).4. العمليات ونقاط النهاية (Key API Endpoints)وحدة المؤتمرات (Events Module)هنا تكمن قوة النظام الديناميكي.POST /events (Admin): إنشاء مؤتمر جديد.PATCH /events/:id/form-schema (Admin): (ميزة حصرية) بناء نموذج التسجيل (Form Builder). يستقبل مصفوفة JSON تحدد الحقول المطلوبة (نوع الحقل، العنوان، هل هو إجباري).POST /events/:id/register (User): التسجيل في المؤتمر. يقوم النظام بالتحقق من المدخلات بناءً على الـ Schema الديناميكية المخزنة للمؤتمر.وحدة الشهادات (Certificates Module)POST /certificates/generate-bulk (Admin): توليد شهادات لجميع الحضور في مؤتمر معين دفعة واحدة.GET /certificates/verify/:serial (Public): نقطة التحقق من صحة الشهادة عبر الـ QR Code.GET /certificates/download/:id (User): توليد ملف PDF في الوقت الفعلي (Stream) وتحميله.وحدة البث (Streaming Module)GET /stream/status: إرجاع حالة البث (isLive, provider, embedUrl). هذه النقطة تكون مكشّفة (Cached) ومحمية من هجمات DDoS.5. خطة التنفيذ الزمنية (Implementation Roadmap)المرحلة 1: التأسيس والبنية التحتية (الأسبوع 1)تهيئة مشروع NestJS وربطه بـ MongoDB Atlas.بناء الـ Interceptors و Filters (نظام الردود والأخطاء).إعداد نظام المصادقة (Auth Module) و JWT.المرحلة 2: إدارة المحتوى والأعضاء (الأسبوع 2)بناء CMS للأخبار وصفحة "عن الجمعية".بناء بروفايل الطبيب وتاريخ العضوية.ترحيل البيانات القديمة (إن وجدت وصالحة).المرحلة 3: نظام المؤتمرات الديناميكي (الأسبوع 3)تطوير الـ Form Builder في الباك إند (Schema-less Data Structure).تطوير نظام التذاكر والتسجيل.المرحلة 4: الشهادات والبث (الأسبوع 4)دمج مكتبة PDFKit لتوليد الشهادات.بناء منطق التحقق (QR Verification).تطوير وحدة البث المباشر والربط مع الواجهة الأمامية.المرحلة 5: الاختبار والنشر (الأسبوع 5)عمل Load Testing للتأكد من تحمل السيرفر لعدد كبير من طلبات الشهادات.إعداد Docker Container.رفع المشروع على سيرفر الإنتاج (VPS) وإعداد Nginx كـ Reverse Proxy.تفعيل SSL وربط الدومين.6. ملاحظات تقنية للمطورينتوثيق الكود: يجب استخدام Swagger (@nestjs/swagger) لتوثيق كل API Endpoint تلقائياً، لتسهيل العمل على فريق الفرونت إند.التحقق من البيانات: استخدام Class-validator و DTOs بصرامة. لا تقبل أي بيانات any.Git Flow: اعتماد نظام الـ Branching (main, develop, feature/x).تم إعداد هذه الخطة لضمان بناء نظام قابل للتوسع (Scalable) ومحمي (Secure) يليق بمكانة الجمعية.

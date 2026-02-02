@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: ysvs-mongodb-dev
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data_dev:/data/db
+    networks:
+      - ysvs-network-dev
+
+  redis:
+    image: redis:alpine
+    container_name: ysvs-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    networks:
+      - ysvs-network-dev
+
+  mongo-express:
+    image: mongo-express
+    container_name: ysvs-mongo-express-dev
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin123
+    depends_on:
+      - mongodb
+    networks:
+      - ysvs-network-dev
+
+volumes:
+  mongodb_data_dev:
+  redis_data_dev:
+
+networks:
+  ysvs-network-dev:
+    driver: bridge

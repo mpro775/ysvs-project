@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ysvs-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MONGODB_URI=mongodb://mongodb:27017/ysvs
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - mongodb
+      - redis
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - ysvs-network
+
+  mongodb:
+    image: mongo:7
+    container_name: ysvs-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - ysvs-network
+    command: mongod --quiet --logpath /dev/null
+
+  redis:
+    image: redis:alpine
+    container_name: ysvs-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ysvs-network
+    command: redis-server --appendonly yes
+
+  # Optional: MongoDB Express for database management
+  mongo-express:
+    image: mongo-express
+    container_name: ysvs-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin123
+    depends_on:
+      - mongodb
+    networks:
+      - ysvs-network
+    profiles:
+      - dev
+
+volumes:
+  mongodb_data:
+  mongodb_config:
+  redis_data:
+  uploads:
+
+networks:
+  ysvs-network:
+    driver: bridge
