@@ -8,11 +8,11 @@
 
 ## التقنيات | Tech Stack
 
-| الجزء | التقنية |
-|-------|---------|
-| Backend | NestJS, MongoDB, Redis |
+| الجزء    | التقنية                 |
+| -------- | ----------------------- |
+| Backend  | NestJS, MongoDB, Redis  |
 | Frontend | React, Vite, TypeScript |
-| التشغيل | Docker, Docker Compose |
+| التشغيل  | Docker, Docker Compose  |
 
 ---
 
@@ -69,6 +69,7 @@ docker-compose up -d
 ## الإعداد لأول مرة | First-Time Setup
 
 1. استنساخ المستودع:
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/ysvs-project.git
    cd ysvs-project
