@@ -17,9 +17,12 @@ async function bootstrap() {
   app.use(helmet());
   app.use(compression());
 
-  // CORS
+  // CORS - supports multiple origins (admin, frontend, localhost)
+  const corsOrigins = configService.get<string[]>('app.corsOrigins') || [
+    configService.get<string>('app.frontendUrl') || 'http://localhost:5173',
+  ];
   app.enableCors({
-    origin: configService.get<string>('app.frontendUrl'),
+    origin: corsOrigins,
     credentials: true,
   });
 
@@ -57,7 +60,9 @@ async function bootstrap() {
   // Swagger Documentation
   const swaggerConfig = new DocumentBuilder()
     .setTitle('YSVS API')
-    .setDescription('الجمعية اليمنية لجراحة الأوعية الدموية - API Documentation')
+    .setDescription(
+      'الجمعية اليمنية لجراحة الأوعية الدموية - API Documentation',
+    )
     .setVersion('1.0')
     .addBearerAuth(
       {
@@ -92,7 +97,9 @@ async function bootstrap() {
   await app.listen(port);
 
   console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`📚 Swagger docs available at: http://localhost:${port}/api/docs`);
+  console.log(
+    `📚 Swagger docs available at: http://localhost:${port}/api/docs`,
+  );
 }
 
 bootstrap();
