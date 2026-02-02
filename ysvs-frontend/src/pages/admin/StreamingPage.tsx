@@ -49,7 +49,7 @@ export default function AdminStreamingPage() {
       const eventId =
         typeof config.event === "string"
           ? config.event
-          : (config.event as { _id?: string })?._id;
+          : (config.event as unknown as { _id?: string })?._id;
       const eventStr = eventId ? String(eventId).trim() : "";
       setSelectedEvent(eventStr !== "" ? eventStr : NO_EVENT_VALUE);
     }

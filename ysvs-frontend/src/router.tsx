@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute';
 import { DashboardRedirect } from '@/components/shared/DashboardRedirect';
