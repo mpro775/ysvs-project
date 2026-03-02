@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Play } from 'lucide-react';
+import { Play, Mouse } from 'lucide-react';
+import headerBg from '@/assets/header-bg.png';
 
 interface HeroSectionProps {
   isLive?: boolean;
@@ -31,37 +32,34 @@ export function HeroSection({ isLive, streamUrl }: HeroSectionProps) {
   }
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-bl from-primary-900 via-primary-800 to-primary-900">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <svg className="h-full w-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-        </svg>
-      </div>
+    <section
+      className="relative min-h-[calc(100vh-48px)] overflow-hidden bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${headerBg})` }}
+    >
+      <div className="absolute inset-0 bg-white/80" />
+      <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/60 to-white/75" />
 
-      <div className="container relative mx-auto px-4 py-20 lg:py-32">
-        <div className="mx-auto max-w-3xl text-center text-white">
-          <h1 className="mb-6 text-4xl font-extrabold leading-tight lg:text-5xl">
+      <div className="container relative mx-auto px-4 py-20 lg:py-28">
+        <div className="mx-auto max-w-3xl text-center">
+          <h1 className="mb-6 text-4xl font-extrabold leading-tight text-[#1f2f86] lg:text-6xl">
             الجمعية اليمنية لجراحة الأوعية الدموية
           </h1>
-          <p className="mb-8 text-lg text-primary-200 lg:text-xl">
+          <p className="mb-10 text-base leading-8 text-[#2e3346] sm:text-lg">
             نعمل على تطوير مجال جراحة الأوعية الدموية في اليمن من خلال التعليم
             المستمر والمؤتمرات العلمية وتبادل الخبرات
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Button asChild size="lg" className="bg-white text-primary-900 hover:bg-primary-50">
+            <Button
+              asChild
+              size="sm"
+              className="h-10 rounded-lg bg-[#3a36d3] px-6 text-white hover:bg-[#2f2bbd]"
+            >
               <Link to="/events">تصفح المؤتمرات</Link>
             </Button>
             <Button
               asChild
-              size="lg"
-              variant="outline"
-              className="border-white text-white hover:bg-white/10"
+              size="sm"
+              className="h-10 rounded-lg border border-[#d7dbeb] bg-white px-6 text-[#26337f] hover:bg-[#f4f6fc]"
             >
               <Link to="/about" className="flex items-center gap-2">
                 <Play className="h-4 w-4" />
@@ -69,17 +67,12 @@ export function HeroSection({ isLive, streamUrl }: HeroSectionProps) {
               </Link>
             </Button>
           </div>
-        </div>
-      </div>
 
-      {/* Wave */}
-      <div className="absolute bottom-0 left-0 right-0">
-        <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path
-            d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z"
-            fill="white"
-          />
-        </svg>
+          <div className="mt-14 hidden flex-col items-center text-[#5c6385] sm:flex">
+            <span className="mb-2 text-xs">اكتشف المزيد</span>
+            <Mouse className="h-5 w-5" />
+          </div>
+        </div>
       </div>
     </section>
   );

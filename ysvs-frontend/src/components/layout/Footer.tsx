@@ -21,7 +21,6 @@ export function Footer() {
     <footer className="border-t bg-neutral-900 text-white">
       <div className="container mx-auto px-4 py-12">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-          {/* About */}
           <div>
             <div className="mb-4 flex items-center gap-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-600 font-bold">
@@ -36,7 +35,6 @@ export function Footer() {
             </p>
           </div>
 
-          {/* Quick Links */}
           <div>
             <h3 className="mb-4 font-bold">روابط سريعة</h3>
             <ul className="space-y-2">
@@ -53,7 +51,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Contact Info */}
           <div>
             <h3 className="mb-4 font-bold">معلومات التواصل</h3>
             <ul className="space-y-3">
@@ -72,7 +69,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Social Links */}
           <div>
             <h3 className="mb-4 font-bold">تابعنا</h3>
             <div className="flex gap-2">
@@ -92,7 +88,6 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Copyright */}
         <div className="mt-8 border-t border-neutral-800 pt-8 text-center text-sm text-neutral-500">
           <p>
             © {new Date().getFullYear()} الجمعية اليمنية لجراحة الأوعية الدموية.
