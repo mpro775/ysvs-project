@@ -2,12 +2,13 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, ArrowRight, AlertCircle } from "lucide-react";
+import { Loader2, ArrowRight, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,9 +21,59 @@ import {
 } from "@/components/ui/select";
 import { useEvent, useUpdateEvent, checkSlugAvailability } from "@/api/hooks/useEvents";
 import { FormBuilder } from "@/components/form-builder/FormBuilder";
+import { EventCoverImageField } from "@/components/events/EventCoverImageField";
 import type { FormField } from "@/types";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
+
+const scientificSessionTypes = ["talk", "panel", "workshop"] as const;
+const sessionTypeOptions = [
+  { value: "talk", label: "محاضرة علمية" },
+  { value: "panel", label: "جلسة نقاش" },
+  { value: "workshop", label: "ورشة عمل" },
+  { value: "opening", label: "افتتاح" },
+  { value: "closing", label: "ختام" },
+  { value: "break", label: "استراحة" },
+  { value: "networking", label: "جلسة تواصل" },
+] as const;
+
+const requiresSpeakers = (sessionType: string) =>
+  scientificSessionTypes.includes(sessionType as (typeof scientificSessionTypes)[number]);
+
+const createClientId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+
+const speakerSchema = z.object({
+  id: z.string().min(1),
+  nameAr: z.string().trim().min(2, "اسم المتحدث مطلوب"),
+  nameEn: z.string().optional(),
+  titleAr: z.string().trim().min(2, "المسمى الوظيفي مطلوب"),
+  titleEn: z.string().optional(),
+  organizationAr: z.string().optional(),
+  organizationEn: z.string().optional(),
+  bioAr: z.string().optional(),
+  bioEn: z.string().optional(),
+  image: z.string().url("رابط صورة المتحدث غير صالح").optional().or(z.literal("")),
+});
+
+const scheduleItemSchema = z
+  .object({
+    id: z.string().min(1),
+    titleAr: z.string().trim().min(2, "عنوان الجلسة مطلوب"),
+    titleEn: z.string().optional(),
+    descriptionAr: z.string().optional(),
+    descriptionEn: z.string().optional(),
+    startTime: z.string().min(1, "وقت بداية الجلسة مطلوب"),
+    endTime: z.string().min(1, "وقت نهاية الجلسة مطلوب"),
+    sessionType: z.enum(sessionTypeOptions.map((item) => item.value) as [
+      (typeof sessionTypeOptions)[number]["value"],
+      ...(typeof sessionTypeOptions)[number]["value"][],
+    ]),
+    speakerIds: z.array(z.string()),
+  })
+  .refine((value) => new Date(value.endTime) > new Date(value.startTime), {
+    path: ["endTime"],
+    message: "وقت نهاية الجلسة يجب أن يكون بعد وقت البداية",
+  });
 
 const eventSchema = z
   .object({
@@ -34,17 +85,31 @@ const eventSchema = z
       .regex(/^[a-z0-9-]+$/, "الرابط يجب أن يحتوي على أحرف إنجليزية صغيرة وأرقام وشرطات فقط"),
     descriptionAr: z.string().optional(),
     descriptionEn: z.string().optional(),
+    coverImage: z.string().url("رابط الصورة غير صالح").optional().or(z.literal("")),
     startDate: z.string().min(1, "تاريخ البداية مطلوب"),
     endDate: z.string().min(1, "تاريخ النهاية مطلوب"),
     registrationDeadline: z.string().optional(),
     venue: z.string().optional(),
     address: z.string().optional(),
     city: z.string().optional(),
+    googleMapsUrl: z.string().url("رابط خرائط جوجل غير صالح").optional().or(z.literal("")),
+    mapEmbedUrl: z.string().url("رابط تضمين الخريطة غير صالح").optional().or(z.literal("")),
     maxAttendees: z.number().min(0).optional(),
     cmeHours: z.number().min(0).optional(),
     registrationOpen: z.boolean(),
     registrationAccess: z.enum(["authenticated_only", "public"]),
     guestEmailMode: z.enum(["required", "optional"]),
+    outcomes: z
+      .array(z.string().trim().min(1, "لا يمكن حفظ نقطة فارغة"))
+      .min(1, "أضف نقطة واحدة على الأقل في مخرجات المؤتمر"),
+    objectives: z
+      .array(z.string().trim().min(1, "لا يمكن حفظ هدف فارغ"))
+      .min(1, "أضف هدفاً واحداً على الأقل"),
+    targetAudience: z
+      .array(z.string().trim().min(1, "لا يمكن حفظ فئة فارغة"))
+      .min(1, "أضف فئة مستهدفة واحدة على الأقل"),
+    speakers: z.array(speakerSchema),
+    schedule: z.array(scheduleItemSchema),
   })
   .refine((values) => new Date(values.endDate) >= new Date(values.startDate), {
     path: ["endDate"],
@@ -59,10 +124,51 @@ const eventSchema = z
       path: ["registrationDeadline"],
       message: "موعد إغلاق التسجيل يجب أن يكون قبل أو يساوي تاريخ بداية المؤتمر",
     }
-  );
+  )
+  .superRefine((values, ctx) => {
+    const eventStart = new Date(values.startDate);
+    const eventEnd = new Date(values.endDate);
+    const speakerIds = new Set(values.speakers.map((speaker) => speaker.id));
+
+    values.schedule.forEach((session, index) => {
+      const sessionStart = new Date(session.startTime);
+      const sessionEnd = new Date(session.endTime);
+
+      if (sessionStart < eventStart || sessionEnd > eventEnd) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["schedule", index, "startTime"],
+          message: "يجب أن تكون الجلسة ضمن وقت بداية ونهاية المؤتمر",
+        });
+      }
+
+      if (requiresSpeakers(session.sessionType) && session.speakerIds.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["schedule", index, "speakerIds"],
+          message: "هذه الجلسة تتطلب متحدثاً واحداً على الأقل",
+        });
+      }
+
+      session.speakerIds.forEach((speakerId, speakerIndex) => {
+        if (!speakerIds.has(speakerId)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["schedule", index, "speakerIds", speakerIndex],
+            message: "تم اختيار متحدث غير موجود في قائمة المتحدثين",
+          });
+        }
+      });
+    });
+  });
 
 type EventForm = z.infer<typeof eventSchema>;
 type SlugStatus = "idle" | "checking" | "available" | "taken";
+
+const toDateTimeLocal = (dateValue?: Date | string) => {
+  if (!dateValue) return "";
+  return new Date(dateValue).toISOString().slice(0, 16);
+};
 
 export default function AdminEventEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -86,6 +192,11 @@ export default function AdminEventEditPage() {
       registrationAccess: "authenticated_only",
       guestEmailMode: "required",
       registrationOpen: false,
+      outcomes: [""],
+      objectives: [""],
+      targetAudience: [""],
+      speakers: [],
+      schedule: [],
     },
   });
 
@@ -97,19 +208,35 @@ export default function AdminEventEditPage() {
         slug: event.slug,
         descriptionAr: event.descriptionAr || "",
         descriptionEn: event.descriptionEn || "",
-        startDate: new Date(event.startDate).toISOString().slice(0, 16),
-        endDate: new Date(event.endDate).toISOString().slice(0, 16),
-        registrationDeadline: event.registrationDeadline
-          ? new Date(event.registrationDeadline).toISOString().slice(0, 16)
-          : "",
+        coverImage: event.coverImage || "",
+        startDate: toDateTimeLocal(event.startDate),
+        endDate: toDateTimeLocal(event.endDate),
+        registrationDeadline: toDateTimeLocal(event.registrationDeadline),
         venue: event.location?.venue || "",
         address: event.location?.address || "",
         city: event.location?.city || "",
+        googleMapsUrl: event.location?.googleMapsUrl || "",
+        mapEmbedUrl: event.location?.mapEmbedUrl || "",
         maxAttendees: event.maxAttendees,
         cmeHours: event.cmeHours,
         registrationOpen: event.registrationOpen,
         registrationAccess: event.registrationAccess || "authenticated_only",
         guestEmailMode: event.guestEmailMode || "required",
+        outcomes: event.outcomes?.length ? event.outcomes : [""],
+        objectives: event.objectives?.length ? event.objectives : [""],
+        targetAudience: event.targetAudience?.length ? event.targetAudience : [""],
+        speakers:
+          event.speakers?.map((speaker) => ({
+            ...speaker,
+            image: speaker.image || "",
+          })) || [],
+        schedule:
+          event.schedule?.map((session) => ({
+            ...session,
+            startTime: toDateTimeLocal(session.startTime),
+            endTime: toDateTimeLocal(session.endTime),
+            speakerIds: session.speakerIds || [],
+          })) || [],
       });
       setFormSchema(event.formSchema || []);
     }
@@ -117,6 +244,136 @@ export default function AdminEventEditPage() {
 
   const watchedValues = watch();
   const slugValue = watch("slug");
+  const outcomes = watchedValues.outcomes || [];
+  const objectives = watchedValues.objectives || [];
+  const targetAudience = watchedValues.targetAudience || [];
+  const speakers = watchedValues.speakers || [];
+  const schedule = watchedValues.schedule || [];
+
+  const addOutcome = () => {
+    setValue("outcomes", [...outcomes, ""], { shouldDirty: true, shouldValidate: true });
+  };
+
+  const updateOutcome = (index: number, value: string) => {
+    const next = [...outcomes];
+    next[index] = value;
+    setValue("outcomes", next, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const removeOutcome = (index: number) => {
+    const next = outcomes.filter((_, currentIndex) => currentIndex !== index);
+    setValue("outcomes", next.length ? next : [""], { shouldDirty: true, shouldValidate: true });
+  };
+
+  const addObjective = () => {
+    setValue("objectives", [...objectives, ""], { shouldDirty: true, shouldValidate: true });
+  };
+
+  const updateObjective = (index: number, value: string) => {
+    const next = [...objectives];
+    next[index] = value;
+    setValue("objectives", next, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const removeObjective = (index: number) => {
+    const next = objectives.filter((_, currentIndex) => currentIndex !== index);
+    setValue("objectives", next.length ? next : [""], { shouldDirty: true, shouldValidate: true });
+  };
+
+  const addTargetAudience = () => {
+    setValue("targetAudience", [...targetAudience, ""], { shouldDirty: true, shouldValidate: true });
+  };
+
+  const updateTargetAudience = (index: number, value: string) => {
+    const next = [...targetAudience];
+    next[index] = value;
+    setValue("targetAudience", next, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const removeTargetAudience = (index: number) => {
+    const next = targetAudience.filter((_, currentIndex) => currentIndex !== index);
+    setValue("targetAudience", next.length ? next : [""], { shouldDirty: true, shouldValidate: true });
+  };
+
+  const addSpeaker = () => {
+    const next = [
+      ...speakers,
+      {
+        id: createClientId("speaker"),
+        nameAr: "",
+        nameEn: "",
+        titleAr: "",
+        titleEn: "",
+        organizationAr: "",
+        organizationEn: "",
+        bioAr: "",
+        bioEn: "",
+        image: "",
+      },
+    ];
+    setValue("speakers", next, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const updateSpeakerField = (index: number, key: keyof EventForm["speakers"][number], value: string) => {
+    const next = [...speakers];
+    next[index] = { ...next[index], [key]: value };
+    setValue("speakers", next, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const removeSpeaker = (index: number) => {
+    const removedSpeakerId = speakers[index]?.id;
+    const nextSpeakers = speakers.filter((_, currentIndex) => currentIndex !== index);
+    setValue("speakers", nextSpeakers, { shouldDirty: true, shouldValidate: true });
+    if (removedSpeakerId) {
+      const nextSchedule = schedule.map((session) => ({
+        ...session,
+        speakerIds: (session.speakerIds || []).filter((speakerId) => speakerId !== removedSpeakerId),
+      }));
+      setValue("schedule", nextSchedule, { shouldDirty: true, shouldValidate: true });
+    }
+  };
+
+  const addScheduleItem = () => {
+    const next = [
+      ...schedule,
+      {
+        id: createClientId("session"),
+        titleAr: "",
+        titleEn: "",
+        descriptionAr: "",
+        descriptionEn: "",
+        startTime: watchedValues.startDate || "",
+        endTime: watchedValues.startDate || "",
+        sessionType: "talk" as const,
+        speakerIds: [],
+      },
+    ];
+    setValue("schedule", next, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const updateScheduleField = (
+    index: number,
+    key: keyof EventForm["schedule"][number],
+    value: string | string[]
+  ) => {
+    const next = [...schedule];
+    next[index] = { ...next[index], [key]: value };
+    setValue("schedule", next, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const removeScheduleItem = (index: number) => {
+    const next = schedule.filter((_, currentIndex) => currentIndex !== index);
+    setValue("schedule", next, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const toggleSessionSpeaker = (sessionIndex: number, speakerId: string, checked: boolean) => {
+    const session = schedule[sessionIndex];
+    const currentSpeakerIds = session.speakerIds || [];
+    const nextSpeakerIds = checked
+      ? [...new Set([...currentSpeakerIds, speakerId])]
+      : currentSpeakerIds.filter((id) => id !== speakerId);
+    updateScheduleField(sessionIndex, "speakerIds", nextSpeakerIds);
+  };
 
   useEffect(() => {
     if (!slugValue || slugValue.length < 3 || errors.slug || !id || !event) {
@@ -153,7 +410,7 @@ export default function AdminEventEditPage() {
   const onSubmit = (data: EventForm) => {
     if (!id) return;
 
-    const { venue, address, city, ...rest } = data;
+    const { venue, address, city, googleMapsUrl, mapEmbedUrl, ...rest } = data;
 
     if (slugStatus === "taken") {
       setSummaryError("لا يمكن حفظ التعديلات لأن الرابط المختصر مستخدم مسبقاً");
@@ -166,6 +423,7 @@ export default function AdminEventEditPage() {
         id,
         data: {
           ...rest,
+          coverImage: rest.coverImage || undefined,
           startDate: new Date(rest.startDate),
           endDate: new Date(rest.endDate),
           registrationDeadline: rest.registrationDeadline
@@ -176,8 +434,24 @@ export default function AdminEventEditPage() {
                 venue,
                 address: address || "",
                 city: city || "",
+                googleMapsUrl: googleMapsUrl || undefined,
+                mapEmbedUrl: mapEmbedUrl || undefined,
               }
             : undefined,
+          outcomes: rest.outcomes.map((item) => item.trim()).filter(Boolean),
+          objectives: rest.objectives.map((item) => item.trim()).filter(Boolean),
+          targetAudience: rest.targetAudience.map((item) => item.trim()).filter(Boolean),
+          speakers: rest.speakers.map((speaker) => ({
+            ...speaker,
+            image: speaker.image || undefined,
+          })),
+          schedule: rest.schedule
+            .map((session) => ({
+              ...session,
+              startTime: new Date(session.startTime),
+              endTime: new Date(session.endTime),
+            }))
+            .sort((a, b) => a.startTime.getTime() - b.startTime.getTime()),
           formSchema,
           registrationAccess: rest.registrationAccess,
           guestEmailMode: rest.guestEmailMode,
@@ -238,6 +512,7 @@ export default function AdminEventEditPage() {
         <Tabs defaultValue="basic">
           <TabsList>
             <TabsTrigger value="basic">البيانات الأساسية</TabsTrigger>
+            <TabsTrigger value="program">البرنامج العلمي</TabsTrigger>
             <TabsTrigger value="form">نموذج التسجيل</TabsTrigger>
           </TabsList>
 
@@ -255,9 +530,7 @@ export default function AdminEventEditPage() {
                       {...register("titleAr")}
                       className={errors.titleAr ? "border-destructive" : ""}
                     />
-                    {errors.titleAr && (
-                      <p className="text-sm text-destructive">{errors.titleAr.message}</p>
-                    )}
+                    {errors.titleAr && <p className="text-sm text-destructive">{errors.titleAr.message}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -268,9 +541,7 @@ export default function AdminEventEditPage() {
                       {...register("titleEn")}
                       className={errors.titleEn ? "border-destructive" : ""}
                     />
-                    {errors.titleEn && (
-                      <p className="text-sm text-destructive">{errors.titleEn.message}</p>
-                    )}
+                    {errors.titleEn && <p className="text-sm text-destructive">{errors.titleEn.message}</p>}
                   </div>
                 </div>
 
@@ -295,9 +566,7 @@ export default function AdminEventEditPage() {
                       slugStatus === "available" ? "border-green-600" : ""
                     )}
                   />
-                  <p className="font-mono text-xs text-muted-foreground">
-                    /events/{watchedValues.slug || "your-event-slug"}
-                  </p>
+                  <p className="font-mono text-xs text-muted-foreground">/events/{watchedValues.slug || "your-event-slug"}</p>
                   {slugStatusText && (
                     <p
                       className={cn(
@@ -309,9 +578,7 @@ export default function AdminEventEditPage() {
                       {slugStatusText}
                     </p>
                   )}
-                  {errors.slug && (
-                    <p className="text-sm text-destructive">{errors.slug.message}</p>
-                  )}
+                  {errors.slug && <p className="text-sm text-destructive">{errors.slug.message}</p>}
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
@@ -333,9 +600,7 @@ export default function AdminEventEditPage() {
                       {...register("endDate")}
                       className={errors.endDate ? "border-destructive" : ""}
                     />
-                    {errors.endDate && (
-                      <p className="text-sm text-destructive">{errors.endDate.message}</p>
-                    )}
+                    {errors.endDate && <p className="text-sm text-destructive">{errors.endDate.message}</p>}
                   </div>
                 </div>
 
@@ -356,6 +621,17 @@ export default function AdminEventEditPage() {
                   <Label htmlFor="descriptionAr">الوصف (عربي)</Label>
                   <Textarea id="descriptionAr" rows={4} {...register("descriptionAr")} />
                 </div>
+
+                <EventCoverImageField
+                  value={watchedValues.coverImage || undefined}
+                  onChange={(url) =>
+                    setValue("coverImage", url || "", {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                  disabled={isPending}
+                />
 
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
@@ -421,9 +697,7 @@ export default function AdminEventEditPage() {
                         <SelectValue placeholder="اختر صلاحية التسجيل" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="authenticated_only">
-                          فقط من لديهم حساب
-                        </SelectItem>
+                        <SelectItem value="authenticated_only">فقط من لديهم حساب</SelectItem>
                         <SelectItem value="public">متاح للجميع (بما فيهم الضيوف)</SelectItem>
                       </SelectContent>
                     </Select>
@@ -447,12 +721,360 @@ export default function AdminEventEditPage() {
                       </SelectContent>
                     </Select>
                     {watchedValues.registrationAccess !== "public" && (
-                      <p className="text-xs text-muted-foreground">
-                        يتاح هذا الخيار عند السماح بتسجيل الضيوف
-                      </p>
+                      <p className="text-xs text-muted-foreground">يتاح هذا الخيار عند السماح بتسجيل الضيوف</p>
                     )}
                   </div>
                 </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="googleMapsUrl">رابط خرائط جوجل</Label>
+                    <Input
+                      id="googleMapsUrl"
+                      dir="ltr"
+                      placeholder="https://maps.google.com/..."
+                      {...register("googleMapsUrl")}
+                    />
+                    <p className="text-xs text-muted-foreground">رابط لفتح الموقع في خرائط جوجل مباشرة</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="mapEmbedUrl">رابط تضمين الخريطة</Label>
+                    <Input
+                      id="mapEmbedUrl"
+                      dir="ltr"
+                      placeholder="https://www.google.com/maps/embed?..."
+                      {...register("mapEmbedUrl")}
+                    />
+                    <p className="text-xs text-muted-foreground">يتم عرضه داخل صفحة المؤتمر بدون API Key</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="program" className="mt-6 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>مخرجات المؤتمر</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={addOutcome}>
+                    <Plus className="ml-1 h-4 w-4" />
+                    إضافة نقطة
+                  </Button>
+                </div>
+
+                {outcomes.map((outcome, index) => (
+                  <div key={`outcome-${index}`} className="flex items-start gap-2">
+                    <Input
+                      value={outcome}
+                      onChange={(event) => updateOutcome(index, event.target.value)}
+                      placeholder={`النقطة ${index + 1}`}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeOutcome(index)}
+                      disabled={outcomes.length === 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+
+                {errors.outcomes?.message && (
+                  <p className="text-sm text-destructive">{errors.outcomes.message}</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>المتحدثون</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={addSpeaker}>
+                    <Plus className="ml-1 h-4 w-4" />
+                    إضافة متحدث
+                  </Button>
+                </div>
+
+                {!speakers.length && (
+                  <p className="text-sm text-muted-foreground">لم تتم إضافة متحدثين بعد</p>
+                )}
+
+                {speakers.map((speaker, index) => (
+                  <div key={speaker.id} className="rounded-lg border p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-sm font-medium">المتحدث {index + 1}</p>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeSpeaker(index)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label>الاسم بالعربي *</Label>
+                        <Input
+                          value={speaker.nameAr}
+                          onChange={(event) => updateSpeakerField(index, "nameAr", event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>المسمى الوظيفي *</Label>
+                        <Input
+                          value={speaker.titleAr}
+                          onChange={(event) => updateSpeakerField(index, "titleAr", event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>الجهة</Label>
+                        <Input
+                          value={speaker.organizationAr || ""}
+                          onChange={(event) => updateSpeakerField(index, "organizationAr", event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>صورة المتحدث (رابط)</Label>
+                        <Input
+                          dir="ltr"
+                          value={speaker.image || ""}
+                          onChange={(event) => updateSpeakerField(index, "image", event.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-3 space-y-1">
+                      <Label>نبذة مختصرة</Label>
+                      <Textarea
+                        rows={3}
+                        value={speaker.bioAr || ""}
+                        onChange={(event) => updateSpeakerField(index, "bioAr", event.target.value)}
+                      />
+                    </div>
+
+                    {(errors.speakers?.[index]?.nameAr?.message ||
+                      errors.speakers?.[index]?.titleAr?.message ||
+                      errors.speakers?.[index]?.image?.message) && (
+                      <p className="mt-2 text-sm text-destructive">
+                        {errors.speakers?.[index]?.nameAr?.message ||
+                          errors.speakers?.[index]?.titleAr?.message ||
+                          errors.speakers?.[index]?.image?.message}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>أهداف المؤتمر</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={addObjective}>
+                    <Plus className="ml-1 h-4 w-4" />
+                    إضافة هدف
+                  </Button>
+                </div>
+
+                {objectives.map((objective, index) => (
+                  <div key={`objective-${index}`} className="flex items-start gap-2">
+                    <Input
+                      value={objective}
+                      onChange={(event) => updateObjective(index, event.target.value)}
+                      placeholder={`الهدف ${index + 1}`}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeObjective(index)}
+                      disabled={objectives.length === 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+
+                {errors.objectives?.message && (
+                  <p className="text-sm text-destructive">{errors.objectives.message}</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>الفئة المستهدفة</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={addTargetAudience}>
+                    <Plus className="ml-1 h-4 w-4" />
+                    إضافة فئة
+                  </Button>
+                </div>
+
+                {targetAudience.map((audience, index) => (
+                  <div key={`target-${index}`} className="flex items-start gap-2">
+                    <Input
+                      value={audience}
+                      onChange={(event) => updateTargetAudience(index, event.target.value)}
+                      placeholder={`الفئة ${index + 1}`}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeTargetAudience(index)}
+                      disabled={targetAudience.length === 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+
+                {errors.targetAudience?.message && (
+                  <p className="text-sm text-destructive">{errors.targetAudience.message}</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>الجدول الزمني</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={addScheduleItem}>
+                    <Plus className="ml-1 h-4 w-4" />
+                    إضافة جلسة
+                  </Button>
+                </div>
+
+                {!schedule.length && (
+                  <p className="text-sm text-muted-foreground">لم تتم إضافة جلسات للجدول بعد</p>
+                )}
+
+                {schedule.map((session, index) => (
+                  <div key={session.id} className="rounded-lg border p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-sm font-medium">جلسة {index + 1}</p>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeScheduleItem(index)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-1 md:col-span-2">
+                        <Label>عنوان الجلسة *</Label>
+                        <Input
+                          value={session.titleAr}
+                          onChange={(event) => updateScheduleField(index, "titleAr", event.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label>نوع الجلسة *</Label>
+                        <Select
+                          value={session.sessionType}
+                          onValueChange={(value) => {
+                            const keepSpeakerIds = requiresSpeakers(value)
+                              ? session.speakerIds || []
+                              : [];
+                            const next = [...schedule];
+                            next[index] = {
+                              ...next[index],
+                              sessionType: value as EventForm["schedule"][number]["sessionType"],
+                              speakerIds: keepSpeakerIds,
+                            };
+                            setValue("schedule", next, { shouldDirty: true, shouldValidate: true });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="اختر نوع الجلسة" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sessionTypeOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label>وصف مختصر</Label>
+                        <Input
+                          value={session.descriptionAr || ""}
+                          onChange={(event) => updateScheduleField(index, "descriptionAr", event.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label>وقت البداية *</Label>
+                        <Input
+                          type="datetime-local"
+                          value={session.startTime}
+                          onChange={(event) => updateScheduleField(index, "startTime", event.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label>وقت النهاية *</Label>
+                        <Input
+                          type="datetime-local"
+                          value={session.endTime}
+                          onChange={(event) => updateScheduleField(index, "endTime", event.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {requiresSpeakers(session.sessionType) ? (
+                      <div className="mt-3 space-y-2 rounded-md bg-muted/40 p-3">
+                        <p className="text-xs text-muted-foreground">اختر متحدثاً واحداً على الأقل لهذه الجلسة</p>
+                        {!speakers.length ? (
+                          <p className="text-sm text-amber-700">أضف متحدثين أولاً لربطهم بالجلسة</p>
+                        ) : (
+                          <div className="grid gap-2 md:grid-cols-2">
+                            {speakers.map((speaker) => (
+                              <label key={`${session.id}-${speaker.id}`} className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                  checked={(session.speakerIds || []).includes(speaker.id)}
+                                  onCheckedChange={(checked) =>
+                                    toggleSessionSpeaker(index, speaker.id, checked === true)
+                                  }
+                                />
+                                <span>{speaker.nameAr || "متحدث بدون اسم"}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        هذا النوع لا يتطلب متحدثاً ويمكن نشره كجلسة مستقلة مثل الاستراحة أو الافتتاح.
+                      </p>
+                    )}
+
+                    {(errors.schedule?.[index]?.titleAr?.message ||
+                      errors.schedule?.[index]?.startTime?.message ||
+                      errors.schedule?.[index]?.endTime?.message ||
+                      errors.schedule?.[index]?.speakerIds?.message) && (
+                      <p className="mt-2 text-sm text-destructive">
+                        {errors.schedule?.[index]?.titleAr?.message ||
+                          errors.schedule?.[index]?.startTime?.message ||
+                          errors.schedule?.[index]?.endTime?.message ||
+                          errors.schedule?.[index]?.speakerIds?.message}
+                      </p>
+                    )}
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </TabsContent>

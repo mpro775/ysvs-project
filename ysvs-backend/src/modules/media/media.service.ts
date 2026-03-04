@@ -27,6 +27,15 @@ export interface UploadedFile {
   height?: number;
 }
 
+interface UploadBufferOptions {
+  buffer: Buffer;
+  originalName: string;
+  mimetype: string;
+  type?: MediaType;
+  folder?: string;
+  filename?: string;
+}
+
 @Injectable()
 export class MediaService {
   private readonly logger = new Logger(MediaService.name);
@@ -145,6 +154,38 @@ export class MediaService {
   ): Promise<UploadedFile[]> {
     const uploadPromises = files.map((file) => this.uploadFile(file, type, folder));
     return Promise.all(uploadPromises);
+  }
+
+  async uploadBuffer(options: UploadBufferOptions): Promise<UploadedFile> {
+    const {
+      buffer,
+      originalName,
+      mimetype,
+      type = MediaType.DOCUMENT,
+      folder,
+      filename,
+    } = options;
+
+    this.validateBuffer(buffer, mimetype, type);
+
+    const subFolder = this.sanitizeFolder(folder || type);
+    const extension = this.getFileExtension(originalName) || this.getDefaultExtension(mimetype);
+    const finalFilename = this.buildBufferFilename(filename, extension);
+    const key = `${subFolder}/${finalFilename}`;
+
+    await this.storeFile(key, buffer, mimetype);
+
+    const result: UploadedFile = {
+      originalName,
+      filename: finalFilename,
+      path: key,
+      url: this.buildPublicUrl(key),
+      size: buffer.length,
+      mimetype,
+    };
+
+    this.logger.log(`Buffer uploaded: ${finalFilename}`);
+    return result;
   }
 
   async findAll(limit: number = 50, page: number = 1): Promise<{
@@ -395,6 +436,25 @@ export class MediaService {
     }
   }
 
+  private validateBuffer(buffer: Buffer, mimetype: string, type: MediaType): void {
+    if (!buffer || buffer.length === 0) {
+      throw new BadRequestException('محتوى الملف فارغ');
+    }
+
+    if (buffer.length > this.maxFileSize) {
+      throw new BadRequestException(
+        `حجم الملف يتجاوز الحد المسموح (${this.maxFileSize / 1024 / 1024}MB)`,
+      );
+    }
+
+    const allowedTypes = this.getAllowedTypes(type);
+    if (!allowedTypes.includes(mimetype)) {
+      throw new BadRequestException(
+        `نوع الملف غير مسموح. الأنواع المسموحة: ${allowedTypes.join(', ')}`,
+      );
+    }
+  }
+
   private getAllowedTypes(type: MediaType): string[] {
     switch (type) {
       case MediaType.IMAGE:
@@ -412,6 +472,41 @@ export class MediaService {
 
   private getFileExtension(filename: string): string {
     return path.extname(filename).toLowerCase();
+  }
+
+  private getDefaultExtension(mimetype: string): string {
+    const extByType: Record<string, string> = {
+      'application/pdf': '.pdf',
+      'application/msword': '.doc',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+      'image/jpeg': '.jpg',
+      'image/png': '.png',
+      'image/gif': '.gif',
+      'image/webp': '.webp',
+    };
+
+    return extByType[mimetype] || '';
+  }
+
+  private buildBufferFilename(filename: string | undefined, extension: string): string {
+    if (!filename) {
+      return `${uuidv4()}${extension}`;
+    }
+
+    const normalized = filename
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-zA-Z0-9._-]/g, '');
+
+    if (!normalized) {
+      return `${uuidv4()}${extension}`;
+    }
+
+    if (path.extname(normalized)) {
+      return normalized;
+    }
+
+    return `${normalized}${extension}`;
   }
 
   private ensureDirectoryExists(dirPath: string): void {

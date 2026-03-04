@@ -12,7 +12,7 @@ export function UpcomingEventsSection({ events, isLoading }: UpcomingEventsSecti
   return (
     <section className="bg-[#f3f3f5] py-16">
       <div className="container mx-auto px-4">
-        <div className="mb-8 flex flex-col-reverse items-start justify-between gap-3 sm:flex-row sm:items-end">
+        <div className="mb-8 flex flex-col-reverse items-start justify-between gap-3 sm:flex-row-reverse sm:items-end">
           <Link to="/events" className="inline-flex items-center gap-2 text-sm font-semibold text-[#5147df] hover:text-[#3f37be]">
             عرض الكل
             <ArrowLeft className="h-4 w-4" />

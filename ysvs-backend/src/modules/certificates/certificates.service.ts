@@ -21,6 +21,8 @@ import { PdfGeneratorService } from './services/pdf-generator.service';
 import { SerialGeneratorService } from './services/serial-generator.service';
 import { CertificateMailService } from './services/certificate-mail.service';
 import { RegistrationService } from '../events/registration.service';
+import { MediaService } from '../media/media.service';
+import { MediaType } from '../media/dto';
 import { CreateTemplateDto, RevokeCertificateDto } from './dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
 
@@ -36,6 +38,7 @@ export class CertificatesService {
     private pdfGeneratorService: PdfGeneratorService,
     private serialGeneratorService: SerialGeneratorService,
     private registrationService: RegistrationService,
+    private mediaService: MediaService,
     private certificateMailService: CertificateMailService,
     private configService: ConfigService,
     private jwtService: JwtService,
@@ -117,11 +120,18 @@ export class CertificatesService {
       template || undefined,
     );
 
-    // Save PDF file
-    const pdfPath = await this.pdfGeneratorService.saveCertificatePdf(
+    const eventId = event._id.toString();
+    const issueDate = new Date();
+    const folder = this.buildCertificateFolder(eventId, issueDate);
+    const uploadedPdf = await this.mediaService.uploadBuffer({
       buffer,
-      serialNumber,
-    );
+      originalName: `${serialNumber}.pdf`,
+      mimetype: 'application/pdf',
+      type: MediaType.DOCUMENT,
+      folder,
+      filename: serialNumber,
+    });
+    const pdfPath = uploadedPdf.path;
 
     // Create certificate record
     const certificate = new this.certificateModel({
@@ -137,10 +147,11 @@ export class CertificatesService {
       eventTitleAr: event.titleAr,
       eventTitleEn: event.titleEn,
       cmeHours: event.cmeHours || 0,
-      issueDate: new Date(),
+      issueDate,
       eventDate: event.startDate,
       templateUsed: template?.name,
       pdfPath,
+      pdfUrl: uploadedPdf.url,
     });
 
     const savedCertificate = await certificate.save();
@@ -362,6 +373,32 @@ export class CertificatesService {
     return certificate.pdfPath;
   }
 
+  resolveCertificatePublicUrl(certificate: {
+    pdfPath?: string;
+    pdfUrl?: string;
+  }): string {
+    if (certificate.pdfUrl) {
+      return certificate.pdfUrl;
+    }
+
+    if (!certificate.pdfPath) {
+      throw new NotFoundException('ملف الشهادة غير موجود');
+    }
+
+    if (this.isAbsoluteUrl(certificate.pdfPath)) {
+      return certificate.pdfPath;
+    }
+
+    const normalizedPath = certificate.pdfPath.replace(/^[/\\]+/, '').replace(/\\/g, '/');
+    const r2PublicUrl = this.configService.get<string>('storage.r2PublicUrl') || '';
+
+    if (!r2PublicUrl) {
+      throw new BadRequestException('رابط R2_PUBLIC_URL غير مضبوط');
+    }
+
+    return `${r2PublicUrl.replace(/\/$/, '')}/${normalizedPath}`;
+  }
+
   async sendGuestCertificateEmail(certificateId: string): Promise<{ sent: boolean }> {
     const certificate = await this.certificateModel.findById(certificateId);
 
@@ -549,6 +586,16 @@ export class CertificatesService {
         expiresIn: '72h',
       },
     );
+  }
+
+  private buildCertificateFolder(eventId: string, issueDate: Date): string {
+    const year = issueDate.getUTCFullYear();
+    const month = `${issueDate.getUTCMonth() + 1}`.padStart(2, '0');
+    return `certificates/${eventId}/${year}/${month}`;
+  }
+
+  private isAbsoluteUrl(value: string): boolean {
+    return /^https?:\/\//i.test(value);
   }
 
   private extractNameFromFormData(formData: unknown): string | null {

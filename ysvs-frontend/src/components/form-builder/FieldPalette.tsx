@@ -39,7 +39,7 @@ export function FieldPalette({ onSelect, onClose }: FieldPaletteProps) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm">اختر نوع الحقل</CardTitle>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
+        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
       </CardHeader>

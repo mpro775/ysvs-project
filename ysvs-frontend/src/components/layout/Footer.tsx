@@ -1,5 +1,14 @@
 import { Link } from 'react-router-dom';
-import { Mail, Phone, MapPin, Facebook, Twitter, Youtube, Linkedin } from 'lucide-react';
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Facebook,
+  Twitter,
+  Youtube,
+  Instagram,
+} from 'lucide-react';
+import logo from '@/assets/logo.png';
 
 const quickLinks = [
   { href: '/about', label: 'عن الجمعية' },
@@ -12,37 +21,47 @@ const quickLinks = [
 const socialLinks = [
   { href: 'https://facebook.com', icon: Facebook, label: 'Facebook' },
   { href: 'https://twitter.com', icon: Twitter, label: 'Twitter' },
+  { href: 'https://instagram.com', icon: Instagram, label: 'Instagram' },
   { href: 'https://youtube.com', icon: Youtube, label: 'YouTube' },
-  { href: 'https://linkedin.com', icon: Linkedin, label: 'LinkedIn' },
 ];
 
 export function Footer() {
   return (
-    <footer className="border-t bg-neutral-900 text-white">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <div className="mb-4 flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-600 font-bold">
-                YSVS
-              </div>
-              <span className="font-bold">الجمعية اليمنية لجراحة الأوعية</span>
-            </div>
-            <p className="text-sm text-neutral-400">
-              الجمعية اليمنية لجراحة الأوعية الدموية هي جمعية طبية متخصصة تهدف إلى
-              تطوير مجال جراحة الأوعية في اليمن من خلال التعليم المستمر والمؤتمرات
-              العلمية.
-            </p>
+    <footer className="border-t border-[#0f63b6] bg-[#0f1f3a] text-white">
+      <div className="mx-auto max-w-[1400px] px-4 py-10 sm:px-6">
+        <div className="grid gap-10 text-right md:grid-cols-2 lg:grid-cols-3">
+          <div className="lg:order-3">
+            <h3 className="mb-5 text-xl font-bold">تواصل معنا</h3>
+            <ul className="space-y-4 text-sm text-white/85">
+              <li className="flex items-center justify-between gap-4">
+                <span>صنعاء، اليمن شارع الزبيري</span>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1f3661] text-[#6cb7ff]">
+                  <MapPin className="h-5 w-5" />
+                </span>
+              </li>
+              <li className="flex items-center justify-between gap-4">
+                <span dir="ltr">+967 123 456 789</span>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1f3661] text-[#6cb7ff]">
+                  <Phone className="h-5 w-5" />
+                </span>
+              </li>
+              <li className="flex items-center justify-between gap-4">
+                <span>info@ysvs.org</span>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1f3661] text-[#6cb7ff]">
+                  <Mail className="h-5 w-5" />
+                </span>
+              </li>
+            </ul>
           </div>
 
-          <div>
-            <h3 className="mb-4 font-bold">روابط سريعة</h3>
-            <ul className="space-y-2">
+          <div className="lg:order-2">
+            <h3 className="mb-5 text-xl font-bold">روابط سريعة</h3>
+            <ul className="space-y-3">
               {quickLinks.map((link) => (
                 <li key={link.href}>
                   <Link
                     to={link.href}
-                    className="text-sm text-neutral-400 transition-colors hover:text-white"
+                    className="text-sm text-white/80 transition-colors hover:text-white"
                   >
                     {link.label}
                   </Link>
@@ -51,44 +70,44 @@ export function Footer() {
             </ul>
           </div>
 
-          <div>
-            <h3 className="mb-4 font-bold">معلومات التواصل</h3>
-            <ul className="space-y-3">
-              <li className="flex items-center gap-2 text-sm text-neutral-400">
-                <MapPin className="h-4 w-4 shrink-0" />
-                <span>صنعاء، اليمن</span>
-              </li>
-              <li className="flex items-center gap-2 text-sm text-neutral-400">
-                <Phone className="h-4 w-4 shrink-0" />
-                <span dir="ltr">+967 1 234 567</span>
-              </li>
-              <li className="flex items-center gap-2 text-sm text-neutral-400">
-                <Mail className="h-4 w-4 shrink-0" />
-                <span>info@ysvs.org</span>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="mb-4 font-bold">تابعنا</h3>
-            <div className="flex gap-2">
+          <div className="lg:order-1">
+            <Link to="/" className="mb-4 inline-flex">
+              <img
+                src={logo}
+                alt="شعار الجمعية اليمنية لجراحة الأوعية"
+                className="h-16 w-auto object-contain sm:h-20"
+              />
+            </Link>
+            <p className="mb-6 max-w-md text-sm leading-7 text-white/85">
+              الجمعية اليمنية لجراحة الأوعية الدموية - تسعى لتطوير الرعاية الصحية
+              المتخصصة في اليمن من خلال التدريب والبحث العلمي.
+            </p>
+            <div className="flex flex-row-reverse gap-2">
               {socialLinks.map((social) => (
                 <a
                   key={social.label}
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-800 text-neutral-400 transition-colors hover:bg-primary-600 hover:text-white"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2b3d5f] text-white/90 transition-colors hover:bg-[#3b5f93]"
                   aria-label={social.label}
                 >
-                  <social.icon className="h-5 w-5" />
+                  <social.icon className="h-4 w-4" />
                 </a>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="mt-8 border-t border-neutral-800 pt-8 text-center text-sm text-neutral-500">
+        <div className="mt-10 flex flex-col-reverse gap-4 border-t border-white/10 pt-6 text-sm text-white/65 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-6">
+            <Link to="/privacy" className="transition-colors hover:text-white">
+              سياسة الخصوصية
+            </Link>
+            <Link to="/terms" className="transition-colors hover:text-white">
+              الشروط والأحكام
+            </Link>
+          </div>
           <p>
             © {new Date().getFullYear()} الجمعية اليمنية لجراحة الأوعية الدموية.
             جميع الحقوق محفوظة.

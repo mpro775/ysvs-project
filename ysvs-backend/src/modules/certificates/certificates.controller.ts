@@ -94,12 +94,23 @@ export class CertificatesController {
   async downloadGuestCertificate(
     @Query('token') token: string,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<StreamableFile> {
+  ): Promise<StreamableFile | { downloadUrl: string; filename: string }> {
     if (!token) {
       throw new BadRequestException('رمز التحميل مطلوب');
     }
 
     const pdfPath = await this.certificatesService.getGuestCertificatePdfPath(token);
+
+    if (this.isR2Enabled()) {
+      const downloadUrl = this.certificatesService.resolveCertificatePublicUrl({ pdfPath });
+      if (await this.urlExists(downloadUrl)) {
+        return {
+          downloadUrl,
+          filename: 'guest-certificate.pdf',
+        };
+      }
+    }
+
     const normalizedPdfPath = pdfPath.replace(/^[/\\]+/, '');
     const uploadPath =
       this.configService.get<string>('storage.uploadPath') || './uploads';
@@ -164,7 +175,7 @@ export class CertificatesController {
     @CurrentUser('id') userId: string,
     @CurrentUser('role') userRole: string,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<StreamableFile> {
+  ): Promise<StreamableFile | { downloadUrl: string; filename: string }> {
     // Admins can download any certificate
     const certificate = await this.certificatesService.findById(id);
     
@@ -177,6 +188,22 @@ export class CertificatesController {
       throw new BadRequestException('ليس لديك صلاحية تحميل هذه الشهادة');
     }
 
+    if (this.isR2Enabled()) {
+      const downloadUrl = this.certificatesService.resolveCertificatePublicUrl({
+        pdfPath: certificate.pdfPath,
+        pdfUrl: (certificate as any).pdfUrl,
+      });
+
+      if (await this.urlExists(downloadUrl)) {
+        return {
+          downloadUrl,
+          filename: `${certificate.serialNumber}.pdf`,
+        };
+      }
+
+      // Fall back to local read for legacy certificates not migrated to R2 yet.
+    }
+
     const uploadPath = this.configService.get<string>('storage.uploadPath') || './uploads';
     const normalizedPdfPath = (certificate.pdfPath || '').replace(/^[/\\]+/, '');
     const filePath = path.join(uploadPath, normalizedPdfPath);
@@ -186,13 +213,26 @@ export class CertificatesController {
     }
 
     const file = fs.createReadStream(filePath);
-    
+
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="${certificate.serialNumber}.pdf"`,
     });
 
     return new StreamableFile(file);
+  }
+
+  private async urlExists(url: string): Promise<boolean> {
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  private isR2Enabled(): boolean {
+    return (this.configService.get<string>('storage.provider') || 'local') === 'r2';
   }
 
   @ApiBearerAuth('JWT-auth')

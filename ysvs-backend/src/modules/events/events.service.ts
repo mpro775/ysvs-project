@@ -8,7 +8,12 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
-import { Event, EventDocument, EventStatus } from './schemas/event.schema';
+import {
+  Event,
+  EventDocument,
+  EventStatus,
+  SessionType,
+} from './schemas/event.schema';
 import { TicketType, TicketTypeDocument } from './schemas/ticket-type.schema';
 import {
   CreateEventDto,
@@ -30,6 +35,8 @@ export class EventsService {
   // ============= EVENTS =============
 
   async create(createEventDto: CreateEventDto, userId: string): Promise<Event> {
+    this.validateEventPhaseOneFields(createEventDto);
+
     const event = new this.eventModel({
       ...createEventDto,
       createdBy: userId,
@@ -155,6 +162,17 @@ export class EventsService {
   }
 
   async update(id: string, updateEventDto: UpdateEventDto): Promise<Event> {
+    const existingEvent = await this.eventModel.findById(id).exec();
+    if (!existingEvent) {
+      throw new NotFoundException('المؤتمر غير موجود');
+    }
+
+    const mergedEvent = {
+      ...existingEvent.toObject(),
+      ...updateEventDto,
+    } as UpdateEventDto;
+    this.validateEventPhaseOneFields(mergedEvent);
+
     const event = await this.eventModel
       .findByIdAndUpdate(id, updateEventDto, { new: true })
       .populate('ticketTypes')
@@ -306,6 +324,135 @@ export class EventsService {
     await this.eventModel.findByIdAndUpdate(eventId, {
       $inc: { currentAttendees: -1 },
     });
+  }
+
+  private validateEventPhaseOneFields(
+    payload: Pick<
+      UpdateEventDto,
+      | 'startDate'
+      | 'endDate'
+      | 'outcomes'
+      | 'objectives'
+      | 'targetAudience'
+      | 'location'
+      | 'speakers'
+      | 'schedule'
+    >,
+  ): void {
+    this.validateTextList(payload.outcomes, 'مخرجات المؤتمر');
+    this.validateTextList(payload.objectives, 'أهداف المؤتمر');
+    this.validateTextList(payload.targetAudience, 'الفئة المستهدفة');
+    this.validateMapUrls(payload.location);
+    this.validateScheduleTimeBounds(payload.startDate, payload.endDate, payload.schedule);
+    this.validateScheduleSpeakers(payload.speakers, payload.schedule);
+  }
+
+  private validateTextList(items: string[] | undefined, label: string): void {
+    if (!items) {
+      return;
+    }
+
+    if (!Array.isArray(items)) {
+      throw new BadRequestException(`${label} يجب أن تكون قائمة`);
+    }
+
+    if (items.some((item) => typeof item !== 'string' || item.trim().length === 0)) {
+      throw new BadRequestException(`كل عنصر في ${label} يجب أن يكون نصاً غير فارغ`);
+    }
+  }
+
+  private validateMapUrls(location?: {
+    googleMapsUrl?: string;
+    mapEmbedUrl?: string;
+  }): void {
+    if (!location) {
+      return;
+    }
+
+    if (location.googleMapsUrl && !this.isGoogleMapsUrl(location.googleMapsUrl)) {
+      throw new BadRequestException('رابط خرائط جوجل غير صالح');
+    }
+
+    if (location.mapEmbedUrl && !this.isGoogleMapsEmbedUrl(location.mapEmbedUrl)) {
+      throw new BadRequestException('رابط تضمين خرائط جوجل غير صالح');
+    }
+  }
+
+  private isGoogleMapsUrl(url: string): boolean {
+    return /^https?:\/\/(www\.)?google\.[a-z.]+\/maps/i.test(url) || /^https?:\/\/maps\.app\.goo\.gl\//i.test(url);
+  }
+
+  private isGoogleMapsEmbedUrl(url: string): boolean {
+    return /^https?:\/\/(www\.)?google\.[a-z.]+\/maps\/embed/i.test(url);
+  }
+
+  private validateScheduleTimeBounds(
+    startDate?: Date,
+    endDate?: Date,
+    schedule?: Array<{ startTime: Date; endTime: Date }>,
+  ): void {
+    if (!schedule?.length) {
+      return;
+    }
+
+    if (!startDate || !endDate) {
+      throw new BadRequestException('لا يمكن التحقق من الجدول بدون وقت بداية ونهاية المؤتمر');
+    }
+
+    const eventStart = new Date(startDate);
+    const eventEnd = new Date(endDate);
+
+    for (const item of schedule) {
+      const sessionStart = new Date(item.startTime);
+      const sessionEnd = new Date(item.endTime);
+
+      if (Number.isNaN(sessionStart.getTime()) || Number.isNaN(sessionEnd.getTime())) {
+        throw new BadRequestException('توقيت الجلسة غير صالح');
+      }
+
+      if (sessionStart >= sessionEnd) {
+        throw new BadRequestException('وقت بداية الجلسة يجب أن يكون قبل وقت النهاية');
+      }
+
+      if (sessionStart < eventStart || sessionEnd > eventEnd) {
+        throw new BadRequestException('يجب أن يكون توقيت الجلسة ضمن نطاق وقت المؤتمر');
+      }
+    }
+  }
+
+  private validateScheduleSpeakers(
+    speakers?: Array<{ id: string }>,
+    schedule?: Array<{ sessionType: SessionType; speakerIds?: string[] }>,
+  ): void {
+    if (!schedule?.length) {
+      return;
+    }
+
+    const allowedSpeakerIds = new Set((speakers ?? []).map((speaker) => speaker.id));
+    const typesWithoutSpeakers = new Set<SessionType>([
+      SessionType.BREAK,
+      SessionType.NETWORKING,
+      SessionType.OPENING,
+      SessionType.CLOSING,
+    ]);
+
+    for (const item of schedule) {
+      const speakerIds = item.speakerIds ?? [];
+
+      if (!Array.isArray(speakerIds)) {
+        throw new BadRequestException('معرفات المتحدثين في الجلسة يجب أن تكون قائمة');
+      }
+
+      if (!typesWithoutSpeakers.has(item.sessionType) && speakerIds.length === 0) {
+        throw new BadRequestException('الجلسات العلمية تتطلب متحدثاً واحداً على الأقل');
+      }
+
+      for (const speakerId of speakerIds) {
+        if (!allowedSpeakerIds.has(speakerId)) {
+          throw new BadRequestException('تمت الإشارة إلى متحدث غير موجود في قائمة المتحدثين');
+        }
+      }
+    }
   }
 
   private async invalidateCache(): Promise<void> {

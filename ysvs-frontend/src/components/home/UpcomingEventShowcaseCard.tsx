@@ -57,21 +57,21 @@ export function UpcomingEventShowcaseCard({ event }: UpcomingEventShowcaseCardPr
               {format(new Date(event.startDate), 'd MMMM yyyy', { locale: ar })} -{' '}
               {format(new Date(event.endDate), 'd MMMM yyyy', { locale: ar })}
             </span>
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-[#ecf1ff] text-[#4a62ea]">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-primary-100 text-primary-700">
               <Calendar className="h-3.5 w-3.5" />
             </span>
           </div>
 
           <div className="flex items-center justify-between">
             <span>{event.location?.city || 'عن بعد'}</span>
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-[#ecf1ff] text-[#4a62ea]">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-primary-100 text-primary-700">
               <MapPin className="h-3.5 w-3.5" />
             </span>
           </div>
 
           <div className="flex items-center justify-between">
             <span>{event.maxAttendees > 0 ? `${event.maxAttendees} مشارك` : 'عدد مفتوح'}</span>
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-[#ecf1ff] text-[#4a62ea]">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-primary-100 text-primary-700">
               <Users className="h-3.5 w-3.5" />
             </span>
           </div>

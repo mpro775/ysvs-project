@@ -109,6 +109,17 @@ export class EventsController {
     return this.eventsService.checkSlugAvailability(slug, excludeId);
   }
 
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @Get('id/:id')
+  @ApiOperation({ summary: 'Get event by ID (Admin use)' })
+  @ApiResponse({ status: 200, description: 'Event details' })
+  @ApiResponse({ status: 404, description: 'Event not found' })
+  findById(@Param('id') id: string) {
+    return this.eventsService.findById(id);
+  }
+
   @Public()
   @Get(':slug')
   @ApiOperation({ summary: 'Get event by slug' })
@@ -121,11 +132,31 @@ export class EventsController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @Patch('id/:id')
+  @ApiOperation({ summary: 'Update event by ID (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Event updated successfully' })
+  updateById(@Param('id') id: string, @Body() updateEventDto: UpdateEventDto) {
+    return this.eventsService.update(id, updateEventDto);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @Patch(':id')
   @ApiOperation({ summary: 'Update event (Admin only)' })
   @ApiResponse({ status: 200, description: 'Event updated successfully' })
   update(@Param('id') id: string, @Body() updateEventDto: UpdateEventDto) {
     return this.eventsService.update(id, updateEventDto);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @Delete('id/:id')
+  @ApiOperation({ summary: 'Delete event by ID (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Event deleted successfully' })
+  removeById(@Param('id') id: string) {
+    return this.eventsService.remove(id);
   }
 
   @ApiBearerAuth('JWT-auth')
@@ -201,8 +232,7 @@ export class EventsController {
     );
   }
 
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @Post(':id/register/upload')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -231,7 +261,7 @@ export class EventsController {
   @ApiResponse({ status: 201, description: 'File uploaded successfully' })
   uploadRegistrationFile(
     @Param('id') eventId: string,
-    @CurrentUser('id') userId: string,
+    @CurrentUser('id') userId: string | null,
     @UploadedFile() file: Express.Multer.File,
     @Body('fieldId') fieldId: string,
   ) {

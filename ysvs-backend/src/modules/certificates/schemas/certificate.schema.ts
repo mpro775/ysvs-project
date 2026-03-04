@@ -63,6 +63,9 @@ export class Certificate extends Document {
   pdfPath: string;
 
   @Prop()
+  pdfUrl?: string;
+
+  @Prop()
   guestEmailSentAt?: Date;
 
   @Prop()

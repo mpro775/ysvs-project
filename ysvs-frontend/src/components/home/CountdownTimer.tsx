@@ -45,18 +45,20 @@ export function CountdownTimer({ targetDate }: CountdownTimerProps) {
   ];
 
   return (
-    <div className="flex justify-center gap-4">
-      {timeUnits.map((unit) => (
-        <div
-          key={unit.label}
-          className="flex flex-col items-center rounded-lg bg-white/10 px-4 py-3 backdrop-blur-sm sm:px-6 sm:py-4"
-        >
-          <span className="text-2xl font-bold sm:text-4xl">
-            {String(unit.value).padStart(2, '0')}
-          </span>
-          <span className="text-xs text-primary-200 sm:text-sm">{unit.label}</span>
-        </div>
-      ))}
+    <div className="mx-auto w-full max-w-3xl rounded-2xl border border-white/20 bg-white/5 p-3 shadow-[0_10px_35px_rgba(12,20,54,0.22)] backdrop-blur-sm sm:p-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+        {timeUnits.map((unit) => (
+          <div
+            key={unit.label}
+            className="rounded-xl border border-primary-200/25 bg-white/10 px-3 py-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] sm:px-4"
+          >
+            <span className="block text-3xl font-extrabold leading-none text-white sm:text-5xl">
+              {String(unit.value).padStart(2, '0')}
+            </span>
+            <span className="mt-2 block text-xs font-medium text-primary-100 sm:text-sm">{unit.label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

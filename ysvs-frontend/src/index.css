@@ -256,3 +256,35 @@
       @apply bg-background text-foreground;
     }
   }
+
+  @layer components {
+    .event-detail-theme {
+      --event-page-bg: linear-gradient(180deg, #f4f7fc 0%, #eef3fb 100%);
+      --event-hero-gradient: linear-gradient(120deg, #2f3dab 0%, #324fc5 52%, #2d5dcf 100%);
+      --event-hero-shadow: 0 20px 40px rgba(35, 63, 160, 0.24);
+      --event-surface: #ffffff;
+      --event-surface-muted: #f3f6fb;
+      --event-border: #dbe5f3;
+      --event-accent: #f19a34;
+      background: var(--event-page-bg);
+    }
+
+    .event-detail-hero {
+      background: var(--event-hero-gradient);
+    }
+
+    .event-surface-card {
+      background: var(--event-surface);
+      border: 1px solid var(--event-border);
+      border-radius: 1rem;
+      box-shadow: 0 8px 24px rgba(16, 45, 98, 0.08);
+    }
+
+    .event-hero-stat-card {
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 0.9rem;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 0.75rem;
+      backdrop-filter: blur(5px);
+    }
+  }

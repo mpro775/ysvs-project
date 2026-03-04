@@ -39,21 +39,13 @@ export function Header() {
       {/* الشريط الرئيسي */}
       <div className="overflow-hidden rounded-b-2xl bg-gradient-to-l from-[#214f96] to-[#2e2d9f] shadow-sm">
         <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between px-3 sm:px-6">
-          {/* RIGHT: logo + title (لازم يكون أول عنصر في RTL) */}
-          <Link to="/" className="flex items-center gap-2">
+          {/* RIGHT: logo only (لازم يكون أول عنصر في RTL) */}
+          <Link to="/" className="flex items-center">
             <img
               src={logo}
               alt="شعار الجمعية اليمنية لجراحة الأوعية"
-              className="h-9 w-9 rounded-full bg-white object-cover"
+              className="h-11 w-auto object-contain"
             />
-            <div className="hidden text-right leading-tight sm:block">
-              <p className="text-[10px] font-semibold">
-                الجمعية اليمنية لجراحة الأوعية الدموية
-              </p>
-              <p className="text-[9px] text-white/85">
-                Yemen Society of Vascular Surgery
-              </p>
-            </div>
           </Link>
 
           {/* CENTER: links */}

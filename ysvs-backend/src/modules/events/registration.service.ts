@@ -48,7 +48,7 @@ export class RegistrationService {
 
   async uploadRegistrationFile(
     eventId: string,
-    userId: string,
+    userId: string | null,
     fieldId: string,
     file: Express.Multer.File,
   ): Promise<{
@@ -78,7 +78,8 @@ export class RegistrationService {
 
     this.validateUploadAgainstField(field.validation?.fileTypes, field.validation?.maxFileSize, file);
 
-    const folder = `event-registrations/${eventId}/${userId}`;
+    const uploadOwner = userId || `guest-${uuidv4()}`;
+    const folder = `event-registrations/${eventId}/${uploadOwner}`;
     const mediaType = file.mimetype.startsWith('image/')
       ? MediaType.IMAGE
       : MediaType.DOCUMENT;

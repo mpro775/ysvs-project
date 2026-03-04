@@ -4,6 +4,9 @@ import api from '../axios';
 import { ENDPOINTS } from '../endpoints';
 import type { ApiResponse, Certificate, PaginatedResponse } from '@/types';
 
+const API_URL =
+  import.meta.env.VITE_API_URL || 'https://api.ysvs.smartagency-ye.com/api/v1';
+
 interface CertificateFilters {
   page?: number;
   limit?: number;
@@ -63,16 +66,64 @@ export const useVerifyCertificate = (serial: string) => {
 export const useDownloadCertificate = () => {
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await api.get(ENDPOINTS.CERTIFICATES.DOWNLOAD(id), {
-        responseType: 'blob',
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`${API_URL}${ENDPOINTS.CERTIFICATES.DOWNLOAD(id)}`, {
+        headers: token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : undefined,
       });
-      return response as unknown as Blob;
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'فشل تحميل الشهادة');
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const payload = (await response.json()) as {
+          success?: boolean;
+          data?: { downloadUrl?: string; filename?: string };
+          message?: string;
+        };
+
+        const downloadUrl = payload.data?.downloadUrl;
+        if (!downloadUrl) {
+          throw new Error(payload.message || 'رابط التحميل غير متاح');
+        }
+
+        return {
+          mode: 'url' as const,
+          downloadUrl,
+          filename: payload.data?.filename || `certificate-${id}.pdf`,
+        };
+      }
+
+      const blob = await response.blob();
+      return {
+        mode: 'blob' as const,
+        blob,
+        filename: `certificate-${id}.pdf`,
+      };
     },
-    onSuccess: (blob, id) => {
-      const url = URL.createObjectURL(blob);
+    onSuccess: (result) => {
+      if (result.mode === 'url') {
+        const a = document.createElement('a');
+        a.href = result.downloadUrl;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast.success('تم فتح رابط الشهادة');
+        return;
+      }
+
+      const url = URL.createObjectURL(result.blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `certificate-${id}.pdf`;
+      a.download = result.filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

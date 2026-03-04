@@ -20,6 +20,16 @@ export enum GuestEmailMode {
   OPTIONAL = 'optional',
 }
 
+export enum SessionType {
+  TALK = 'talk',
+  PANEL = 'panel',
+  WORKSHOP = 'workshop',
+  BREAK = 'break',
+  NETWORKING = 'networking',
+  OPENING = 'opening',
+  CLOSING = 'closing',
+}
+
 export enum FormFieldType {
   TEXT = 'text',
   TEXTAREA = 'textarea',
@@ -70,10 +80,37 @@ export interface Location {
   addressEn?: string;
   city: string;
   cityEn?: string;
+  googleMapsUrl?: string;
+  mapEmbedUrl?: string;
   coordinates?: {
     lat: number;
     lng: number;
   };
+}
+
+export interface EventSpeaker {
+  id: string;
+  nameAr: string;
+  nameEn?: string;
+  titleAr: string;
+  titleEn?: string;
+  organizationAr?: string;
+  organizationEn?: string;
+  bioAr?: string;
+  bioEn?: string;
+  image?: string;
+}
+
+export interface EventScheduleItem {
+  id: string;
+  titleAr: string;
+  titleEn?: string;
+  descriptionAr?: string;
+  descriptionEn?: string;
+  startTime: Date;
+  endTime: Date;
+  sessionType: SessionType;
+  speakerIds?: string[];
 }
 
 @Schema({ timestamps: true })
@@ -137,6 +174,21 @@ export class Event extends Document {
 
   @Prop({ default: 0 })
   currentAttendees: number;
+
+  @Prop({ type: [String], default: [] })
+  outcomes: string[];
+
+  @Prop({ type: [String], default: [] })
+  objectives: string[];
+
+  @Prop({ type: [String], default: [] })
+  targetAudience: string[];
+
+  @Prop({ type: [Object], default: [] })
+  speakers: EventSpeaker[];
+
+  @Prop({ type: [Object], default: [] })
+  schedule: EventScheduleItem[];
 
   @Prop({ type: [Object], default: [] })
   formSchema: FormField[];

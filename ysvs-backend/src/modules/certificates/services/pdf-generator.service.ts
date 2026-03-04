@@ -23,10 +23,15 @@ export class PdfGeneratorService {
   private readonly logger = new Logger(PdfGeneratorService.name);
   private readonly uploadPath: string;
   private readonly frontendUrl: string;
+  private readonly storageProvider: 'local' | 'r2';
+  private readonly r2PublicUrl: string;
 
   constructor(private configService: ConfigService) {
     this.uploadPath = this.configService.get<string>('storage.uploadPath') || './uploads';
     this.frontendUrl = this.configService.get<string>('app.frontendUrl') || 'http://localhost:5173';
+    this.storageProvider =
+      (this.configService.get<string>('storage.provider') || 'local') as 'local' | 'r2';
+    this.r2PublicUrl = this.configService.get<string>('storage.r2PublicUrl') || '';
 
     // Ensure certificates directory exists
     const certsDir = path.join(this.uploadPath, 'certificates');
@@ -58,9 +63,9 @@ export class PdfGeneratorService {
         // Add background if template has one
         if (template?.backgroundImage) {
           try {
-            const bgPath = path.join(this.uploadPath, template.backgroundImage);
-            if (fs.existsSync(bgPath)) {
-              doc.image(bgPath, 0, 0, {
+            const backgroundBuffer = await this.resolveBackgroundImage(template.backgroundImage);
+            if (backgroundBuffer) {
+              doc.image(backgroundBuffer, 0, 0, {
                 width: doc.page.width,
                 height: doc.page.height,
               });
@@ -192,5 +197,49 @@ export class PdfGeneratorService {
 
   generateVerificationUrl(serialNumber: string): string {
     return `${this.frontendUrl}/verify/${serialNumber}`;
+  }
+
+  private async resolveBackgroundImage(backgroundImage: string): Promise<Buffer | null> {
+    const normalized = backgroundImage.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    if (this.isAbsoluteUrl(normalized)) {
+      return this.fetchRemoteFile(normalized);
+    }
+
+    if (this.storageProvider === 'r2' && this.r2PublicUrl) {
+      const remoteUrl = `${this.r2PublicUrl.replace(/\/$/, '')}/${normalized.replace(/^[/\\]+/, '')}`;
+      const remoteBuffer = await this.fetchRemoteFile(remoteUrl);
+      if (remoteBuffer) {
+        return remoteBuffer;
+      }
+    }
+
+    const localPath = path.join(this.uploadPath, normalized.replace(/^[/\\]+/, ''));
+    if (!fs.existsSync(localPath)) {
+      return null;
+    }
+
+    return fs.promises.readFile(localPath);
+  }
+
+  private async fetchRemoteFile(url: string): Promise<Buffer | null> {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        return null;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    } catch {
+      return null;
+    }
+  }
+
+  private isAbsoluteUrl(value: string): boolean {
+    return /^https?:\/\//i.test(value);
   }
 }

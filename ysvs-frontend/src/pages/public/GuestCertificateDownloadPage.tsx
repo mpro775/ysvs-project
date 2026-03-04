@@ -34,6 +34,30 @@ export default function GuestCertificateDownloadPage() {
           throw new Error(errorText || 'فشل تحميل الشهادة');
         }
 
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const payload = (await response.json()) as {
+            success?: boolean;
+            data?: { downloadUrl?: string; filename?: string };
+            message?: string;
+          };
+
+          const directUrl = payload.data?.downloadUrl;
+          if (!directUrl) {
+            throw new Error(payload.message || 'رابط التحميل غير متاح');
+          }
+
+          setDownloadUrl(directUrl);
+          const anchor = document.createElement('a');
+          anchor.href = directUrl;
+          anchor.target = '_blank';
+          anchor.rel = 'noopener';
+          document.body.appendChild(anchor);
+          anchor.click();
+          document.body.removeChild(anchor);
+          return;
+        }
+
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         urlToRevoke = blobUrl;

@@ -9,6 +9,9 @@ import {
   ValidateNested,
   Min,
   IsArray,
+  ArrayMinSize,
+  IsUrl,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -16,6 +19,7 @@ import {
   EventStatus,
   RegistrationAccess,
   GuestEmailMode,
+  SessionType,
 } from '../schemas/event.schema';
 import { FormFieldDto } from './form-schema.dto';
 
@@ -49,6 +53,133 @@ class LocationDto {
   @IsOptional()
   @IsString()
   cityEn?: string;
+
+  @ApiPropertyOptional({
+    example: 'https://maps.google.com/?q=15.3694,44.1910',
+    description: 'Public Google Maps link for opening in new tab',
+  })
+  @IsOptional()
+  @IsUrl()
+  googleMapsUrl?: string;
+
+  @ApiPropertyOptional({
+    example: 'https://www.google.com/maps/embed?pb=!1m18!...',
+    description: 'Google Maps embed URL (no API key required)',
+  })
+  @IsOptional()
+  @IsUrl()
+  mapEmbedUrl?: string;
+}
+
+class EventSpeakerDto {
+  @ApiProperty({ example: 'spk-1' })
+  @IsString()
+  @IsNotEmpty()
+  id: string;
+
+  @ApiProperty({ example: 'د. محمد أحمد' })
+  @IsString()
+  @IsNotEmpty()
+  nameAr: string;
+
+  @ApiPropertyOptional({ example: 'Dr. Mohammed Ahmed' })
+  @IsOptional()
+  @IsString()
+  nameEn?: string;
+
+  @ApiProperty({ example: 'استشاري جراحة الأوعية الدموية' })
+  @IsString()
+  @IsNotEmpty()
+  titleAr: string;
+
+  @ApiPropertyOptional({ example: 'Vascular Surgery Consultant' })
+  @IsOptional()
+  @IsString()
+  titleEn?: string;
+
+  @ApiPropertyOptional({ example: 'مستشفى الكويت الجامعي' })
+  @IsOptional()
+  @IsString()
+  organizationAr?: string;
+
+  @ApiPropertyOptional({ example: 'Kuwait University Hospital' })
+  @IsOptional()
+  @IsString()
+  organizationEn?: string;
+
+  @ApiPropertyOptional({ description: 'Biography in Arabic' })
+  @IsOptional()
+  @IsString()
+  bioAr?: string;
+
+  @ApiPropertyOptional({ description: 'Biography in English' })
+  @IsOptional()
+  @IsString()
+  bioEn?: string;
+
+  @ApiPropertyOptional({ description: 'Speaker image URL' })
+  @IsOptional()
+  @IsUrl()
+  image?: string;
+}
+
+class EventScheduleItemDto {
+  @ApiProperty({ example: 'session-1' })
+  @IsString()
+  @IsNotEmpty()
+  id: string;
+
+  @ApiProperty({ example: 'الكلمة الافتتاحية' })
+  @IsString()
+  @IsNotEmpty()
+  titleAr: string;
+
+  @ApiPropertyOptional({ example: 'Opening Remarks' })
+  @IsOptional()
+  @IsString()
+  titleEn?: string;
+
+  @ApiPropertyOptional({ description: 'Session description in Arabic' })
+  @IsOptional()
+  @IsString()
+  descriptionAr?: string;
+
+  @ApiPropertyOptional({ description: 'Session description in English' })
+  @IsOptional()
+  @IsString()
+  descriptionEn?: string;
+
+  @ApiProperty({ example: '2026-03-15T09:00:00.000Z' })
+  @IsDate({ message: 'وقت بداية الجلسة غير صالح' })
+  @Type(() => Date)
+  startTime: Date;
+
+  @ApiProperty({ example: '2026-03-15T09:30:00.000Z' })
+  @IsDate({ message: 'وقت نهاية الجلسة غير صالح' })
+  @Type(() => Date)
+  endTime: Date;
+
+  @ApiProperty({ enum: SessionType, example: SessionType.OPENING })
+  @IsEnum(SessionType, { message: 'نوع الجلسة غير صالح' })
+  sessionType: SessionType;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Speaker IDs linked to this session when needed',
+  })
+  @ValidateIf(
+    (item: EventScheduleItemDto) =>
+      ![
+        SessionType.BREAK,
+        SessionType.NETWORKING,
+        SessionType.OPENING,
+        SessionType.CLOSING,
+      ].includes(item.sessionType),
+  )
+  @IsArray({ message: 'المتحدثون يجب أن يكونوا قائمة' })
+  @ArrayMinSize(1, { message: 'هذه الجلسة تتطلب متحدثاً واحداً على الأقل' })
+  @IsString({ each: true, message: 'معرف المتحدث غير صالح' })
+  speakerIds?: string[];
 }
 
 export class CreateEventDto {
@@ -143,6 +274,57 @@ export class CreateEventDto {
   @IsNumber()
   @Min(0)
   cmeHours?: number;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'What attendees will gain from this event',
+    example: ['تحديثات عملية في جراحة الأوعية', 'ساعات CME معتمدة'],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  outcomes?: string[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Event objectives',
+    example: ['رفع المعرفة بالتقنيات الحديثة', 'مناقشة أحدث الأدلة الإكلينيكية'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  objectives?: string[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Target audience groups',
+    example: ['جراحو الأوعية الدموية', 'أطباء الامتياز', 'المقيمون'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  targetAudience?: string[];
+
+  @ApiPropertyOptional({
+    type: [EventSpeakerDto],
+    description: 'Event speakers metadata',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EventSpeakerDto)
+  speakers?: EventSpeakerDto[];
+
+  @ApiPropertyOptional({
+    type: [EventScheduleItemDto],
+    description: 'Event timeline/schedule items',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EventScheduleItemDto)
+  schedule?: EventScheduleItemDto[];
 
   @ApiPropertyOptional({
     type: [FormFieldDto],

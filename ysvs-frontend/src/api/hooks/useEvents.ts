@@ -5,6 +5,8 @@ import { ENDPOINTS } from '../endpoints';
 import type {
   ApiResponse,
   Event,
+  EventScheduleItem,
+  EventSpeaker,
   FormField,
   GuestEmailMode,
   PaginatedResponse,
@@ -36,6 +38,8 @@ interface CreateEventData {
     addressEn?: string;
     city: string;
     cityEn?: string;
+    googleMapsUrl?: string;
+    mapEmbedUrl?: string;
   };
   status?: string;
   registrationOpen?: boolean;
@@ -44,6 +48,11 @@ interface CreateEventData {
   registrationDeadline?: Date;
   maxAttendees?: number;
   cmeHours?: number;
+  outcomes?: string[];
+  objectives?: string[];
+  targetAudience?: string[];
+  speakers?: EventSpeaker[];
+  schedule?: EventScheduleItem[];
   formSchema?: FormField[];
 }
 

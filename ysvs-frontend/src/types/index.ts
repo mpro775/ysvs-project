@@ -51,6 +51,18 @@ export const GuestEmailMode = {
 
 export type GuestEmailMode = (typeof GuestEmailMode)[keyof typeof GuestEmailMode];
 
+export const SessionType = {
+  TALK: 'talk',
+  PANEL: 'panel',
+  WORKSHOP: 'workshop',
+  BREAK: 'break',
+  NETWORKING: 'networking',
+  OPENING: 'opening',
+  CLOSING: 'closing',
+} as const;
+
+export type SessionType = (typeof SessionType)[keyof typeof SessionType];
+
 export const FormFieldType = {
   TEXT: 'text',
   TEXTAREA: 'textarea',
@@ -111,10 +123,37 @@ export interface Location {
   addressEn?: string;
   city: string;
   cityEn?: string;
+  googleMapsUrl?: string;
+  mapEmbedUrl?: string;
   coordinates?: {
     lat: number;
     lng: number;
   };
+}
+
+export interface EventSpeaker {
+  id: string;
+  nameAr: string;
+  nameEn?: string;
+  titleAr: string;
+  titleEn?: string;
+  organizationAr?: string;
+  organizationEn?: string;
+  bioAr?: string;
+  bioEn?: string;
+  image?: string;
+}
+
+export interface EventScheduleItem {
+  id: string;
+  titleAr: string;
+  titleEn?: string;
+  descriptionAr?: string;
+  descriptionEn?: string;
+  startTime: Date;
+  endTime: Date;
+  sessionType: SessionType;
+  speakerIds?: string[];
 }
 
 export interface Event {
@@ -135,6 +174,11 @@ export interface Event {
   registrationDeadline?: Date;
   maxAttendees: number;
   currentAttendees: number;
+  outcomes?: string[];
+  objectives?: string[];
+  targetAudience?: string[];
+  speakers?: EventSpeaker[];
+  schedule?: EventScheduleItem[];
   formSchema: FormField[];
   ticketTypes?: string[];
   cmeHours: number;
@@ -164,6 +208,7 @@ export interface Certificate {
   eventDate?: Date;
   templateUsed?: string;
   pdfPath?: string;
+  pdfUrl?: string;
   guestEmailSentAt?: Date;
   guestEmailLastError?: string;
   guestDownloadTokenIssuedAt?: Date;
