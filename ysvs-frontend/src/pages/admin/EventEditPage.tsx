@@ -153,6 +153,8 @@ export default function AdminEventEditPage() {
   const onSubmit = (data: EventForm) => {
     if (!id) return;
 
+    const { venue, address, city, ...rest } = data;
+
     if (slugStatus === "taken") {
       setSummaryError("لا يمكن حفظ التعديلات لأن الرابط المختصر مستخدم مسبقاً");
       return;
@@ -163,22 +165,22 @@ export default function AdminEventEditPage() {
       {
         id,
         data: {
-          ...data,
-          startDate: new Date(data.startDate),
-          endDate: new Date(data.endDate),
-          registrationDeadline: data.registrationDeadline
-            ? new Date(data.registrationDeadline)
+          ...rest,
+          startDate: new Date(rest.startDate),
+          endDate: new Date(rest.endDate),
+          registrationDeadline: rest.registrationDeadline
+            ? new Date(rest.registrationDeadline)
             : undefined,
-          location: data.venue
+          location: venue
             ? {
-                venue: data.venue,
-                address: data.address || "",
-                city: data.city || "",
+                venue,
+                address: address || "",
+                city: city || "",
               }
             : undefined,
           formSchema,
-          registrationAccess: data.registrationAccess,
-          guestEmailMode: data.guestEmailMode,
+          registrationAccess: rest.registrationAccess,
+          guestEmailMode: rest.guestEmailMode,
         },
       },
       {

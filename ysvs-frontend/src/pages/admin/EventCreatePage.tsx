@@ -151,6 +151,8 @@ export default function AdminEventCreatePage() {
   }, [slugStatus, slugValue]);
 
   const onSubmit = (data: EventForm) => {
+    const { venue, address, city, ...rest } = data;
+
     if (slugStatus === "taken") {
       setStepError("لا يمكن إنشاء المؤتمر لأن الرابط المختصر مستخدم مسبقاً");
       setCurrentStep(0);
@@ -159,22 +161,22 @@ export default function AdminEventCreatePage() {
 
     createEvent(
       {
-        ...data,
-        startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate),
-        registrationDeadline: data.registrationDeadline
-          ? new Date(data.registrationDeadline)
+        ...rest,
+        startDate: new Date(rest.startDate),
+        endDate: new Date(rest.endDate),
+        registrationDeadline: rest.registrationDeadline
+          ? new Date(rest.registrationDeadline)
           : undefined,
-        location: data.venue
+        location: venue
           ? {
-              venue: data.venue,
-              address: data.address || "",
-              city: data.city || "",
+              venue,
+              address: address || "",
+              city: city || "",
             }
           : undefined,
         formSchema,
-        registrationAccess: data.registrationAccess,
-        guestEmailMode: data.guestEmailMode,
+        registrationAccess: rest.registrationAccess,
+        guestEmailMode: rest.guestEmailMode,
       },
       {
         onSuccess: () => {

@@ -37,7 +37,10 @@ export function EmptyState({
         )}
       </div>
       {action && (
-        <Button onClick={action.onClick} className="mt-2">
+        <Button
+          onClick={action.onClick}
+          className="mt-2 bg-[#8B0000] text-white hover:bg-[#6F0000]"
+        >
           {action.label}
         </Button>
       )}
