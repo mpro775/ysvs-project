@@ -29,17 +29,52 @@ export default function AdminEventRegistrantsPage() {
     useEventRegistrations(id || "");
   const { mutate: markAttendance, isPending } = useMarkAttendance();
 
+  const extractUploadedFile = (formData: Record<string, unknown>) => {
+    for (const value of Object.values(formData)) {
+      if (typeof value === "object" && value !== null) {
+        const candidate = value as { url?: unknown; originalName?: unknown };
+        if (typeof candidate.url === "string") {
+          return {
+            url: candidate.url,
+            name:
+              typeof candidate.originalName === "string"
+                ? candidate.originalName
+                : "عرض الملف",
+          };
+        }
+      }
+    }
+
+    return null;
+  };
+
   const handleExport = () => {
     if (!registrations?.data || !event) return;
 
+    const formatDynamicValue = (value: unknown): string => {
+      if (!value) return '';
+      if (Array.isArray(value)) return value.join('، ');
+      if (typeof value === 'object') {
+        const maybeFile = value as { originalName?: unknown; url?: unknown };
+        if (typeof maybeFile.originalName === 'string') {
+          return maybeFile.originalName;
+        }
+        if (typeof maybeFile.url === 'string') {
+          return maybeFile.url;
+        }
+        return JSON.stringify(value);
+      }
+      return String(value);
+    };
+
     const data = registrations.data.map((reg) => {
-      const user = reg.user as User;
+      const user = reg.user as User | undefined;
       const baseData: Record<string, unknown> = {
         "رقم التسجيل": reg.registrationNumber,
-        "الاسم (عربي)": user.fullNameAr,
-        "الاسم (إنجليزي)": user.fullNameEn,
-        "البريد الإلكتروني": user.email,
-        الهاتف: user.phone,
+        "الاسم (عربي)": user?.fullNameAr || "ضيف",
+        "الاسم (إنجليزي)": user?.fullNameEn || "Guest",
+        "البريد الإلكتروني": user?.email || reg.guestEmail || "-",
+        الهاتف: user?.phone || "-",
         الحالة:
           reg.status === "attended"
             ? "حضر"
@@ -52,7 +87,7 @@ export default function AdminEventRegistrantsPage() {
       // Add dynamic form data
       if (event.formSchema) {
         event.formSchema.forEach((field) => {
-          baseData[field.label] = reg.formData[field.id] || "";
+          baseData[field.label] = formatDynamicValue(reg.formData[field.id]);
         });
       }
 
@@ -118,6 +153,7 @@ export default function AdminEventRegistrantsPage() {
               <TableHead>الاسم</TableHead>
               <TableHead>البريد</TableHead>
               <TableHead>الحالة</TableHead>
+              <TableHead>الملفات</TableHead>
               <TableHead>تاريخ التسجيل</TableHead>
               <TableHead>الحضور</TableHead>
             </TableRow>
@@ -142,13 +178,17 @@ export default function AdminEventRegistrantsPage() {
                     <Skeleton className="h-5 w-24" />
                   </TableCell>
                   <TableCell>
+                    <Skeleton className="h-5 w-24" />
+                  </TableCell>
+                  <TableCell>
                     <Skeleton className="h-5 w-20" />
                   </TableCell>
                 </TableRow>
               ))
             ) : registrations?.data?.length ? (
               registrations.data.map((reg) => {
-                const user = reg.user as User;
+                const user = reg.user as User | undefined;
+                const uploadedFile = extractUploadedFile(reg.formData);
                 return (
                   <TableRow key={reg._id}>
                     <TableCell className="font-mono">
@@ -156,13 +196,13 @@ export default function AdminEventRegistrantsPage() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{user.fullNameAr}</p>
+                        <p className="font-medium">{user?.fullNameAr || "ضيف"}</p>
                         <p className="text-sm text-muted-foreground">
-                          {user.fullNameEn}
+                          {user?.fullNameEn || "Guest"}
                         </p>
                       </div>
                     </TableCell>
-                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user?.email || reg.guestEmail || "-"}</TableCell>
                     <TableCell>
                       <Badge
                         variant={
@@ -179,6 +219,20 @@ export default function AdminEventRegistrantsPage() {
                           ? "مؤكد"
                           : "معلق"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {uploadedFile ? (
+                        <a
+                          href={uploadedFile.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary-700 underline"
+                        >
+                          {uploadedFile.name}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {format(new Date(reg.createdAt), "d MMM yyyy", {
@@ -216,7 +270,7 @@ export default function AdminEventRegistrantsPage() {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={7}>
                   <EmptyState
                     title="لا يوجد مسجلين"
                     description="لم يسجل أحد في هذا المؤتمر بعد"

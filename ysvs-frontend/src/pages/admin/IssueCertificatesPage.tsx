@@ -214,7 +214,7 @@ export default function AdminIssueCertificatesPage() {
                     ))
                   ) : eligibleRegistrations.length ? (
                     eligibleRegistrations.map((reg) => {
-                      const user = reg.user as User;
+                      const user = reg.user as User | undefined;
                       return (
                         <TableRow key={reg._id}>
                           <TableCell>
@@ -227,13 +227,13 @@ export default function AdminIssueCertificatesPage() {
                           </TableCell>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{user.fullNameAr}</p>
+                              <p className="font-medium">{user?.fullNameAr || "ضيف"}</p>
                               <p className="text-sm text-muted-foreground">
-                                {user.fullNameEn}
+                                {user?.fullNameEn || "Guest"}
                               </p>
                             </div>
                           </TableCell>
-                          <TableCell>{user.email}</TableCell>
+                          <TableCell>{user?.email || reg.guestEmail || "-"}</TableCell>
                           <TableCell className="font-mono">
                             {reg.registrationNumber}
                           </TableCell>

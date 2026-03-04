@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Search, Award, Ban, Plus } from "lucide-react";
+import { Search, Award, Ban, Plus, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCertificates,
   useRevokeCertificate,
+  useSendGuestCertificateEmail,
 } from "@/api/hooks/useCertificates";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -39,6 +40,8 @@ export default function AdminCertificatesPage() {
 
   const { mutate: revokeCertificate, isPending: isRevoking } =
     useRevokeCertificate();
+  const { mutate: sendGuestCertificateEmail, isPending: isSendingGuestEmail } =
+    useSendGuestCertificateEmail();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,6 +155,9 @@ export default function AdminCertificatesPage() {
                       <p className="text-sm text-muted-foreground">
                         {cert.recipientNameEn}
                       </p>
+                      {cert.holderType === "guest" && cert.holderEmail && (
+                        <p className="text-xs text-muted-foreground">{cert.holderEmail}</p>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>{cert.eventTitleAr}</TableCell>
@@ -167,16 +173,29 @@ export default function AdminCertificatesPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {cert.isValid && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => setRevokeDialog(cert)}
-                      >
-                        <Ban className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {cert.isValid && cert.holderType === "guest" && cert.holderEmail && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="إرسال رابط الشهادة للضيف"
+                          onClick={() => sendGuestCertificateEmail(cert._id)}
+                          disabled={isSendingGuestEmail}
+                        >
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {cert.isValid && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setRevokeDialog(cert)}
+                        >
+                          <Ban className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

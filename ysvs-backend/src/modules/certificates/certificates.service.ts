@@ -6,13 +6,20 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Certificate, CertificateDocument } from './schemas/certificate.schema';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import {
+  Certificate,
+  CertificateDocument,
+  CertificateHolderType,
+} from './schemas/certificate.schema';
 import {
   CertificateTemplate,
   CertificateTemplateDocument,
 } from './schemas/certificate-template.schema';
 import { PdfGeneratorService } from './services/pdf-generator.service';
 import { SerialGeneratorService } from './services/serial-generator.service';
+import { CertificateMailService } from './services/certificate-mail.service';
 import { RegistrationService } from '../events/registration.service';
 import { CreateTemplateDto, RevokeCertificateDto } from './dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
@@ -29,6 +36,9 @@ export class CertificatesService {
     private pdfGeneratorService: PdfGeneratorService,
     private serialGeneratorService: SerialGeneratorService,
     private registrationService: RegistrationService,
+    private certificateMailService: CertificateMailService,
+    private configService: ConfigService,
+    private jwtService: JwtService,
   ) {}
 
   // ============= CERTIFICATES =============
@@ -71,11 +81,28 @@ export class CertificatesService {
     // Prepare certificate data
     const user = registration.user as any;
     const event = registration.event as any;
+    const registrationData = registration as any;
+
+    const recipientNameAr =
+      user?.fullNameAr ||
+      registrationData.participantNameArSnapshot ||
+      this.extractNameFromFormData(registrationData.formData) ||
+      'ضيف';
+    const recipientNameEn =
+      user?.fullNameEn ||
+      registrationData.participantNameEnSnapshot ||
+      this.extractNameFromFormData(registrationData.formData) ||
+      'Guest';
+    const holderType = user
+      ? CertificateHolderType.USER
+      : CertificateHolderType.GUEST;
+    const holderEmail =
+      user?.email?.toLowerCase() || registrationData.guestEmailNormalized;
 
     const certificateData = {
       serialNumber,
-      recipientNameAr: user.fullNameAr,
-      recipientNameEn: user.fullNameEn,
+      recipientNameAr,
+      recipientNameEn,
       eventTitleAr: event.titleAr,
       eventTitleEn: event.titleEn,
       cmeHours: event.cmeHours || 0,
@@ -100,11 +127,13 @@ export class CertificatesService {
     const certificate = new this.certificateModel({
       registration: registrationId,
       event: event._id,
-      user: user._id,
+      user: user?._id,
+      holderType,
+      holderEmail,
       serialNumber,
       qrCode: verificationUrl,
-      recipientNameAr: user.fullNameAr,
-      recipientNameEn: user.fullNameEn,
+      recipientNameAr,
+      recipientNameEn,
       eventTitleAr: event.titleAr,
       eventTitleEn: event.titleEn,
       cmeHours: event.cmeHours || 0,
@@ -120,6 +149,16 @@ export class CertificatesService {
     await this.registrationService.markCertificateIssued(registrationId);
 
     this.logger.log(`Certificate generated: ${serialNumber}`);
+
+    if (holderType === CertificateHolderType.GUEST && holderEmail) {
+      try {
+        await this.sendGuestCertificateEmail(savedCertificate._id.toString());
+      } catch (error) {
+        this.logger.warn(
+          `Certificate created but guest email delivery failed for ${serialNumber}: ${(error as Error).message}`,
+        );
+      }
+    }
 
     return savedCertificate;
   }
@@ -312,7 +351,7 @@ export class CertificatesService {
     }
 
     // Check ownership (unless admin - handled at controller level)
-    if (certificate.user.toString() !== userId) {
+    if (!certificate.user || certificate.user.toString() !== userId) {
       throw new BadRequestException('ليس لديك صلاحية تحميل هذه الشهادة');
     }
 
@@ -321,6 +360,110 @@ export class CertificatesService {
     }
 
     return certificate.pdfPath;
+  }
+
+  async sendGuestCertificateEmail(certificateId: string): Promise<{ sent: boolean }> {
+    const certificate = await this.certificateModel.findById(certificateId);
+
+    if (!certificate) {
+      throw new NotFoundException('الشهادة غير موجودة');
+    }
+
+    if (certificate.holderType !== CertificateHolderType.GUEST || !certificate.holderEmail) {
+      throw new BadRequestException('إرسال البريد متاح فقط لشهادات الضيوف');
+    }
+
+    const token = this.createGuestDownloadToken(certificate._id.toString());
+    const frontendUrl =
+      this.configService.get<string>('app.frontendUrl') || 'http://localhost:5173';
+    const downloadUrl = `${frontendUrl}/certificate-download?token=${token}`;
+
+    try {
+      await this.certificateMailService.sendGuestCertificateEmail({
+        to: certificate.holderEmail,
+        recipientNameAr: certificate.recipientNameAr,
+        recipientNameEn: certificate.recipientNameEn,
+        eventTitleAr: certificate.eventTitleAr,
+        serialNumber: certificate.serialNumber,
+        downloadUrl,
+      });
+
+      certificate.guestEmailSentAt = new Date();
+      certificate.guestEmailLastError = undefined;
+      certificate.guestDownloadTokenIssuedAt = new Date();
+      await certificate.save();
+
+      return { sent: true };
+    } catch (error) {
+      certificate.guestEmailLastError =
+        error instanceof Error ? error.message : 'فشل إرسال البريد';
+      await certificate.save();
+      this.logger.error(
+        `Failed to send guest certificate email for ${certificate.serialNumber}: ${certificate.guestEmailLastError}`,
+      );
+      throw new BadRequestException(certificate.guestEmailLastError);
+    }
+  }
+
+  async getGuestCertificatePdfPath(token: string): Promise<string> {
+    let payload: { certificateId: string; type: string };
+
+    try {
+      payload = this.jwtService.verify(token, {
+        secret:
+          this.configService.get<string>('jwt.secret') ||
+          'ysvs-certificates-secret',
+      }) as { certificateId: string; type: string };
+    } catch {
+      throw new BadRequestException('رابط تحميل الشهادة غير صالح أو منتهي');
+    }
+
+    if (payload.type !== 'guest_certificate_download') {
+      throw new BadRequestException('نوع الرابط غير صالح');
+    }
+
+    const certificate = await this.certificateModel.findById(payload.certificateId);
+
+    if (!certificate) {
+      throw new NotFoundException('الشهادة غير موجودة');
+    }
+
+    if (certificate.holderType !== CertificateHolderType.GUEST) {
+      throw new BadRequestException('هذا الرابط مخصص لشهادات الضيوف فقط');
+    }
+
+    if (!certificate.isValid) {
+      throw new BadRequestException('لا يمكن تحميل شهادة ملغاة');
+    }
+
+    if (!certificate.pdfPath) {
+      throw new NotFoundException('ملف الشهادة غير موجود');
+    }
+
+    return certificate.pdfPath;
+  }
+
+  async linkGuestCertificatesToUser(userId: string, email: string): Promise<{
+    linked: number;
+  }> {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const updateResult = await this.certificateModel.updateMany(
+      {
+        holderEmail: normalizedEmail,
+        $or: [{ user: { $exists: false } }, { user: null }],
+      },
+      {
+        $set: {
+          user: userId,
+          holderType: CertificateHolderType.USER,
+        },
+      },
+    );
+
+    return {
+      linked: updateResult.modifiedCount,
+    };
   }
 
   // ============= TEMPLATES =============
@@ -391,5 +534,50 @@ export class CertificatesService {
     }
 
     await this.templateModel.findByIdAndDelete(id);
+  }
+
+  private createGuestDownloadToken(certificateId: string): string {
+    return this.jwtService.sign(
+      {
+        certificateId,
+        type: 'guest_certificate_download',
+      },
+      {
+        secret:
+          this.configService.get<string>('jwt.secret') ||
+          'ysvs-certificates-secret',
+        expiresIn: '72h',
+      },
+    );
+  }
+
+  private extractNameFromFormData(formData: unknown): string | null {
+    if (!formData || typeof formData !== 'object') {
+      return null;
+    }
+
+    const normalizedEntries =
+      formData instanceof Map
+        ? Array.from(formData.entries())
+        : Object.entries(formData as Record<string, unknown>);
+    const nameEntry = normalizedEntries.find(([key, value]) => {
+      if (typeof value !== 'string') {
+        return false;
+      }
+
+      const normalizedKey = key.toLowerCase();
+      return (
+        normalizedKey.includes('name') ||
+        normalizedKey.includes('full') ||
+        normalizedKey.includes('اسم')
+      );
+    });
+
+    if (!nameEntry || typeof nameEntry[1] !== 'string') {
+      return null;
+    }
+
+    const normalizedValue = nameEntry[1].trim();
+    return normalizedValue || null;
   }
 }

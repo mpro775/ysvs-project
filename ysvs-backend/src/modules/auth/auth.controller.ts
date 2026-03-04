@@ -120,4 +120,16 @@ export class AuthController {
   ) {
     return this.authService.changePassword(userId, changePasswordDto);
   }
+
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
+  @Post('link-guest-history')
+  @ApiOperation({ summary: 'Link guest registrations and certificates to current user' })
+  @ApiResponse({ status: 200, description: 'Guest history linked successfully' })
+  linkGuestHistory(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('email') email: string,
+  ) {
+    return this.authService.linkGuestHistoryToUser(userId, email);
+  }
 }

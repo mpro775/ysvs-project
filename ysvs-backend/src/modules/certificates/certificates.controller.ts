@@ -10,6 +10,8 @@ import {
   UseGuards,
   Res,
   StreamableFile,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -85,6 +87,38 @@ export class CertificatesController {
     return this.certificatesService.verifyCertificate(serial);
   }
 
+  @Public()
+  @Get('guest-download')
+  @ApiOperation({ summary: 'Download guest certificate by signed token (Public)' })
+  @ApiResponse({ status: 200, description: 'Certificate PDF file' })
+  async downloadGuestCertificate(
+    @Query('token') token: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    if (!token) {
+      throw new BadRequestException('رمز التحميل مطلوب');
+    }
+
+    const pdfPath = await this.certificatesService.getGuestCertificatePdfPath(token);
+    const normalizedPdfPath = pdfPath.replace(/^[/\\]+/, '');
+    const uploadPath =
+      this.configService.get<string>('storage.uploadPath') || './uploads';
+    const filePath = path.join(uploadPath, normalizedPdfPath);
+
+    if (!fs.existsSync(filePath)) {
+      throw new NotFoundException('ملف الشهادة غير موجود');
+    }
+
+    const file = fs.createReadStream(filePath);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'attachment; filename="guest-certificate.pdf"',
+    });
+
+    return new StreamableFile(file);
+  }
+
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
@@ -134,19 +168,21 @@ export class CertificatesController {
     // Admins can download any certificate
     const certificate = await this.certificatesService.findById(id);
     
-    if (
-      userRole !== UserRole.SUPER_ADMIN &&
-      userRole !== UserRole.ADMIN &&
-      certificate.user.toString() !== userId
-    ) {
-      throw new Error('ليس لديك صلاحية تحميل هذه الشهادة');
+    const isAdmin =
+      userRole === UserRole.SUPER_ADMIN || userRole === UserRole.ADMIN;
+    const ownsCertificate =
+      !!certificate.user && certificate.user.toString() === userId;
+
+    if (!isAdmin && !ownsCertificate) {
+      throw new BadRequestException('ليس لديك صلاحية تحميل هذه الشهادة');
     }
 
     const uploadPath = this.configService.get<string>('storage.uploadPath') || './uploads';
-    const filePath = path.join(uploadPath, certificate.pdfPath || '');
+    const normalizedPdfPath = (certificate.pdfPath || '').replace(/^[/\\]+/, '');
+    const filePath = path.join(uploadPath, normalizedPdfPath);
 
     if (!fs.existsSync(filePath)) {
-      throw new Error('ملف الشهادة غير موجود');
+      throw new NotFoundException('ملف الشهادة غير موجود');
     }
 
     const file = fs.createReadStream(filePath);
@@ -171,6 +207,16 @@ export class CertificatesController {
     @CurrentUser('id') userId: string,
   ) {
     return this.certificatesService.revokeCertificate(id, revokeDto, userId);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @Post(':id/send-guest-email')
+  @ApiOperation({ summary: 'Send guest certificate email (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Guest email sent successfully' })
+  sendGuestCertificateEmail(@Param('id') id: string) {
+    return this.certificatesService.sendGuestCertificateEmail(id);
   }
 
   // ============= TEMPLATES =============

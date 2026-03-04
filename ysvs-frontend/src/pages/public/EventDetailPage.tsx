@@ -57,6 +57,7 @@ export default function EventDetailPage() {
     new Date() > new Date(event.registrationDeadline);
   const canRegister =
     isUpcoming && event.registrationOpen && !registrationDeadlinePassed;
+  const allowsGuestRegistration = event.registrationAccess === 'public';
 
   return (
     <div>
@@ -220,7 +221,7 @@ export default function EventDetailPage() {
 
               {canRegister && (
                 <TabsContent value="register" className="mt-6">
-                  {isAuthenticated ? (
+                  {isAuthenticated || allowsGuestRegistration ? (
                     <Card>
                       <CardHeader>
                         <CardTitle>نموذج التسجيل</CardTitle>
@@ -229,6 +230,9 @@ export default function EventDetailPage() {
                         <DynamicForm
                           eventId={event._id}
                           schema={event.formSchema}
+                          isAuthenticated={isAuthenticated}
+                          guestRegistrationEnabled={allowsGuestRegistration}
+                          guestEmailMode={event.guestEmailMode || "required"}
                         />
                       </CardContent>
                     </Card>

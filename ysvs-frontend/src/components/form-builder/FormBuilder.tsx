@@ -110,6 +110,12 @@ export function FormBuilder({ initialSchema = [], onChange }: FormBuilderProps) 
     updateFields([...fields, newField]);
   };
 
+  const applyTemplate = (template: 'doctor' | 'nurse' | 'student') => {
+    const templateFields = buildTemplateFields(template);
+    updateFields(templateFields);
+    setSelectedField(templateFields[0] || null);
+  };
+
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       {/* Fields List */}
@@ -126,6 +132,23 @@ export function FormBuilder({ initialSchema = [], onChange }: FormBuilderProps) 
             إضافة حقل
           </Button>
         </div>
+
+        {fields.length === 0 && (
+          <div className="mb-4 rounded-lg border p-3">
+            <p className="mb-2 text-sm font-medium">قوالب جاهزة سريعة</p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="secondary" size="sm" onClick={() => applyTemplate('doctor')}>
+                قالب الأطباء
+              </Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => applyTemplate('nurse')}>
+                قالب التمريض
+              </Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => applyTemplate('student')}>
+                قالب الطلاب
+              </Button>
+            </div>
+          </div>
+        )}
 
         {showPalette && (
           <div className="mb-4">
@@ -216,4 +239,117 @@ function getDefaultLabelEn(type: FormFieldType): string {
     number: 'Number',
   };
   return labels[type] || 'Field';
+}
+
+function buildTemplateFields(template: 'doctor' | 'nurse' | 'student'): FormField[] {
+  if (template === 'doctor') {
+    return [
+      {
+        id: generateId(),
+        type: 'text',
+        label: 'الاسم الكامل',
+        labelEn: 'Full Name',
+        required: true,
+        order: 0,
+      },
+      {
+        id: generateId(),
+        type: 'phone',
+        label: 'رقم الهاتف',
+        labelEn: 'Phone Number',
+        required: true,
+        order: 1,
+      },
+      {
+        id: generateId(),
+        type: 'select',
+        label: 'الصفة الوظيفية',
+        labelEn: 'Position',
+        required: true,
+        order: 2,
+        options: [
+          { value: 'consultant', label: 'استشاري' },
+          { value: 'specialist', label: 'أخصائي' },
+          { value: 'resident', label: 'مقيم' },
+        ],
+      },
+      {
+        id: generateId(),
+        type: 'file',
+        label: 'بطاقة مزاولة المهنة',
+        labelEn: 'Practice License',
+        required: true,
+        order: 3,
+        validation: {
+          fileTypes: ['.pdf', '.jpg', '.jpeg', '.png'],
+          maxFileSize: 5,
+        },
+      },
+    ];
+  }
+
+  if (template === 'nurse') {
+    return [
+      {
+        id: generateId(),
+        type: 'text',
+        label: 'الاسم الكامل',
+        labelEn: 'Full Name',
+        required: true,
+        order: 0,
+      },
+      {
+        id: generateId(),
+        type: 'text',
+        label: 'جهة العمل',
+        labelEn: 'Workplace',
+        required: true,
+        order: 1,
+      },
+      {
+        id: generateId(),
+        type: 'radio',
+        label: 'سنوات الخبرة',
+        labelEn: 'Years of Experience',
+        required: true,
+        order: 2,
+        options: [
+          { value: 'lt2', label: 'أقل من سنتين' },
+          { value: '2to5', label: '2-5 سنوات' },
+          { value: 'gt5', label: 'أكثر من 5 سنوات' },
+        ],
+      },
+    ];
+  }
+
+  return [
+    {
+      id: generateId(),
+      type: 'text',
+      label: 'الاسم الكامل',
+      labelEn: 'Full Name',
+      required: true,
+      order: 0,
+    },
+    {
+      id: generateId(),
+      type: 'text',
+      label: 'الجامعة',
+      labelEn: 'University',
+      required: true,
+      order: 1,
+    },
+    {
+      id: generateId(),
+      type: 'number',
+      label: 'المستوى الدراسي',
+      labelEn: 'Academic Level',
+      required: true,
+      order: 2,
+      validation: {
+        min: 1,
+        max: 7,
+      },
+    },
+  ];
 }

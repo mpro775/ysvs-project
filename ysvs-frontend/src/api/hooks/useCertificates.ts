@@ -162,3 +162,23 @@ export const useRevokeCertificate = () => {
     },
   });
 };
+
+export const useSendGuestCertificateEmail = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.post<unknown, ApiResponse<{ sent: boolean }>>(
+        ENDPOINTS.CERTIFICATES.SEND_GUEST_EMAIL(id)
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['certificates'] });
+      toast.success('تم إرسال رابط الشهادة للضيف بنجاح');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'فشل إرسال بريد الشهادة');
+    },
+  });
+};

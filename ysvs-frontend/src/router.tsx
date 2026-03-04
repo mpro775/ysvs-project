@@ -19,6 +19,9 @@ const EventsPage = lazy(() => import('@/pages/public/EventsPage'));
 const EventDetailPage = lazy(() => import('@/pages/public/EventDetailPage'));
 const ContactPage = lazy(() => import('@/pages/public/ContactPage'));
 const VerifyPage = lazy(() => import('@/pages/public/VerifyPage'));
+const GuestCertificateDownloadPage = lazy(
+  () => import('@/pages/public/GuestCertificateDownloadPage'),
+);
 const LoginPage = lazy(() => import('@/pages/public/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/public/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/public/ForgotPasswordPage'));
@@ -71,6 +74,7 @@ export const router = createBrowserRouter([
       { path: 'contact', element: <ContactPage /> },
       { path: 'verify', element: <VerifyPage /> },
       { path: 'verify/:serial', element: <VerifyPage /> },
+      { path: 'certificate-download', element: <GuestCertificateDownloadPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
       { path: 'forgot-password', element: <ForgotPasswordPage /> },

@@ -28,6 +28,22 @@ export const useLogin = () => {
       login(data.user, data.accessToken, data.refreshToken);
       queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
       toast.success('تم تسجيل الدخول بنجاح');
+
+      const linkedRegistrations = data.guestLinkResult?.registrationsLinked || 0;
+      const linkedCertificates = data.guestLinkResult?.certificatesLinked || 0;
+      const skippedConflicts = data.guestLinkResult?.skippedRegistrationConflicts || 0;
+
+      if (linkedRegistrations > 0 || linkedCertificates > 0) {
+        toast.success(
+          `تم استيراد سجلاتك السابقة: ${linkedRegistrations} تسجيل و ${linkedCertificates} شهادة`
+        );
+      }
+
+      if (skippedConflicts > 0) {
+        toast.warning(
+          `تعذر ربط ${skippedConflicts} تسجيل بسبب وجود تسجيلات لنفس المؤتمر في حسابك`
+        );
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || 'فشل تسجيل الدخول');
@@ -45,8 +61,17 @@ export const useRegister = () => {
       );
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success('تم إنشاء الحساب بنجاح');
+
+      const linkedRegistrations = data.guestLinkResult?.registrationsLinked || 0;
+      const linkedCertificates = data.guestLinkResult?.certificatesLinked || 0;
+
+      if (linkedRegistrations > 0 || linkedCertificates > 0) {
+        toast.success(
+          `تم ربط سجل الضيف تلقائياً: ${linkedRegistrations} تسجيل و ${linkedCertificates} شهادة`
+        );
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || 'فشل إنشاء الحساب');

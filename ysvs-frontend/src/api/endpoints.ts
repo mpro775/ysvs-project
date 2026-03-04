@@ -26,13 +26,15 @@ export const ENDPOINTS = {
     BASE: '/events',
     BY_ID: (id: string) => `/events/${id}`,
     BY_SLUG: (slug: string) => `/events/${slug}`,
+    SLUG_AVAILABILITY: (slug: string) => `/events/slug-availability/${slug}`,
     UPCOMING: '/events/upcoming',
     FORM_SCHEMA: (id: string) => `/events/${id}/form-schema`,
     REGISTER: (id: string) => `/events/${id}/register`,
+    REGISTER_UPLOAD: (id: string) => `/events/${id}/register/upload`,
     REGISTRATIONS: (id: string) => `/events/${id}/registrations`,
     MY_REGISTRATIONS: '/events/my-registrations',
-    ATTENDANCE: (eventId: string, registrationId: string) =>
-      `/events/${eventId}/registrations/${registrationId}/attendance`,
+    ATTENDANCE: (_eventId: string, registrationId: string) =>
+      `/events/registrations/${registrationId}/attendance`,
   },
 
   // Certificates
@@ -42,9 +44,11 @@ export const ENDPOINTS = {
     VERIFY: (serial: string) => `/certificates/verify/${serial}`,
     MY_CERTIFICATES: '/certificates/my-certificates',
     DOWNLOAD: (id: string) => `/certificates/download/${id}`,
+    GUEST_DOWNLOAD: (token: string) => `/certificates/guest-download?token=${encodeURIComponent(token)}`,
     GENERATE: '/certificates/generate',
     BULK_GENERATE: '/certificates/bulk-generate',
     REVOKE: (id: string) => `/certificates/${id}/revoke`,
+    SEND_GUEST_EMAIL: (id: string) => `/certificates/${id}/send-guest-email`,
   },
 
   // Content (Articles)

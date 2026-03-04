@@ -4,6 +4,12 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  ListObjectsV2Command,
+} from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import * as path from 'path';
 import sharp from 'sharp';
@@ -24,8 +30,12 @@ export interface UploadedFile {
 @Injectable()
 export class MediaService {
   private readonly logger = new Logger(MediaService.name);
+  private readonly provider: 'local' | 'r2';
   private readonly uploadPath: string;
   private readonly maxFileSize: number;
+  private readonly r2Bucket: string;
+  private readonly r2PublicUrl: string;
+  private readonly s3Client?: S3Client;
 
   private readonly allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
   private readonly allowedDocumentTypes = [
@@ -35,11 +45,47 @@ export class MediaService {
   ];
 
   constructor(private configService: ConfigService) {
+    this.provider = (this.configService.get<string>('storage.provider') || 'local') as
+      | 'local'
+      | 'r2';
     this.uploadPath = this.configService.get<string>('storage.uploadPath') || './uploads';
     this.maxFileSize = this.configService.get<number>('storage.maxFileSize') || 5242880;
+    this.r2Bucket = this.configService.get<string>('storage.r2Bucket') || '';
+    this.r2PublicUrl = this.configService.get<string>('storage.r2PublicUrl') || '';
 
-    // Ensure upload directory exists
-    this.ensureDirectoryExists(this.uploadPath);
+    if (this.provider === 'r2') {
+      const accountId = this.configService.get<string>('storage.r2AccountId') || '';
+      const accessKeyId = this.configService.get<string>('storage.r2AccessKeyId') || '';
+      const secretAccessKey =
+        this.configService.get<string>('storage.r2SecretAccessKey') || '';
+      const region = this.configService.get<string>('storage.r2Region') || 'auto';
+
+      if (
+        !accountId ||
+        !accessKeyId ||
+        !secretAccessKey ||
+        !this.r2Bucket ||
+        !this.r2PublicUrl
+      ) {
+        throw new Error(
+          'R2 storage is enabled but required environment variables are missing',
+        );
+      }
+
+      this.s3Client = new S3Client({
+        region,
+        endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+        credentials: {
+          accessKeyId,
+          secretAccessKey,
+        },
+        forcePathStyle: true,
+      });
+    }
+
+    if (this.provider === 'local') {
+      this.ensureDirectoryExists(this.uploadPath);
+    }
   }
 
   async uploadFile(
@@ -49,31 +95,46 @@ export class MediaService {
   ): Promise<UploadedFile> {
     this.validateFile(file, type);
 
-    const subFolder = folder || type;
-    const uploadDir = path.join(this.uploadPath, subFolder);
-    this.ensureDirectoryExists(uploadDir);
+    const subFolder = this.sanitizeFolder(folder || type);
 
     const fileExtension = this.getFileExtension(file.originalname);
-    const filename = `${uuidv4()}${fileExtension}`;
-    const filePath = path.join(uploadDir, filename);
-
-    let result: UploadedFile;
+    const originalFilename = `${uuidv4()}${fileExtension}`;
 
     if (type === MediaType.IMAGE && this.isImage(file.mimetype)) {
-      result = await this.processImage(file, filePath, filename, subFolder);
-    } else {
-      await fs.promises.writeFile(filePath, file.buffer);
-      result = {
+      const processed = await this.processImage(file);
+      const finalFilename = originalFilename.replace(/\.[^.]+$/, '.webp');
+      const key = `${subFolder}/${finalFilename}`;
+
+      await this.storeFile(key, processed.buffer, processed.mimetype);
+
+      const result: UploadedFile = {
         originalName: file.originalname,
-        filename,
-        path: filePath,
-        url: `/${subFolder}/${filename}`,
-        size: file.size,
-        mimetype: file.mimetype,
+        filename: finalFilename,
+        path: key,
+        url: this.buildPublicUrl(key),
+        size: processed.size,
+        mimetype: processed.mimetype,
+        width: processed.width,
+        height: processed.height,
       };
+
+      this.logger.log(`File uploaded: ${finalFilename}`);
+      return result;
     }
 
-    this.logger.log(`File uploaded: ${filename}`);
+    const key = `${subFolder}/${originalFilename}`;
+    await this.storeFile(key, file.buffer, file.mimetype);
+
+    const result: UploadedFile = {
+      originalName: file.originalname,
+      filename: originalFilename,
+      path: key,
+      url: this.buildPublicUrl(key),
+      size: file.size,
+      mimetype: file.mimetype,
+    };
+
+    this.logger.log(`File uploaded: ${originalFilename}`);
     return result;
   }
 
@@ -100,6 +161,10 @@ export class MediaService {
     }>;
     total: number;
   }> {
+    if (this.provider === 'r2') {
+      return this.findAllR2(limit, page);
+    }
+
     const files: Array<{
       _id: string;
       filename: string;
@@ -171,26 +236,32 @@ export class MediaService {
   }
 
   async deleteFile(filePath: string): Promise<void> {
-    const fullPath = path.join(this.uploadPath, filePath);
-
     try {
-      await fs.promises.unlink(fullPath);
+      if (this.provider === 'r2') {
+        await this.s3Client?.send(
+          new DeleteObjectCommand({
+            Bucket: this.r2Bucket,
+            Key: filePath,
+          }),
+        );
+      } else {
+        const fullPath = path.join(this.uploadPath, filePath);
+        await fs.promises.unlink(fullPath);
+      }
       this.logger.log(`File deleted: ${filePath}`);
-    } catch (error) {
+    } catch {
       this.logger.warn(`Failed to delete file: ${filePath}`);
     }
   }
 
-  private async processImage(
-    file: Express.Multer.File,
-    filePath: string,
-    filename: string,
-    folder: string,
-  ): Promise<UploadedFile> {
+  private async processImage(file: Express.Multer.File): Promise<{
+    buffer: Buffer;
+    size: number;
+    mimetype: string;
+    width?: number;
+    height?: number;
+  }> {
     // Convert to WebP and optimize
-    const webpFilename = filename.replace(/\.[^.]+$/, '.webp');
-    const webpPath = filePath.replace(/\.[^.]+$/, '.webp');
-
     const image = sharp(file.buffer);
     const metadata = await image.metadata();
 
@@ -200,23 +271,109 @@ export class MediaService {
     }
 
     // Convert to WebP with quality optimization
-    await image
-      .webp({ quality: 85 })
-      .toFile(webpPath);
-
-    const stats = await fs.promises.stat(webpPath);
-    const processedMetadata = await sharp(webpPath).metadata();
+    const webpBuffer = await image.webp({ quality: 85 }).toBuffer();
+    const processedMetadata = await sharp(webpBuffer).metadata();
 
     return {
-      originalName: file.originalname,
-      filename: webpFilename,
-      path: webpPath,
-      url: `/${folder}/${webpFilename}`,
-      size: stats.size,
+      buffer: webpBuffer,
+      size: webpBuffer.length,
       mimetype: 'image/webp',
       width: processedMetadata.width,
       height: processedMetadata.height,
     };
+  }
+
+  private async storeFile(key: string, buffer: Buffer, contentType: string): Promise<void> {
+    if (this.provider === 'r2') {
+      await this.s3Client?.send(
+        new PutObjectCommand({
+          Bucket: this.r2Bucket,
+          Key: key,
+          Body: buffer,
+          ContentType: contentType,
+        }),
+      );
+      return;
+    }
+
+    const localPath = path.join(this.uploadPath, key);
+    this.ensureDirectoryExists(path.dirname(localPath));
+    await fs.promises.writeFile(localPath, buffer);
+  }
+
+  private async findAllR2(
+    limit: number,
+    page: number,
+  ): Promise<{
+    data: Array<{
+      _id: string;
+      filename: string;
+      originalName: string;
+      mimeType: string;
+      size: number;
+      url: string;
+      folder?: string;
+      createdAt: Date;
+      updatedAt: Date;
+    }>;
+    total: number;
+  }> {
+    const response = await this.s3Client?.send(
+      new ListObjectsV2Command({
+        Bucket: this.r2Bucket,
+      }),
+    );
+
+    const objects = response?.Contents || [];
+    const files = objects
+      .filter((obj) => obj.Key)
+      .map((obj) => {
+        const key = obj.Key as string;
+        const filename = key.split('/').pop() || key;
+        const folder = key.includes('/') ? key.substring(0, key.lastIndexOf('/')) : undefined;
+        const ext = path.extname(filename).toLowerCase();
+
+        return {
+          _id: key,
+          filename,
+          originalName: filename,
+          mimeType: this.getMimeType(ext),
+          size: obj.Size || 0,
+          url: this.buildPublicUrl(key),
+          folder,
+          createdAt: obj.LastModified || new Date(),
+          updatedAt: obj.LastModified || new Date(),
+        };
+      })
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+    const total = files.length;
+    const skip = (page - 1) * limit;
+    const paginatedData = files.slice(skip, skip + limit);
+
+    return { data: paginatedData, total };
+  }
+
+  private buildPublicUrl(key: string): string {
+    if (this.provider === 'r2') {
+      if (this.r2PublicUrl) {
+        return `${this.r2PublicUrl.replace(/\/$/, '')}/${key}`;
+      }
+
+      return key;
+    }
+
+    return `/${key.replace(/\\/g, '/')}`;
+  }
+
+  private sanitizeFolder(folder: string): string {
+    const sanitized = folder
+      .split('/')
+      .map((part) => part.trim().replace(/[^a-zA-Z0-9_-]/g, ''))
+      .filter(Boolean)
+      .join('/');
+
+    return sanitized || 'misc';
   }
 
   private validateFile(file: Express.Multer.File, type: MediaType): void {

@@ -22,6 +22,7 @@
     "seed:fresh": "ts-node -r tsconfig-paths/register src/database/seed/main.ts --fresh"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.910.0",
     "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
@@ -34,6 +35,7 @@
     "@nestjs/swagger": "^11.2.4",
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/websockets": "^11.1.11",
+    "@types/nodemailer": "^7.0.11",
     "bcryptjs": "^3.0.3",
     "cache-manager": "^7.2.8",
     "class-transformer": "^0.5.1",
@@ -43,6 +45,7 @@
     "mongoose": "^9.1.3",
     "multer": "^2.0.2",
     "nest-winston": "^1.10.2",
+    "nodemailer": "^8.0.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",

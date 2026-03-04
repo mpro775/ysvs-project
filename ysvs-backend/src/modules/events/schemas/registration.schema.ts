@@ -17,13 +17,40 @@ export enum PaymentStatus {
   FREE = 'free',
 }
 
+export enum RegistrationSource {
+  USER = 'user',
+  GUEST = 'guest',
+}
+
 @Schema({ timestamps: true })
 export class Registration extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Event', required: true })
   event: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  user: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  user?: Types.ObjectId;
+
+  @Prop({ trim: true, lowercase: true })
+  guestEmail?: string;
+
+  @Prop({ trim: true, lowercase: true })
+  guestEmailNormalized?: string;
+
+  @Prop({
+    type: String,
+    enum: Object.values(RegistrationSource),
+    default: RegistrationSource.USER,
+  })
+  registrationSource: RegistrationSource;
+
+  @Prop({ trim: true, lowercase: true, required: true })
+  identityEmailNormalized: string;
+
+  @Prop({ trim: true })
+  participantNameArSnapshot?: string;
+
+  @Prop({ trim: true })
+  participantNameEnSnapshot?: string;
 
   @Prop({ type: Types.ObjectId, ref: 'TicketType' })
   ticketType: Types.ObjectId;
@@ -67,7 +94,25 @@ export class Registration extends Document {
 export const RegistrationSchema = SchemaFactory.createForClass(Registration);
 
 // Indexes
-RegistrationSchema.index({ event: 1, user: 1 }, { unique: true });
+RegistrationSchema.index(
+  { event: 1, user: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      user: { $exists: true, $ne: null },
+    },
+  },
+);
+RegistrationSchema.index(
+  { event: 1, guestEmailNormalized: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      guestEmailNormalized: { $exists: true, $type: 'string' },
+    },
+  },
+);
 RegistrationSchema.index({ registrationNumber: 1 }, { unique: true });
 RegistrationSchema.index({ event: 1, status: 1 });
 RegistrationSchema.index({ user: 1 });
+RegistrationSchema.index({ identityEmailNormalized: 1 });

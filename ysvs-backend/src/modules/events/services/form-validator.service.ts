@@ -83,7 +83,7 @@ export class FormValidatorService {
         break;
 
       case FormFieldType.FILE:
-        // File validation is handled separately during upload
+        errors.push(...this.validateFile(field, value));
         break;
     }
 
@@ -231,6 +231,76 @@ export class FormValidatorService {
         field: field.id,
         message: `${field.label} تاريخ غير صالح`,
       });
+    }
+
+    return errors;
+  }
+
+  private validateFile(field: FormField, value: unknown): ValidationError[] {
+    const errors: ValidationError[] = [];
+
+    if (typeof value !== 'object' || value === null) {
+      errors.push({
+        field: field.id,
+        message: `${field.label} ملف غير صالح`,
+      });
+      return errors;
+    }
+
+    const fileValue = value as {
+      key?: unknown;
+      url?: unknown;
+      originalName?: unknown;
+      size?: unknown;
+      mimetype?: unknown;
+    };
+
+    if (!fileValue.key || !fileValue.url || !fileValue.originalName) {
+      errors.push({
+        field: field.id,
+        message: `${field.label} بيانات الملف غير مكتملة`,
+      });
+    }
+
+    const fileSize = Number(fileValue.size);
+    if (isNaN(fileSize) || fileSize <= 0) {
+      errors.push({
+        field: field.id,
+        message: `${field.label} حجم الملف غير صالح`,
+      });
+    }
+
+    if (field.validation?.maxFileSize) {
+      const maxBytes = field.validation.maxFileSize * 1024 * 1024;
+      if (!isNaN(fileSize) && fileSize > maxBytes) {
+        errors.push({
+          field: field.id,
+          message: `${field.label} يتجاوز الحجم الأقصى المسموح`,
+        });
+      }
+    }
+
+    if (field.validation?.fileTypes?.length) {
+      const mimetype = String(fileValue.mimetype || '').toLowerCase();
+      const originalName = String(fileValue.originalName || '').toLowerCase();
+      const extension = originalName.includes('.')
+        ? `.${originalName.split('.').pop()}`
+        : '';
+
+      const allowedTypes = field.validation.fileTypes.map((t) => t.toLowerCase());
+      const isAllowed = allowedTypes.some((allowedType) => {
+        if (allowedType.startsWith('.')) {
+          return extension === allowedType;
+        }
+        return mimetype === allowedType;
+      });
+
+      if (!isAllowed) {
+        errors.push({
+          field: field.id,
+          message: `${field.label} نوع الملف غير مسموح`,
+        });
+      }
     }
 
     return errors;

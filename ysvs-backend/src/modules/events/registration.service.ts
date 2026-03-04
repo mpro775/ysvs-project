@@ -12,13 +12,23 @@ import {
   RegistrationDocument,
   RegistrationStatus,
   PaymentStatus,
+  RegistrationSource,
 } from './schemas/registration.schema';
-import { Event, EventDocument } from './schemas/event.schema';
+import {
+  Event,
+  EventDocument,
+  FormFieldType,
+  GuestEmailMode,
+  RegistrationAccess,
+} from './schemas/event.schema';
 import { TicketType, TicketTypeDocument } from './schemas/ticket-type.schema';
 import { CreateRegistrationDto } from './dto';
 import { FormValidatorService } from './services/form-validator.service';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
 import { EventsService } from './events.service';
+import { MediaService } from '../media/media.service';
+import { MediaType } from '../media/dto';
+import { User, UserDocument } from '../users/schemas/user.schema';
 
 @Injectable()
 export class RegistrationService {
@@ -27,15 +37,65 @@ export class RegistrationService {
     private registrationModel: Model<RegistrationDocument>,
     @InjectModel(Event.name)
     private eventModel: Model<EventDocument>,
+    @InjectModel(User.name)
+    private userModel: Model<UserDocument>,
     @InjectModel(TicketType.name)
     private ticketTypeModel: Model<TicketTypeDocument>,
     private formValidatorService: FormValidatorService,
     private eventsService: EventsService,
+    private mediaService: MediaService,
   ) {}
+
+  async uploadRegistrationFile(
+    eventId: string,
+    userId: string,
+    fieldId: string,
+    file: Express.Multer.File,
+  ): Promise<{
+    key: string;
+    url: string;
+    originalName: string;
+    size: number;
+    mimetype: string;
+  }> {
+    const event = await this.eventModel.findById(eventId);
+    if (!event) {
+      throw new NotFoundException('المؤتمر غير موجود');
+    }
+
+    if (!event.registrationOpen) {
+      throw new BadRequestException('التسجيل في هذا المؤتمر مغلق');
+    }
+
+    if (event.registrationDeadline && new Date() > event.registrationDeadline) {
+      throw new BadRequestException('انتهى موعد التسجيل في هذا المؤتمر');
+    }
+
+    const field = event.formSchema.find((f) => f.id === fieldId);
+    if (!field || field.type !== FormFieldType.FILE) {
+      throw new BadRequestException('حقل الملف غير موجود في نموذج المؤتمر');
+    }
+
+    this.validateUploadAgainstField(field.validation?.fileTypes, field.validation?.maxFileSize, file);
+
+    const folder = `event-registrations/${eventId}/${userId}`;
+    const mediaType = file.mimetype.startsWith('image/')
+      ? MediaType.IMAGE
+      : MediaType.DOCUMENT;
+    const uploadedFile = await this.mediaService.uploadFile(file, mediaType, folder);
+
+    return {
+      key: uploadedFile.path,
+      url: uploadedFile.url,
+      originalName: uploadedFile.originalName,
+      size: uploadedFile.size,
+      mimetype: file.mimetype,
+    };
+  }
 
   async register(
     eventId: string,
-    userId: string,
+    userId: string | null,
     createRegistrationDto: CreateRegistrationDto,
   ): Promise<Registration> {
     // Get event
@@ -59,11 +119,52 @@ export class RegistrationService {
       throw new BadRequestException('تم الوصول للحد الأقصى من المسجلين');
     }
 
-    // Check if user already registered
-    const existingRegistration = await this.registrationModel.findOne({
-      event: eventId,
-      user: userId,
-    });
+    const normalizedGuestEmail = createRegistrationDto.guestEmail
+      ?.trim()
+      .toLowerCase();
+
+    const registrationAccess =
+      event.registrationAccess || RegistrationAccess.AUTHENTICATED_ONLY;
+    const guestEmailMode = event.guestEmailMode || GuestEmailMode.REQUIRED;
+
+    if (
+      registrationAccess === RegistrationAccess.AUTHENTICATED_ONLY &&
+      !userId
+    ) {
+      throw new BadRequestException(
+        'التسجيل في هذا المؤتمر يتطلب تسجيل الدخول',
+      );
+    }
+
+    let user: UserDocument | null = null;
+    if (userId) {
+      user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('المستخدم غير موجود');
+      }
+    }
+
+    if (!user) {
+      const guestEmailRequired =
+        guestEmailMode === GuestEmailMode.REQUIRED || event.cmeHours > 0;
+
+      if (guestEmailRequired && !normalizedGuestEmail) {
+        throw new BadRequestException('البريد الإلكتروني مطلوب للضيف في هذا المؤتمر');
+      }
+    }
+
+    // Check if participant already registered
+    const existingRegistration = user
+      ? await this.registrationModel.findOne({
+          event: eventId,
+          user: user._id,
+        })
+      : normalizedGuestEmail
+        ? await this.registrationModel.findOne({
+            event: eventId,
+            guestEmailNormalized: normalizedGuestEmail,
+          })
+        : null;
 
     if (existingRegistration) {
       throw new ConflictException('أنت مسجل مسبقاً في هذا المؤتمر');
@@ -117,7 +218,16 @@ export class RegistrationService {
     // Create registration
     const registration = new this.registrationModel({
       event: eventId,
-      user: userId,
+      user: user?._id,
+      registrationSource: user
+        ? RegistrationSource.USER
+        : RegistrationSource.GUEST,
+      guestEmail: normalizedGuestEmail,
+      guestEmailNormalized: normalizedGuestEmail,
+      identityEmailNormalized:
+        user?.email.toLowerCase() || normalizedGuestEmail || `guest:${uuidv4()}`,
+      participantNameArSnapshot: user?.fullNameAr,
+      participantNameEnSnapshot: user?.fullNameEn,
       ticketType: ticketType?._id,
       formData: createRegistrationDto.formData,
       registrationNumber,
@@ -213,19 +323,27 @@ export class RegistrationService {
     return registration;
   }
 
-  async markAttendance(id: string): Promise<Registration> {
+  async markAttendance(id: string, attended: boolean = true): Promise<Registration> {
     const registration = await this.registrationModel.findById(id);
 
     if (!registration) {
       throw new NotFoundException('التسجيل غير موجود');
     }
 
-    if (registration.status !== RegistrationStatus.CONFIRMED) {
-      throw new BadRequestException('لا يمكن تأكيد الحضور لتسجيل غير مؤكد');
+    if (registration.status === RegistrationStatus.CANCELLED) {
+      throw new BadRequestException('لا يمكن تعديل الحضور لتسجيل ملغي');
     }
 
-    registration.status = RegistrationStatus.ATTENDED;
-    registration.attendedAt = new Date();
+    if (attended) {
+      if (registration.status !== RegistrationStatus.CONFIRMED) {
+        throw new BadRequestException('لا يمكن تأكيد الحضور لتسجيل غير مؤكد');
+      }
+      registration.status = RegistrationStatus.ATTENDED;
+      registration.attendedAt = new Date();
+    } else {
+      registration.status = RegistrationStatus.CONFIRMED;
+      registration.set('attendedAt', undefined);
+    }
     await registration.save();
 
     return registration.populate([
@@ -241,7 +359,7 @@ export class RegistrationService {
       throw new NotFoundException('التسجيل غير موجود');
     }
 
-    if (registration.user.toString() !== userId) {
+    if (!registration.user || registration.user.toString() !== userId) {
       throw new BadRequestException('لا يمكنك إلغاء تسجيل شخص آخر');
     }
 
@@ -280,9 +398,99 @@ export class RegistrationService {
     });
   }
 
+  async linkGuestRegistrationsToUser(userId: string, email: string): Promise<{
+    linked: number;
+    skippedConflicts: number;
+    scanned: number;
+  }> {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const candidates = await this.registrationModel
+      .find(
+        {
+          identityEmailNormalized: normalizedEmail,
+          $or: [{ user: { $exists: false } }, { user: null }],
+        },
+        { _id: 1, event: 1 },
+      )
+      .sort({ createdAt: 1 })
+      .lean();
+
+    let linked = 0;
+    let skippedConflicts = 0;
+
+    for (const registration of candidates) {
+      const hasConflict = await this.registrationModel.exists({
+        event: registration.event,
+        user: userId,
+      });
+
+      if (hasConflict) {
+        skippedConflicts++;
+        continue;
+      }
+
+      const updated = await this.registrationModel.updateOne(
+        {
+          _id: registration._id,
+          $or: [{ user: { $exists: false } }, { user: null }],
+        },
+        {
+          $set: {
+            user: userId,
+          },
+        },
+      );
+
+      if (updated.modifiedCount > 0) {
+        linked++;
+      }
+    }
+
+    return {
+      linked,
+      skippedConflicts,
+      scanned: candidates.length,
+    };
+  }
+
   private generateRegistrationNumber(): string {
     const year = new Date().getFullYear();
     const random = Math.random().toString(36).substring(2, 8).toUpperCase();
     return `REG-${year}-${random}`;
+  }
+
+  private validateUploadAgainstField(
+    allowedTypes: string[] | undefined,
+    maxFileSizeMb: number | undefined,
+    file: Express.Multer.File,
+  ): void {
+    if (!file) {
+      throw new BadRequestException('لم يتم تحديد ملف للرفع');
+    }
+
+    if (maxFileSizeMb && file.size > maxFileSizeMb * 1024 * 1024) {
+      throw new BadRequestException(`حجم الملف يتجاوز الحد الأقصى (${maxFileSizeMb}MB)`);
+    }
+
+    if (!allowedTypes?.length) {
+      return;
+    }
+
+    const extension = `.${file.originalname.split('.').pop()?.toLowerCase() || ''}`;
+    const normalizedMimetype = file.mimetype.toLowerCase();
+    const normalizedAllowedTypes = allowedTypes.map((type) => type.trim().toLowerCase());
+
+    const isAllowed = normalizedAllowedTypes.some((allowedType) => {
+      if (allowedType.startsWith('.')) {
+        return extension === allowedType;
+      }
+
+      return normalizedMimetype === allowedType;
+    });
+
+    if (!isAllowed) {
+      throw new BadRequestException('نوع الملف غير مسموح لهذا الحقل');
+    }
   }
 }

@@ -49,7 +49,7 @@ export default function MemberLayout() {
   const [memberSidebarOpen, setMemberSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col" dir="rtl">
       <Header />
       <div className="container mx-auto flex flex-1 flex-col gap-6 px-4 py-4 sm:flex-row sm:py-8">
         {/* Desktop Sidebar */}

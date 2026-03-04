@@ -64,7 +64,7 @@ class FormFieldValidationDto {
   @IsString({ each: true })
   fileTypes?: string[];
 
-  @ApiPropertyOptional({ example: 5242880, description: 'Max file size in bytes' })
+  @ApiPropertyOptional({ example: 5, description: 'Max file size in MB' })
   @IsOptional()
   @IsNumber()
   @Min(0)

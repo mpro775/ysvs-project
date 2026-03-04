@@ -83,10 +83,12 @@ Once the server is running, access Swagger documentation at:
 - `GET /` - List published events
 - `GET /upcoming` - Get next upcoming event (for countdown)
 - `GET /:slug` - Get event by slug
+- `GET /slug-availability/:slug` - Check slug availability
 - `POST /` - Create event (Admin)
 - `PATCH /:id` - Update event (Admin)
 - `PATCH /:id/form-schema` - Update registration form (Admin)
 - `POST /:id/register` - Register for event (Member)
+- `POST /:id/register/upload` - Upload registration file (Member)
 - `GET /:id/registrations` - Get registrations (Admin)
 
 ### Certificates (`/certificates`)
@@ -168,6 +170,12 @@ npm run test:cov
 | `REDIS_HOST` | Redis host | localhost |
 | `REDIS_PORT` | Redis port | 6379 |
 | `FRONTEND_URL` | Frontend URL for CORS | - |
+| `STORAGE_PROVIDER` | Storage backend (`local` or `r2`) | local |
+| `R2_ACCOUNT_ID` | Cloudflare account ID for R2 | - |
+| `R2_ACCESS_KEY_ID` | R2 access key | - |
+| `R2_SECRET_ACCESS_KEY` | R2 secret key | - |
+| `R2_BUCKET` | R2 bucket name | - |
+| `R2_PUBLIC_URL` | Public CDN/custom domain for files | - |
 
 ## 📄 License
 

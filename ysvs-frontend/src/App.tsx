@@ -5,6 +5,8 @@ import { router } from './router';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { useEffect } from 'react';
 import { useUIStore } from '@/stores/uiStore';
+import { useCurrentUser } from '@/api/hooks/useAuth';
+import { useAuthStore } from '@/stores/authStore';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -37,11 +39,31 @@ function ThemeInitializer() {
   return null;
 }
 
+function AppInitializer() {
+  const setUser = useAuthStore((state) => state.setUser);
+  const { data: currentUser } = useCurrentUser();
+
+  useEffect(() => {
+    document.documentElement.setAttribute('lang', 'ar');
+    document.documentElement.setAttribute('dir', 'rtl');
+    document.body.setAttribute('dir', 'rtl');
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      setUser(currentUser);
+    }
+  }, [currentUser, setUser]);
+
+  return null;
+}
+
 function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeInitializer />
+        <AppInitializer />
         <RouterProvider router={router} />
         <Toaster position="top-center" richColors closeButton />
       </QueryClientProvider>

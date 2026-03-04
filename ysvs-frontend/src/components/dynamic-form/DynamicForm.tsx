@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,13 +16,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useRegisterEvent } from '@/api/hooks/useEvents';
-import type { FormField } from '@/types';
+import { useRegisterEvent, useUploadRegistrationFile } from '@/api/hooks/useEvents';
+import type { FormField, UploadedFormFile } from '@/types';
 import { useNavigate } from 'react-router-dom';
 
 interface DynamicFormProps {
   eventId: string;
   schema: FormField[];
+  isAuthenticated: boolean;
+  guestRegistrationEnabled: boolean;
+  guestEmailMode: 'required' | 'optional';
 }
 
 // Build Zod schema dynamically
@@ -57,7 +61,13 @@ function buildValidationSchema(fields: FormField[]) {
         validator = z.array(z.string());
         break;
       case 'file':
-        validator = z.any();
+        validator = z.object({
+          key: z.string().min(1),
+          url: z.string().min(1),
+          originalName: z.string().min(1),
+          size: z.number().positive(),
+          mimetype: z.string().min(1),
+        });
         break;
       default:
         validator = z.string();
@@ -244,9 +254,19 @@ function renderField(
   }
 }
 
-export function DynamicForm({ eventId, schema }: DynamicFormProps) {
+export function DynamicForm({
+  eventId,
+  schema,
+  isAuthenticated,
+  guestRegistrationEnabled,
+  guestEmailMode,
+}: DynamicFormProps) {
   const navigate = useNavigate();
+  const [uploadingFieldId, setUploadingFieldId] = useState<string | null>(null);
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestEmailError, setGuestEmailError] = useState<string | null>(null);
   const { mutate: registerEvent, isPending } = useRegisterEvent();
+  const { mutateAsync: uploadRegistrationFile } = useUploadRegistrationFile();
 
   const sortedSchema = [...schema].sort((a, b) => a.order - b.order);
   const validationSchema = buildValidationSchema(sortedSchema);
@@ -255,17 +275,111 @@ export function DynamicForm({ eventId, schema }: DynamicFormProps) {
     handleSubmit,
     watch,
     setValue,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(validationSchema),
   });
 
+  const validateSelectedFile = (field: FormField, file: File): string | null => {
+    const allowedTypes = field.validation?.fileTypes;
+
+    if (allowedTypes?.length) {
+      const extension = `.${file.name.split('.').pop()?.toLowerCase() || ''}`;
+      const normalizedMime = file.type.toLowerCase();
+      const isAllowed = allowedTypes.some((type) => {
+        const normalizedType = type.trim().toLowerCase();
+        if (normalizedType.startsWith('.')) {
+          return extension === normalizedType;
+        }
+        return normalizedMime === normalizedType;
+      });
+
+      if (!isAllowed) {
+        return 'نوع الملف غير مسموح';
+      }
+    }
+
+    if (field.validation?.maxFileSize) {
+      const maxBytes = field.validation.maxFileSize * 1024 * 1024;
+      if (file.size > maxBytes) {
+        return `حجم الملف يجب ألا يتجاوز ${field.validation.maxFileSize}MB`;
+      }
+    }
+
+    return null;
+  };
+
+  const handleFileUpload = async (field: FormField, file?: File) => {
+    if (!file) {
+      return;
+    }
+
+    const validationError = validateSelectedFile(field, file);
+    if (validationError) {
+      setError(field.id, { type: 'manual', message: validationError });
+      return;
+    }
+
+    setUploadingFieldId(field.id);
+    clearErrors(field.id);
+
+    try {
+      const uploadedFile = await uploadRegistrationFile({
+        eventId,
+        fieldId: field.id,
+        file,
+      });
+
+      setValue(field.id, uploadedFile, { shouldValidate: true, shouldDirty: true });
+      clearErrors(field.id);
+    } catch (error) {
+      setError(field.id, {
+        type: 'manual',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'فشل رفع الملف، حاول مرة أخرى',
+      });
+    } finally {
+      setUploadingFieldId(null);
+    }
+  };
+
   const onSubmit = (data: Record<string, unknown>) => {
+    const isGuest = guestRegistrationEnabled && !isAuthenticated;
+    const normalizedGuestEmail = guestEmail.trim().toLowerCase();
+
+    if (isGuest) {
+      const isRequired = guestEmailMode === 'required';
+      if (isRequired && !normalizedGuestEmail) {
+        setGuestEmailError('البريد الإلكتروني مطلوب للتسجيل كضيف');
+        return;
+      }
+
+      if (normalizedGuestEmail) {
+        const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedGuestEmail);
+        if (!isValidEmail) {
+          setGuestEmailError('يرجى إدخال بريد إلكتروني صالح');
+          return;
+        }
+      }
+    }
+
+    setGuestEmailError(null);
     registerEvent(
-      { eventId, data },
+      {
+        eventId,
+        data,
+        guestEmail:
+          isGuest && normalizedGuestEmail.length > 0
+            ? normalizedGuestEmail
+            : undefined,
+      },
       {
         onSuccess: () => {
-          navigate('/member/events');
+          navigate(isAuthenticated ? '/member/events' : '/events');
         },
       }
     );
@@ -273,6 +387,34 @@ export function DynamicForm({ eventId, schema }: DynamicFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {guestRegistrationEnabled && !isAuthenticated && (
+        <div className="space-y-2">
+          <Label htmlFor="guest-email">
+            البريد الإلكتروني
+            {guestEmailMode === 'required' && (
+              <span className="mr-1 text-destructive">*</span>
+            )}
+          </Label>
+          <Input
+            id="guest-email"
+            type="email"
+            dir="ltr"
+            value={guestEmail}
+            onChange={(event) => {
+              setGuestEmail(event.target.value);
+              if (guestEmailError) {
+                setGuestEmailError(null);
+              }
+            }}
+            className={guestEmailError ? 'border-destructive' : ''}
+            placeholder="you@example.com"
+          />
+          {guestEmailError && (
+            <p className="text-sm text-destructive">{guestEmailError}</p>
+          )}
+        </div>
+      )}
+
       {sortedSchema.map((field) => {
         const value = watch(field.id);
         const error = errors[field.id]?.message as string | undefined;
@@ -293,13 +435,42 @@ export function DynamicForm({ eventId, schema }: DynamicFormProps) {
               {field.label}
               {field.required && <span className="mr-1 text-destructive">*</span>}
             </Label>
-            {renderField(field, value, (v) => setValue(field.id, v), error)}
+            {renderField(
+              field,
+              value,
+              (v) => {
+                if (field.type === 'file') {
+                  void handleFileUpload(field, v as File | undefined);
+                  return;
+                }
+
+                setValue(field.id, v, { shouldValidate: true, shouldDirty: true });
+              },
+              error,
+            )}
+            {field.type === 'file' && uploadingFieldId === field.id && (
+              <p className="text-sm text-muted-foreground">جاري رفع الملف...</p>
+            )}
+            {field.type === 'file' && Boolean(value) && typeof value === 'object' && (
+              <a
+                href={(value as UploadedFormFile).url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm text-primary-700 underline"
+              >
+                تم رفع الملف: {(value as UploadedFormFile).originalName}
+              </a>
+            )}
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
         );
       })}
 
-      <Button type="submit" className="w-full" disabled={isPending}>
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={isPending || uploadingFieldId !== null}
+      >
         {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
         إرسال التسجيل
       </Button>

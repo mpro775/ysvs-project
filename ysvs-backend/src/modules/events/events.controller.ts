@@ -8,13 +8,19 @@ import {
   Delete,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { EventsService } from './events.service';
 import { RegistrationService } from './registration.service';
 import {
@@ -32,6 +38,7 @@ import { Roles, UserRole } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RegistrationStatus } from './schemas/registration.schema';
+import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
 
 @ApiTags('Events')
 @Controller('events')
@@ -89,6 +96,17 @@ export class EventsController {
   @ApiResponse({ status: 200, description: 'List of user registrations' })
   getMyRegistrations(@CurrentUser('id') userId: string) {
     return this.registrationService.findByUser(userId);
+  }
+
+  @Public()
+  @Get('slug-availability/:slug')
+  @ApiOperation({ summary: 'Check event slug availability' })
+  @ApiResponse({ status: 200, description: 'Slug availability status' })
+  checkSlugAvailability(
+    @Param('slug') slug: string,
+    @Query('excludeId') excludeId?: string,
+  ) {
+    return this.eventsService.checkSlugAvailability(slug, excludeId);
   }
 
   @Public()
@@ -165,8 +183,7 @@ export class EventsController {
 
   // ============= REGISTRATIONS =============
 
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @Post(':id/register')
   @ApiOperation({ summary: 'Register for an event' })
   @ApiResponse({ status: 201, description: 'Registration successful' })
@@ -174,13 +191,63 @@ export class EventsController {
   @ApiResponse({ status: 409, description: 'Already registered' })
   register(
     @Param('id') eventId: string,
-    @CurrentUser('id') userId: string,
+    @CurrentUser('id') userId: string | null,
     @Body() createRegistrationDto: CreateRegistrationDto,
   ) {
     return this.registrationService.register(
       eventId,
       userId,
       createRegistrationDto,
+    );
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/register/upload')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 10 * 1024 * 1024,
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload a file for event registration form' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+        fieldId: {
+          type: 'string',
+        },
+      },
+      required: ['file', 'fieldId'],
+    },
+  })
+  @ApiResponse({ status: 201, description: 'File uploaded successfully' })
+  uploadRegistrationFile(
+    @Param('id') eventId: string,
+    @CurrentUser('id') userId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('fieldId') fieldId: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('لم يتم تحديد ملف للرفع');
+    }
+
+    if (!fieldId) {
+      throw new BadRequestException('معرف الحقل مطلوب');
+    }
+
+    return this.registrationService.uploadRegistrationFile(
+      eventId,
+      userId,
+      fieldId,
+      file,
     );
   }
 
@@ -228,8 +295,11 @@ export class EventsController {
   @Patch('registrations/:id/attendance')
   @ApiOperation({ summary: 'Mark attendance (Admin only)' })
   @ApiResponse({ status: 200, description: 'Attendance marked successfully' })
-  markAttendance(@Param('id') id: string) {
-    return this.registrationService.markAttendance(id);
+  markAttendance(
+    @Param('id') id: string,
+    @Body('attended') attended?: boolean,
+  ) {
+    return this.registrationService.markAttendance(id, attended ?? true);
   }
 
   @ApiBearerAuth('JWT-auth')

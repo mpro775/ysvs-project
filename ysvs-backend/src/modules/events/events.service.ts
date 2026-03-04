@@ -130,6 +130,17 @@ export class EventsService {
     return event;
   }
 
+  async checkSlugAvailability(slug: string, excludeId?: string): Promise<boolean> {
+    const query: Record<string, unknown> = { slug };
+
+    if (excludeId) {
+      query._id = { $ne: excludeId };
+    }
+
+    const existing = await this.eventModel.findOne(query).select('_id').lean().exec();
+    return !existing;
+  }
+
   async findById(id: string): Promise<Event> {
     const event = await this.eventModel
       .findById(id)

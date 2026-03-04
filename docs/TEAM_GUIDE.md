@@ -148,3 +148,4 @@ flowchart TB
 | [ysvs-frontend/src/components/shared/DashboardRedirect.tsx](../ysvs-frontend/src/components/shared/DashboardRedirect.tsx) | توجيه `/dashboard` حسب دور المستخدم |
 | [ysvs-backend/src/database/seed/seed.service.ts](../ysvs-backend/src/database/seed/seed.service.ts)                       | خدمة إنشاء البيانات الوهمية         |
 | [ysvs-backend/src/database/seed/README.md](../ysvs-backend/src/database/seed/README.md)                                   | وثائق Seeds في الباك إند            |
+| [docs/PRODUCTION_RUNBOOK.md](./PRODUCTION_RUNBOOK.md)                                                                     | دليل النشر والتحقق في الإنتاج       |

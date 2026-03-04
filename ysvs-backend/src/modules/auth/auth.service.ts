@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -10,6 +11,8 @@ import { UsersService } from '../users/users.service';
 import { RegisterDto, ChangePasswordDto } from './dto';
 import { UserRole } from '../../common/decorators/roles.decorator';
 import { v4 as uuidv4 } from 'uuid';
+import { RegistrationService } from '../events/registration.service';
+import { CertificatesService } from '../certificates/certificates.service';
 
 export interface TokenPayload {
   sub: string;
@@ -22,12 +25,22 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
+export interface GuestLinkResult {
+  registrationsLinked: number;
+  certificatesLinked: number;
+  skippedRegistrationConflicts: number;
+}
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private registrationService: RegistrationService,
+    private certificatesService: CertificatesService,
   ) {}
 
   async validateUser(email: string, password: string) {
@@ -65,6 +78,11 @@ export class AuthService {
       role: UserRole.MEMBER,
     });
 
+    const guestLinkResult = await this.linkGuestHistoryToUser(
+      user._id.toString(),
+      user.email,
+    );
+
     const tokens = await this.generateTokens({
       sub: user._id.toString(),
       email: user.email,
@@ -83,6 +101,7 @@ export class AuthService {
           fullNameEn: user.fullNameEn,
           role: user.role,
         },
+        guestLinkResult,
         ...tokens,
       },
       message: 'تم التسجيل بنجاح',
@@ -90,6 +109,8 @@ export class AuthService {
   }
 
   async login(user: { id: string; email: string; role: string }) {
+    const guestLinkResult = await this.linkGuestHistoryToUser(user.id, user.email);
+
     const tokens = await this.generateTokens({
       sub: user.id,
       email: user.email,
@@ -111,10 +132,35 @@ export class AuthService {
           role: fullUser.role,
           avatar: fullUser.avatar,
         },
+        guestLinkResult,
         ...tokens,
       },
       message: 'تم تسجيل الدخول بنجاح',
     };
+  }
+
+  async linkGuestHistoryToUser(userId: string, email: string): Promise<GuestLinkResult> {
+    try {
+      const registrationLinkResult =
+        await this.registrationService.linkGuestRegistrationsToUser(userId, email);
+      const certificateLinkResult =
+        await this.certificatesService.linkGuestCertificatesToUser(userId, email);
+
+      return {
+        registrationsLinked: registrationLinkResult.linked,
+        certificatesLinked: certificateLinkResult.linked,
+        skippedRegistrationConflicts: registrationLinkResult.skippedConflicts,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to link guest history for user ${userId}: ${(error as Error).message}`,
+      );
+      return {
+        registrationsLinked: 0,
+        certificatesLinked: 0,
+        skippedRegistrationConflicts: 0,
+      };
+    }
   }
 
   async logout(userId: string) {

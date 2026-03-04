@@ -8,10 +8,16 @@ import {
   IsNumber,
   ValidateNested,
   Min,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { EventStatus } from '../schemas/event.schema';
+import {
+  EventStatus,
+  RegistrationAccess,
+  GuestEmailMode,
+} from '../schemas/event.schema';
+import { FormFieldDto } from './form-schema.dto';
 
 class LocationDto {
   @ApiProperty({ example: 'فندق موفنبيك' })
@@ -102,6 +108,24 @@ export class CreateEventDto {
   @IsBoolean()
   registrationOpen?: boolean;
 
+  @ApiPropertyOptional({
+    enum: RegistrationAccess,
+    default: RegistrationAccess.AUTHENTICATED_ONLY,
+    description: 'Who can register for this event',
+  })
+  @IsOptional()
+  @IsEnum(RegistrationAccess, { message: 'سياسة التسجيل غير صالحة' })
+  registrationAccess?: RegistrationAccess;
+
+  @ApiPropertyOptional({
+    enum: GuestEmailMode,
+    default: GuestEmailMode.REQUIRED,
+    description: 'Whether guest email is required when guest registration is allowed',
+  })
+  @IsOptional()
+  @IsEnum(GuestEmailMode, { message: 'سياسة البريد للضيف غير صالحة' })
+  guestEmailMode?: GuestEmailMode;
+
   @ApiPropertyOptional({ description: 'Registration deadline' })
   @IsOptional()
   @IsDate()
@@ -119,4 +143,14 @@ export class CreateEventDto {
   @IsNumber()
   @Min(0)
   cmeHours?: number;
+
+  @ApiPropertyOptional({
+    type: [FormFieldDto],
+    description: 'Dynamic registration form schema',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FormFieldDto)
+  formSchema?: FormFieldDto[];
 }

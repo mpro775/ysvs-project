@@ -36,6 +36,21 @@ export const EventStatus = {
 
 export type EventStatus = (typeof EventStatus)[keyof typeof EventStatus];
 
+export const RegistrationAccess = {
+  AUTHENTICATED_ONLY: 'authenticated_only',
+  PUBLIC: 'public',
+} as const;
+
+export type RegistrationAccess =
+  (typeof RegistrationAccess)[keyof typeof RegistrationAccess];
+
+export const GuestEmailMode = {
+  REQUIRED: 'required',
+  OPTIONAL: 'optional',
+} as const;
+
+export type GuestEmailMode = (typeof GuestEmailMode)[keyof typeof GuestEmailMode];
+
 export const FormFieldType = {
   TEXT: 'text',
   TEXTAREA: 'textarea',
@@ -81,6 +96,14 @@ export interface FormField {
   order: number;
 }
 
+export interface UploadedFormFile {
+  key: string;
+  url: string;
+  originalName: string;
+  size: number;
+  mimetype: string;
+}
+
 export interface Location {
   venue: string;
   venueEn?: string;
@@ -107,6 +130,8 @@ export interface Event {
   location?: Location;
   status: EventStatus;
   registrationOpen: boolean;
+  registrationAccess?: RegistrationAccess;
+  guestEmailMode?: GuestEmailMode;
   registrationDeadline?: Date;
   maxAttendees: number;
   currentAttendees: number;
@@ -125,7 +150,9 @@ export interface Certificate {
   _id: string;
   registration: string;
   event: string;
-  user: string;
+  user?: string;
+  holderType?: 'user' | 'guest';
+  holderEmail?: string;
   serialNumber: string;
   qrCode: string;
   recipientNameAr: string;
@@ -137,6 +164,9 @@ export interface Certificate {
   eventDate?: Date;
   templateUsed?: string;
   pdfPath?: string;
+  guestEmailSentAt?: Date;
+  guestEmailLastError?: string;
+  guestDownloadTokenIssuedAt?: Date;
   isValid: boolean;
   revokedAt?: Date;
   revokedReason?: string;
@@ -149,7 +179,9 @@ export interface Certificate {
 export interface Registration {
   _id: string;
   event: string | Event;
-  user: string | User;
+  user?: string | User;
+  registrationSource?: 'user' | 'guest';
+  guestEmail?: string;
   registrationNumber: string;
   formData: Record<string, unknown>;
   ticketType?: string;
@@ -262,6 +294,11 @@ export interface AuthResponse {
   user: User;
   accessToken: string;
   refreshToken: string;
+  guestLinkResult?: {
+    registrationsLinked: number;
+    certificatesLinked: number;
+    skippedRegistrationConflicts: number;
+  };
 }
 
 // Dashboard stats

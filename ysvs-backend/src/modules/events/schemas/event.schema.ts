@@ -10,6 +10,16 @@ export enum EventStatus {
   CANCELLED = 'cancelled',
 }
 
+export enum RegistrationAccess {
+  AUTHENTICATED_ONLY = 'authenticated_only',
+  PUBLIC = 'public',
+}
+
+export enum GuestEmailMode {
+  REQUIRED = 'required',
+  OPTIONAL = 'optional',
+}
+
 export enum FormFieldType {
   TEXT = 'text',
   TEXTAREA = 'textarea',
@@ -104,6 +114,20 @@ export class Event extends Document {
 
   @Prop({ default: false })
   registrationOpen: boolean;
+
+  @Prop({
+    type: String,
+    enum: Object.values(RegistrationAccess),
+    default: RegistrationAccess.AUTHENTICATED_ONLY,
+  })
+  registrationAccess: RegistrationAccess;
+
+  @Prop({
+    type: String,
+    enum: Object.values(GuestEmailMode),
+    default: GuestEmailMode.REQUIRED,
+  })
+  guestEmailMode: GuestEmailMode;
 
   @Prop()
   registrationDeadline: Date;

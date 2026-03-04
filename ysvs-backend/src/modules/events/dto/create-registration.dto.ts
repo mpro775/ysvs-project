@@ -1,9 +1,9 @@
 import {
   IsString,
-  IsNotEmpty,
   IsOptional,
   IsMongoId,
   IsObject,
+  IsEmail,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -24,4 +24,12 @@ export class CreateRegistrationDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({
+    description: 'Guest email when registering without an account',
+    example: 'guest@example.com',
+  })
+  @IsOptional()
+  @IsEmail({}, { message: 'البريد الإلكتروني للضيف غير صالح' })
+  guestEmail?: string;
 }

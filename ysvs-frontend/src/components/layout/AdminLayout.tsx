@@ -8,7 +8,7 @@ export default function AdminLayout() {
   const { sidebarCollapsed } = useUIStore();
 
   return (
-    <div className="flex min-h-screen bg-neutral-50">
+    <div className="flex min-h-screen bg-neutral-50" dir="rtl">
       <AdminSidebar />
       <div
         className={cn(

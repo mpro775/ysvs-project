@@ -6,8 +6,11 @@ import type {
   ApiResponse,
   Event,
   FormField,
+  GuestEmailMode,
   PaginatedResponse,
+  RegistrationAccess,
   Registration,
+  UploadedFormFile,
 } from '@/types';
 
 interface EventFilters {
@@ -36,6 +39,8 @@ interface CreateEventData {
   };
   status?: string;
   registrationOpen?: boolean;
+  registrationAccess?: RegistrationAccess;
+  guestEmailMode?: GuestEmailMode;
   registrationDeadline?: Date;
   maxAttendees?: number;
   cmeHours?: number;
@@ -183,13 +188,15 @@ export const useRegisterEvent = () => {
     mutationFn: async ({
       eventId,
       data,
+      guestEmail,
     }: {
       eventId: string;
       data: Record<string, unknown>;
+      guestEmail?: string;
     }) => {
       const response = await api.post<unknown, ApiResponse<Registration>>(
         ENDPOINTS.EVENTS.REGISTER(eventId),
-        { formData: data }
+        { formData: data, guestEmail }
       );
       return response.data;
     },
@@ -202,6 +209,68 @@ export const useRegisterEvent = () => {
       toast.error(error.message || 'فشل التسجيل');
     },
   });
+};
+
+// Upload a single registration form file
+export const useUploadRegistrationFile = () => {
+  return useMutation({
+    mutationFn: async ({
+      eventId,
+      fieldId,
+      file,
+    }: {
+      eventId: string;
+      fieldId: string;
+      file: File;
+    }) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('fieldId', fieldId);
+
+      let lastError: Error | null = null;
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          const response = await api.post<unknown, ApiResponse<UploadedFormFile>>(
+            ENDPOINTS.EVENTS.REGISTER_UPLOAD(eventId),
+            formData,
+            {
+              headers: {
+                'Content-Type': 'multipart/form-data',
+              },
+            }
+          );
+
+          return response.data;
+        } catch (error) {
+          lastError = error as Error;
+
+          if (attempt === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        }
+      }
+
+      throw lastError ?? new Error('فشل رفع الملف');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'فشل رفع الملف');
+    },
+  });
+};
+
+export const checkSlugAvailability = async (
+  slug: string,
+  excludeId?: string
+): Promise<boolean> => {
+  const response = await api.get<unknown, ApiResponse<boolean>>(
+    ENDPOINTS.EVENTS.SLUG_AVAILABILITY(slug),
+    {
+      params: excludeId ? { excludeId } : undefined,
+    }
+  );
+
+  return response.data;
 };
 
 // Get event registrations (admin)
