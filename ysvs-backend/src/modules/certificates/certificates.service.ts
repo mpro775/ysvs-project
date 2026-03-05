@@ -177,9 +177,19 @@ export class CertificatesService {
   async generateBulkCertificates(
     eventId: string,
     templateId?: string,
+    registrationIds?: string[],
   ): Promise<{ generated: number; skipped: number; errors: string[] }> {
-    const registrations =
+    const attendedRegistrations =
       await this.registrationService.getAttendedRegistrations(eventId);
+    const filterRegistrationIds =
+      registrationIds && registrationIds.length > 0
+        ? new Set(registrationIds)
+        : null;
+    const registrations = filterRegistrationIds
+      ? attendedRegistrations.filter((registration) =>
+          filterRegistrationIds.has(registration._id.toString()),
+        )
+      : attendedRegistrations;
 
     let generated = 0;
     let skipped = 0;

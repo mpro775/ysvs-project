@@ -140,7 +140,7 @@ const eventSchema = z
     speakers: z.array(speakerSchema),
     schedule: z.array(scheduleItemSchema),
   })
-  .refine((values) => new Date(values.endDate) >= new Date(values.startDate), {
+  .refine((values) => new Date(values.endDate) > new Date(values.startDate), {
     path: ["endDate"],
     message: "تاريخ النهاية يجب أن يكون بعد تاريخ البداية",
   })
@@ -779,6 +779,7 @@ export default function AdminEventEditPage() {
                     <Input
                       id="endDate"
                       type="datetime-local"
+                      min={watchedValues.startDate || undefined}
                       {...register("endDate")}
                       className={errors.endDate ? "border-destructive" : ""}
                     />
@@ -788,12 +789,13 @@ export default function AdminEventEditPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="registrationDeadline">موعد إغلاق التسجيل</Label>
-                  <Input
-                    id="registrationDeadline"
-                    type="datetime-local"
-                    {...register("registrationDeadline")}
-                    className={errors.registrationDeadline ? "border-destructive" : ""}
-                  />
+                    <Input
+                      id="registrationDeadline"
+                      type="datetime-local"
+                      max={watchedValues.startDate || undefined}
+                      {...register("registrationDeadline")}
+                      className={errors.registrationDeadline ? "border-destructive" : ""}
+                    />
                   {errors.registrationDeadline && (
                     <p className="text-sm text-destructive">{errors.registrationDeadline.message}</p>
                   )}

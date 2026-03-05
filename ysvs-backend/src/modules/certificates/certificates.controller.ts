@@ -66,6 +66,19 @@ export class CertificatesController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @Post('generate')
+  @ApiOperation({ summary: 'Generate certificate for a registration via request body (Admin only)' })
+  @ApiResponse({ status: 201, description: 'Certificate generated successfully' })
+  generateCertificateLegacy(@Body() createCertificateDto: CreateCertificateDto) {
+    return this.certificatesService.generateCertificate(
+      createCertificateDto.registrationId,
+      createCertificateDto.templateId,
+    );
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @Post('generate-bulk/:eventId')
   @ApiOperation({ summary: 'Generate certificates for all attended registrations (Admin only)' })
   @ApiResponse({ status: 201, description: 'Bulk generation completed' })
@@ -76,6 +89,21 @@ export class CertificatesController {
     return this.certificatesService.generateBulkCertificates(
       eventId,
       bulkDto.templateId,
+      bulkDto.registrationIds,
+    );
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @Post('bulk-generate')
+  @ApiOperation({ summary: 'Generate certificates for attended registrations via request body (Admin only)' })
+  @ApiResponse({ status: 201, description: 'Bulk generation completed' })
+  generateBulkCertificatesLegacy(@Body() bulkDto: BulkGenerateCertificatesDto) {
+    return this.certificatesService.generateBulkCertificates(
+      bulkDto.eventId,
+      bulkDto.templateId,
+      bulkDto.registrationIds,
     );
   }
 

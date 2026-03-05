@@ -143,8 +143,8 @@ export const useGenerateCertificate = () => {
   return useMutation({
     mutationFn: async (registrationId: string) => {
       const response = await api.post<unknown, ApiResponse<Certificate>>(
-        ENDPOINTS.CERTIFICATES.GENERATE,
-        { registrationId }
+        ENDPOINTS.CERTIFICATES.GENERATE(registrationId),
+        {}
       );
       return response.data;
     },
@@ -165,25 +165,30 @@ export const useBulkGenerateCertificates = () => {
   return useMutation({
     mutationFn: async ({
       eventId,
+      templateId,
       registrationIds,
     }: {
       eventId: string;
+      templateId?: string;
       registrationIds: string[];
     }) => {
       const response = await api.post<
         unknown,
-        ApiResponse<{ generated: number; failed: number; certificates: Certificate[] }>
-      >(ENDPOINTS.CERTIFICATES.BULK_GENERATE, {
-        eventId,
-        registrationIds,
-      });
+        ApiResponse<{ generated: number; skipped: number; errors: string[] }>
+      >(
+        ENDPOINTS.CERTIFICATES.BULK_GENERATE(eventId),
+        { templateId, registrationIds }
+      );
       return response.data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['certificates'] });
       toast.success(`تم إصدار ${data.generated} شهادة بنجاح`);
-      if (data.failed > 0) {
-        toast.warning(`فشل إصدار ${data.failed} شهادة`);
+      if (data.skipped > 0) {
+        toast.warning(`تم تخطي ${data.skipped} تسجيل (قد تكون الشهادة موجودة مسبقاً)`);
+      }
+      if (data.errors.length > 0) {
+        toast.error(`حدثت ${data.errors.length} أخطاء أثناء الإصدار`);
       }
     },
     onError: (error: Error) => {
@@ -198,7 +203,7 @@ export const useRevokeCertificate = () => {
 
   return useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      const response = await api.post<unknown, ApiResponse<Certificate>>(
+      const response = await api.patch<unknown, ApiResponse<Certificate>>(
         ENDPOINTS.CERTIFICATES.REVOKE(id),
         { reason }
       );

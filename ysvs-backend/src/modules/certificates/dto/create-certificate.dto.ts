@@ -1,4 +1,10 @@
-import { IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsMongoId,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCertificateDto {
@@ -23,6 +29,16 @@ export class BulkGenerateCertificatesDto {
   @IsOptional()
   @IsMongoId({ message: 'معرف القالب غير صالح' })
   templateId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Optional subset of attended registration IDs to generate certificates for',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray({ message: 'قائمة التسجيلات يجب أن تكون مصفوفة' })
+  @IsMongoId({ each: true, message: 'أحد معرفات التسجيل غير صالح' })
+  registrationIds?: string[];
 }
 
 export class RevokeCertificateDto {

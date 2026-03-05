@@ -263,6 +263,7 @@ export interface Registration {
   status: 'pending' | 'confirmed' | 'cancelled' | 'attended';
   paymentStatus?: 'pending' | 'paid' | 'refunded';
   attendedAt?: Date;
+  certificateIssued?: boolean;
   certificate?: string | Certificate;
   createdAt: Date;
   updatedAt: Date;

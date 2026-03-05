@@ -37,7 +37,7 @@ export class EventsService {
   // ============= EVENTS =============
 
   async create(createEventDto: CreateEventDto, userId: string): Promise<Event> {
-    this.validateEventPhaseOneFields(createEventDto);
+    this.validateEventPhaseOneFields(createEventDto, true);
 
     const event = new this.eventModel({
       ...createEventDto,
@@ -173,7 +173,7 @@ export class EventsService {
       ...existingEvent.toObject(),
       ...updateEventDto,
     } as UpdateEventDto;
-    this.validateEventPhaseOneFields(mergedEvent);
+    this.validateEventPhaseOneFields(mergedEvent, false);
 
     const event = await this.eventModel
       .findByIdAndUpdate(id, updateEventDto, { new: true })
@@ -333,6 +333,7 @@ export class EventsService {
       UpdateEventDto,
       | 'startDate'
       | 'endDate'
+      | 'registrationDeadline'
       | 'outcomes'
       | 'objectives'
       | 'targetAudience'
@@ -343,7 +344,14 @@ export class EventsService {
       | 'speakers'
       | 'schedule'
     >,
+    enforceFutureStartDate: boolean,
   ): void {
+    this.validateEventDates(
+      payload.startDate,
+      payload.endDate,
+      payload.registrationDeadline,
+      enforceFutureStartDate,
+    );
     this.validateTextList(payload.outcomes, 'مخرجات المؤتمر');
     this.validateTextList(payload.objectives, 'أهداف المؤتمر');
     this.validateTextList(payload.targetAudience, 'الفئة المستهدفة');
@@ -356,6 +364,48 @@ export class EventsService {
     );
     this.validateScheduleTimeBounds(payload.startDate, payload.endDate, payload.schedule);
     this.validateScheduleSpeakers(payload.speakers, payload.schedule);
+  }
+
+  private validateEventDates(
+    startDate: Date | undefined,
+    endDate: Date | undefined,
+    registrationDeadline: Date | undefined,
+    enforceFutureStartDate: boolean,
+  ): void {
+    if (!startDate || !endDate) {
+      throw new BadRequestException('تاريخ البداية والنهاية مطلوبان');
+    }
+
+    const parsedStartDate = new Date(startDate);
+    const parsedEndDate = new Date(endDate);
+
+    if (
+      Number.isNaN(parsedStartDate.getTime()) ||
+      Number.isNaN(parsedEndDate.getTime())
+    ) {
+      throw new BadRequestException('تاريخ البداية أو النهاية غير صالح');
+    }
+
+    if (parsedEndDate.getTime() <= parsedStartDate.getTime()) {
+      throw new BadRequestException('تاريخ النهاية يجب أن يكون بعد تاريخ البداية');
+    }
+
+    if (enforceFutureStartDate && parsedStartDate.getTime() < Date.now()) {
+      throw new BadRequestException('لا يمكن إنشاء مؤتمر بتاريخ بداية في الماضي');
+    }
+
+    if (registrationDeadline) {
+      const parsedRegistrationDeadline = new Date(registrationDeadline);
+      if (Number.isNaN(parsedRegistrationDeadline.getTime())) {
+        throw new BadRequestException('موعد إغلاق التسجيل غير صالح');
+      }
+
+      if (parsedRegistrationDeadline.getTime() > parsedStartDate.getTime()) {
+        throw new BadRequestException(
+          'موعد إغلاق التسجيل يجب أن يكون قبل أو يساوي تاريخ بداية المؤتمر',
+        );
+      }
+    }
   }
 
   private validateTextList(items: string[] | undefined, label: string): void {

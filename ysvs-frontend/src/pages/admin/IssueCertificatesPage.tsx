@@ -47,7 +47,7 @@ export default function AdminIssueCertificatesPage() {
   // Filter only attended registrations without certificates
   const eligibleRegistrations =
     registrations?.data?.filter(
-      (reg) => reg.status === "attended" && !reg.certificate
+      (reg) => reg.status === "attended" && !reg.certificateIssued
     ) || [];
 
   const handleSelectAll = (checked: boolean) => {

@@ -49,6 +49,11 @@ const requiresSpeakers = (sessionType: string) =>
 
 const createClientId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
+const toDateTimeLocalInputValue = (date: Date) => {
+  const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000;
+  return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 16);
+};
+
 const speakerSchema = z.object({
   id: z.string().min(1),
   nameAr: z.string().trim().min(2, "اسم المتحدث مطلوب"),
@@ -141,10 +146,21 @@ const eventSchema = z
     speakers: z.array(speakerSchema),
     schedule: z.array(scheduleItemSchema),
   })
-  .refine((values) => new Date(values.endDate) >= new Date(values.startDate), {
+  .refine((values) => new Date(values.endDate) > new Date(values.startDate), {
     path: ["endDate"],
     message: "تاريخ النهاية يجب أن يكون بعد تاريخ البداية",
   })
+  .refine(
+    (values) => {
+      const eventStart = new Date(values.startDate);
+      if (Number.isNaN(eventStart.getTime())) return false;
+      return eventStart.getTime() >= Date.now();
+    },
+    {
+      path: ["startDate"],
+      message: "لا يمكن إنشاء مؤتمر بتاريخ بداية في الماضي",
+    }
+  )
   .refine(
     (values) => {
       if (!values.registrationDeadline) return true;
@@ -339,6 +355,7 @@ export default function AdminEventCreatePage() {
   });
 
   const watchedValues = watch();
+  const nowDateTimeMin = useMemo(() => toDateTimeLocalInputValue(new Date()), []);
   const slugValue = watch("slug");
 
   const generateSlug = (title: string) => {
@@ -778,6 +795,7 @@ export default function AdminEventCreatePage() {
                   <Input
                     id="startDate"
                     type="datetime-local"
+                    min={nowDateTimeMin}
                     {...register("startDate")}
                     className={errors.startDate ? "border-destructive" : ""}
                   />
@@ -789,6 +807,7 @@ export default function AdminEventCreatePage() {
                   <Input
                     id="endDate"
                     type="datetime-local"
+                    min={watchedValues.startDate || nowDateTimeMin}
                     {...register("endDate")}
                     className={errors.endDate ? "border-destructive" : ""}
                   />
@@ -801,6 +820,7 @@ export default function AdminEventCreatePage() {
                 <Input
                   id="registrationDeadline"
                   type="datetime-local"
+                  max={watchedValues.startDate || undefined}
                   {...register("registrationDeadline")}
                   className={errors.registrationDeadline ? "border-destructive" : ""}
                 />
