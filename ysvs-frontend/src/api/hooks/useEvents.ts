@@ -5,6 +5,8 @@ import { ENDPOINTS } from '../endpoints';
 import type {
   ApiResponse,
   Event,
+  EventLiveStream,
+  EventMode,
   EventScheduleItem,
   EventSpeaker,
   FormField,
@@ -38,9 +40,14 @@ interface CreateEventData {
     addressEn?: string;
     city: string;
     cityEn?: string;
-    googleMapsUrl?: string;
-    mapEmbedUrl?: string;
+    coordinates?: {
+      lat: number;
+      lng: number;
+    };
   };
+  eventMode?: EventMode;
+  hasLiveStream?: boolean;
+  liveStream?: EventLiveStream;
   status?: string;
   registrationOpen?: boolean;
   registrationAccess?: RegistrationAccess;

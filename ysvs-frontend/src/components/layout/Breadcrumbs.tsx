@@ -14,7 +14,6 @@ const pathNames: Record<string, string> = {
   registrants: "المسجلين",
   certificates: "الشهادات",
   issue: "إصدار",
-  streaming: "البث المباشر",
   articles: "الأخبار",
   members: "الأعضاء",
   board: "مجلس الإدارة",

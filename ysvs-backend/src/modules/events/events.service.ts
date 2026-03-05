@@ -13,6 +13,8 @@ import {
   EventDocument,
   EventStatus,
   SessionType,
+  EventMode,
+  EventStreamProvider,
 } from './schemas/event.schema';
 import { TicketType, TicketTypeDocument } from './schemas/ticket-type.schema';
 import {
@@ -334,6 +336,9 @@ export class EventsService {
       | 'outcomes'
       | 'objectives'
       | 'targetAudience'
+      | 'eventMode'
+      | 'hasLiveStream'
+      | 'liveStream'
       | 'location'
       | 'speakers'
       | 'schedule'
@@ -342,7 +347,12 @@ export class EventsService {
     this.validateTextList(payload.outcomes, 'مخرجات المؤتمر');
     this.validateTextList(payload.objectives, 'أهداف المؤتمر');
     this.validateTextList(payload.targetAudience, 'الفئة المستهدفة');
-    this.validateMapUrls(payload.location);
+    this.validateEventModeAndLocation(payload.eventMode, payload.location);
+    this.validateLiveStreamSettings(
+      payload.eventMode,
+      payload.hasLiveStream,
+      payload.liveStream,
+    );
     this.validateScheduleTimeBounds(payload.startDate, payload.endDate, payload.schedule);
     this.validateScheduleSpeakers(payload.speakers, payload.schedule);
   }
@@ -361,29 +371,108 @@ export class EventsService {
     }
   }
 
-  private validateMapUrls(location?: {
-    googleMapsUrl?: string;
-    mapEmbedUrl?: string;
-  }): void {
-    if (!location) {
+  private validateEventModeAndLocation(
+    eventMode: EventMode | undefined,
+    location?: {
+      venue?: string;
+      address?: string;
+      city?: string;
+      coordinates?: { lat: number; lng: number };
+    },
+  ): void {
+    const resolvedMode = eventMode ?? EventMode.IN_PERSON;
+
+    if (resolvedMode === EventMode.ONLINE) {
+      if (location && (location.venue || location.address || location.city || location.coordinates)) {
+        throw new BadRequestException('الموقع غير مطلوب للمؤتمر الأونلاين');
+      }
       return;
     }
 
-    if (location.googleMapsUrl && !this.isGoogleMapsUrl(location.googleMapsUrl)) {
-      throw new BadRequestException('رابط خرائط جوجل غير صالح');
+    this.validateLocationCoordinates(location);
+  }
+
+  private validateLocationCoordinates(location?: {
+    venue?: string;
+    address?: string;
+    city?: string;
+    coordinates?: { lat: number; lng: number };
+  }): void {
+    if (!location) {
+      throw new BadRequestException('بيانات موقع المؤتمر الحضوري مطلوبة');
     }
 
-    if (location.mapEmbedUrl && !this.isGoogleMapsEmbedUrl(location.mapEmbedUrl)) {
-      throw new BadRequestException('رابط تضمين خرائط جوجل غير صالح');
+    const hasLocationDetails = Boolean(
+      location.venue || location.address || location.city || location.coordinates,
+    );
+
+    if (!hasLocationDetails) {
+      throw new BadRequestException('بيانات موقع المؤتمر الحضوري مطلوبة');
+    }
+
+    if (!location.venue || !location.address || !location.city) {
+      throw new BadRequestException('اسم المكان والعنوان والمدينة مطلوبة للمؤتمر الحضوري');
+    }
+
+    if (!location.coordinates) {
+      throw new BadRequestException('يرجى تحديد موقع المؤتمر على الخريطة');
+    }
+
+    const { lat, lng } = location.coordinates;
+    if (
+      typeof lat !== 'number' ||
+      Number.isNaN(lat) ||
+      lat < -90 ||
+      lat > 90 ||
+      typeof lng !== 'number' ||
+      Number.isNaN(lng) ||
+      lng < -180 ||
+      lng > 180
+    ) {
+      throw new BadRequestException('إحداثيات الموقع غير صالحة');
     }
   }
 
-  private isGoogleMapsUrl(url: string): boolean {
-    return /^https?:\/\/(www\.)?google\.[a-z.]+\/maps/i.test(url) || /^https?:\/\/maps\.app\.goo\.gl\//i.test(url);
-  }
+  private validateLiveStreamSettings(
+    eventMode: EventMode | undefined,
+    hasLiveStream: boolean | undefined,
+    liveStream?: {
+      provider?: EventStreamProvider;
+      embedUrl?: string;
+      joinUrl?: string;
+      recordingAvailable?: boolean;
+      recordingUrl?: string;
+    },
+  ): void {
+    const resolvedMode = eventMode ?? EventMode.IN_PERSON;
+    const streamEnabled = hasLiveStream ?? false;
 
-  private isGoogleMapsEmbedUrl(url: string): boolean {
-    return /^https?:\/\/(www\.)?google\.[a-z.]+\/maps\/embed/i.test(url);
+    if (!streamEnabled) {
+      if (liveStream && Object.keys(liveStream).length > 0) {
+        throw new BadRequestException('فعّل خيار البث المباشر أولاً قبل إدخال إعداداته');
+      }
+      return;
+    }
+
+    if (!liveStream) {
+      throw new BadRequestException('بيانات البث المباشر مطلوبة عند تفعيل البث');
+    }
+
+    if (!liveStream.embedUrl && !liveStream.joinUrl) {
+      throw new BadRequestException('يرجى إدخال رابط بث مدمج أو رابط انضمام مباشر');
+    }
+
+    if (!liveStream.provider) {
+      throw new BadRequestException('يرجى تحديد مزود البث المباشر');
+    }
+
+    if (liveStream.recordingUrl && !liveStream.recordingAvailable) {
+      throw new BadRequestException('يجب تفعيل خيار التسجيل قبل إدخال رابط إعادة البث');
+    }
+
+    if (resolvedMode === EventMode.ONLINE && !liveStream.joinUrl && !liveStream.embedUrl) {
+      throw new BadRequestException('المؤتمر الأونلاين يتطلب بيانات دخول واضحة للبث');
+    }
   }
 
   private validateScheduleTimeBounds(

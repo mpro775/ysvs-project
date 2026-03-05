@@ -66,17 +66,6 @@ export const ENDPOINTS = {
     REORDER: '/board/members/reorder',
   },
 
-  // Streaming
-  STREAMING: {
-    STATUS: '/streaming/status',
-    CONFIG: '/streaming/config',
-    CONFIG_BY_ID: (id: string) => `/streaming/config/${id}`,
-    START: (configId: string) => `/streaming/start/${configId}`,
-    STOP: '/streaming/stop',
-    HISTORY: '/streaming/history',
-    VIEWERS: '/streaming/viewers',
-  },
-
   // Media
   MEDIA: {
     UPLOAD: '/media/upload',

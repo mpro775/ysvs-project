@@ -3,34 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Mouse } from 'lucide-react';
 import headerBg from '@/assets/header-bg.png';
 
-interface HeroSectionProps {
-  isLive?: boolean;
-  streamUrl?: string;
-}
-
-export function HeroSection({ isLive, streamUrl }: HeroSectionProps) {
-  if (isLive && streamUrl) {
-    return (
-      <section className="relative bg-neutral-900" id="live">
-        <div className="container mx-auto px-4 py-8">
-          <div className="mb-4 flex items-center gap-2">
-            <span className="flex h-3 w-3 animate-pulse rounded-full bg-red-500" />
-            <span className="font-bold text-white">البث المباشر</span>
-          </div>
-          <div className="aspect-video overflow-hidden rounded-xl bg-black">
-            <iframe
-              src={streamUrl}
-              className="h-full w-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              title="البث المباشر"
-            />
-          </div>
-        </div>
-      </section>
-    );
-  }
-
+export function HeroSection() {
   return (
     <section
       className="relative min-h-[calc(100vh-48px)] overflow-hidden bg-cover bg-center bg-no-repeat"

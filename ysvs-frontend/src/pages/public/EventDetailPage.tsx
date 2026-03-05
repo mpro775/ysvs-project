@@ -11,6 +11,9 @@ import {
   UserRound,
   Mic,
   CheckCircle2,
+  MonitorPlay,
+  Wifi,
+  Link as LinkIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +24,7 @@ import { useEventBySlug } from "@/api/hooks/useEvents";
 import { useAuthStore } from "@/stores/authStore";
 import { DynamicForm } from "@/components/dynamic-form/DynamicForm";
 import { CountdownTimer } from "@/components/home/CountdownTimer";
+import { EventLocationMap } from "@/components/events/EventLocationMap";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { cn, getEventDisplayStatus } from "@/lib/utils";
@@ -76,6 +80,12 @@ export default function EventDetailPage() {
     event.maxAttendees > 0
       ? `${event.currentAttendees} / ${event.maxAttendees}`
       : `${event.currentAttendees}`;
+  const eventMode = event.eventMode || (event.location ? "in_person" : "online");
+  const isOnlineMode = eventMode === "online";
+  const hasLiveStream = Boolean(event.hasLiveStream && event.liveStream);
+  const streamInfo = event.liveStream;
+  const hasStreamEmbedUrl = Boolean(streamInfo?.embedUrl);
+  const hasStreamJoinUrl = Boolean(streamInfo?.joinUrl);
   const speakerById = new Map((event.speakers || []).map((speaker) => [speaker.id, speaker]));
   const sortedSchedule = [...(event.schedule || [])].sort(
     (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
@@ -98,6 +108,15 @@ export default function EventDetailPage() {
     opening: "border-blue-200 bg-blue-50 text-blue-800",
     closing: "border-rose-200 bg-rose-50 text-rose-800",
   };
+  const locationCoordinates = event.location?.coordinates;
+  const hasLocationCoordinates =
+    locationCoordinates &&
+    Number.isFinite(locationCoordinates.lat) &&
+    Number.isFinite(locationCoordinates.lng);
+  const openStreetMapLink = hasLocationCoordinates
+    ? `https://www.openstreetmap.org/?mlat=${locationCoordinates.lat}&mlon=${locationCoordinates.lng}#map=15/${locationCoordinates.lat}/${locationCoordinates.lng}`
+    : undefined;
+  const eventModeLabel = isOnlineMode ? "أونلاين" : "حضوري";
 
   const goToSpeakerCard = (speakerId: string) => {
     setActiveTab("speakers");
@@ -149,6 +168,9 @@ export default function EventDetailPage() {
                     ? "جارٍ الآن"
                     : "منتهي"}
                 </Badge>
+                <Badge className="border border-white/20 bg-white/10 px-3 py-1 text-white">
+                  {eventModeLabel}
+                </Badge>
                 {isUpcoming && !canRegister && (
                   <Badge className="border border-amber-300/70 bg-amber-400/20 px-3 py-1 text-amber-100">
                     انتهى موعد التسجيل
@@ -185,7 +207,7 @@ export default function EventDetailPage() {
                       {format(endDate, "h:mm a", { locale: ar })}
                     </span>
                   </div>
-                  {event.location && (
+                  {!isOnlineMode && event.location && (
                     <div className="inline-flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-white/75" />
                       <span>{event.location.venue}</span>
@@ -213,9 +235,17 @@ export default function EventDetailPage() {
                   <p className="mt-1 text-sm font-semibold text-white">{attendeeLabel}</p>
                 </div>
                 <div className="event-hero-stat-card">
-                  <MapPin className="mb-2 h-4 w-4 text-white/80" />
-                  <p className="text-[11px] text-white/70">آخر موعد للتسجيل</p>
-                  <p className="mt-1 text-sm font-semibold text-white">{registrationDeadlineLabel}</p>
+                  {isOnlineMode ? (
+                    <Wifi className="mb-2 h-4 w-4 text-white/80" />
+                  ) : (
+                    <MapPin className="mb-2 h-4 w-4 text-white/80" />
+                  )}
+                  <p className="text-[11px] text-white/70">
+                    {isOnlineMode ? "نمط الحضور" : "آخر موعد للتسجيل"}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-white">
+                    {isOnlineMode ? "انضمام عن بُعد" : registrationDeadlineLabel}
+                  </p>
                 </div>
               </div>
             </div>
@@ -615,8 +645,88 @@ export default function EventDetailPage() {
               </Card>
             )}
 
+            {hasLiveStream && (
+              <Card className="event-surface-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MonitorPlay className="h-5 w-5 text-rose-600" />
+                    البث المباشر
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                    هذا المؤتمر يدعم المتابعة عبر البث المباشر.
+                  </div>
+
+                  {streamInfo?.provider && (
+                    <p className="text-sm text-muted-foreground">المنصة: {streamInfo.provider}</p>
+                  )}
+
+                  {streamInfo?.instructions && (
+                    <p className="text-sm leading-relaxed">{streamInfo.instructions}</p>
+                  )}
+
+                  {hasStreamJoinUrl && (
+                    <Button asChild className="w-full">
+                      <a href={streamInfo?.joinUrl} target="_blank" rel="noreferrer">
+                        <LinkIcon className="ml-2 h-4 w-4" />
+                        انضم الآن
+                      </a>
+                    </Button>
+                  )}
+
+                  {streamInfo?.meetingId && (
+                    <p className="text-xs text-muted-foreground">Meeting ID: {streamInfo.meetingId}</p>
+                  )}
+                  {streamInfo?.passcode && (
+                    <p className="text-xs text-muted-foreground">Passcode: {streamInfo.passcode}</p>
+                  )}
+
+                  {streamInfo?.supportContact && (
+                    <p className="text-xs text-muted-foreground">الدعم الفني: {streamInfo.supportContact}</p>
+                  )}
+
+                  {streamInfo?.recordingAvailable && streamInfo?.recordingUrl && (
+                    <Button asChild variant="outline" className="w-full">
+                      <a href={streamInfo.recordingUrl} target="_blank" rel="noreferrer">
+                        مشاهدة التسجيل
+                      </a>
+                    </Button>
+                  )}
+
+                  {hasStreamEmbedUrl && (
+                    <div className="overflow-hidden rounded-lg border">
+                      <iframe
+                        src={streamInfo?.embedUrl}
+                        className="aspect-video w-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        title="البث المباشر للمؤتمر"
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {isOnlineMode && !hasLiveStream && (
+              <Card className="event-surface-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wifi className="h-5 w-5 text-primary-600" />
+                    حضور أونلاين
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    هذا مؤتمر أونلاين. سيتم نشر رابط الانضمام وتعليمات الدخول عند توفرها.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Location */}
-            {event.location && (
+            {!isOnlineMode && event.location && (
               <Card className="event-surface-card">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -630,25 +740,24 @@ export default function EventDetailPage() {
                     {event.location.address}
                   </p>
                   <p className="text-muted-foreground">{event.location.city}</p>
-                  {event.location.googleMapsUrl && (
-                    <Button asChild variant="outline" className="mt-4 w-full">
-                      <a href={event.location.googleMapsUrl} target="_blank" rel="noreferrer">
-                        فتح الموقع في خرائط جوجل
-                      </a>
-                    </Button>
-                  )}
-                  {event.location.mapEmbedUrl && (
-                    <div className="mt-4 overflow-hidden rounded-xl border">
-                      <iframe
-                        title="موقع المؤتمر على خرائط جوجل"
-                        src={event.location.mapEmbedUrl}
-                        width="100%"
-                        height="260"
-                        loading="lazy"
-                        referrerPolicy="no-referrer-when-downgrade"
-                        className="w-full"
+                  {hasLocationCoordinates ? (
+                    <div className="mt-4 space-y-3">
+                      <EventLocationMap
+                        lat={locationCoordinates.lat}
+                        lng={locationCoordinates.lng}
                       />
+                      {openStreetMapLink && (
+                        <Button asChild variant="outline" className="w-full">
+                          <a href={openStreetMapLink} target="_blank" rel="noreferrer">
+                            فتح الموقع في الخرائط
+                          </a>
+                        </Button>
+                      )}
                     </div>
+                  ) : (
+                    <p className="mt-4 rounded-md border border-dashed p-3 text-center text-sm text-muted-foreground">
+                      لا توجد إحداثيات موقع متاحة لهذا المؤتمر.
+                    </p>
                   )}
                 </CardContent>
               </Card>

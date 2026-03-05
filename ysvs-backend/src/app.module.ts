@@ -20,7 +20,6 @@ import { EventsModule } from './modules/events/events.module';
 import { CertificatesModule } from './modules/certificates/certificates.module';
 import { ContentModule } from './modules/content/content.module';
 import { BoardModule } from './modules/board/board.module';
-import { StreamingModule } from './modules/streaming/streaming.module';
 import { MediaModule } from './modules/media/media.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 
@@ -75,7 +74,6 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     CertificatesModule,
     ContentModule,
     BoardModule,
-    StreamingModule,
     MediaModule,
     DashboardModule,
   ],

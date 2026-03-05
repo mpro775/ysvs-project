@@ -30,6 +30,18 @@ export enum SessionType {
   CLOSING = 'closing',
 }
 
+export enum EventMode {
+  IN_PERSON = 'in_person',
+  ONLINE = 'online',
+}
+
+export enum EventStreamProvider {
+  YOUTUBE = 'youtube',
+  VIMEO = 'vimeo',
+  ZOOM = 'zoom',
+  CUSTOM = 'custom',
+}
+
 export enum FormFieldType {
   TEXT = 'text',
   TEXTAREA = 'textarea',
@@ -80,8 +92,6 @@ export interface Location {
   addressEn?: string;
   city: string;
   cityEn?: string;
-  googleMapsUrl?: string;
-  mapEmbedUrl?: string;
   coordinates?: {
     lat: number;
     lng: number;
@@ -113,6 +123,19 @@ export interface EventScheduleItem {
   speakerIds?: string[];
 }
 
+export interface EventLiveStream {
+  provider: EventStreamProvider;
+  embedUrl?: string;
+  joinUrl?: string;
+  meetingId?: string;
+  passcode?: string;
+  instructions?: string;
+  supportContact?: string;
+  joinWindowMinutes?: number;
+  recordingAvailable?: boolean;
+  recordingUrl?: string;
+}
+
 @Schema({ timestamps: true })
 export class Event extends Document {
   @Prop({ required: true, trim: true })
@@ -141,6 +164,19 @@ export class Event extends Document {
 
   @Prop({ type: Object })
   location: Location;
+
+  @Prop({
+    type: String,
+    enum: Object.values(EventMode),
+    default: EventMode.IN_PERSON,
+  })
+  eventMode: EventMode;
+
+  @Prop({ default: false })
+  hasLiveStream: boolean;
+
+  @Prop({ type: Object })
+  liveStream?: EventLiveStream;
 
   @Prop({
     type: String,
@@ -198,12 +234,6 @@ export class Event extends Document {
 
   @Prop({ default: 0 })
   cmeHours: number;
-
-  @Prop({ default: false })
-  isLive: boolean;
-
-  @Prop()
-  streamUrl: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
   createdBy: Types.ObjectId;

@@ -81,7 +81,6 @@ async function bootstrap() {
     .addTag('Certificates', 'Certificate generation and verification')
     .addTag('Content', 'News and articles management')
     .addTag('Board', 'Board members management')
-    .addTag('Streaming', 'Live streaming management')
     .addTag('Media', 'File upload and management')
     .build();
 

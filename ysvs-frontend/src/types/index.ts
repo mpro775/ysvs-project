@@ -63,6 +63,22 @@ export const SessionType = {
 
 export type SessionType = (typeof SessionType)[keyof typeof SessionType];
 
+export const EventMode = {
+  IN_PERSON: 'in_person',
+  ONLINE: 'online',
+} as const;
+
+export type EventMode = (typeof EventMode)[keyof typeof EventMode];
+
+export const EventStreamProvider = {
+  YOUTUBE: 'youtube',
+  VIMEO: 'vimeo',
+  ZOOM: 'zoom',
+  CUSTOM: 'custom',
+} as const;
+
+export type EventStreamProvider = (typeof EventStreamProvider)[keyof typeof EventStreamProvider];
+
 export const FormFieldType = {
   TEXT: 'text',
   TEXTAREA: 'textarea',
@@ -123,8 +139,6 @@ export interface Location {
   addressEn?: string;
   city: string;
   cityEn?: string;
-  googleMapsUrl?: string;
-  mapEmbedUrl?: string;
   coordinates?: {
     lat: number;
     lng: number;
@@ -156,6 +170,19 @@ export interface EventScheduleItem {
   speakerIds?: string[];
 }
 
+export interface EventLiveStream {
+  provider: EventStreamProvider;
+  embedUrl?: string;
+  joinUrl?: string;
+  meetingId?: string;
+  passcode?: string;
+  instructions?: string;
+  supportContact?: string;
+  joinWindowMinutes?: number;
+  recordingAvailable?: boolean;
+  recordingUrl?: string;
+}
+
 export interface Event {
   _id: string;
   titleAr: string;
@@ -167,6 +194,9 @@ export interface Event {
   startDate: Date;
   endDate: Date;
   location?: Location;
+  eventMode?: EventMode;
+  hasLiveStream?: boolean;
+  liveStream?: EventLiveStream;
   status: EventStatus;
   registrationOpen: boolean;
   registrationAccess?: RegistrationAccess;
@@ -182,8 +212,6 @@ export interface Event {
   formSchema: FormField[];
   ticketTypes?: string[];
   cmeHours: number;
-  isLive: boolean;
-  streamUrl?: string;
   createdBy?: string;
   createdAt: Date;
   updatedAt: Date;

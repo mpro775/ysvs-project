@@ -36,7 +36,6 @@ const AdminEventEditPage = lazy(() => import('@/pages/admin/EventEditPage'));
 const AdminEventRegistrantsPage = lazy(() => import('@/pages/admin/EventRegistrantsPage'));
 const AdminCertificatesPage = lazy(() => import('@/pages/admin/CertificatesPage'));
 const AdminIssueCertificatesPage = lazy(() => import('@/pages/admin/IssueCertificatesPage'));
-const AdminStreamingPage = lazy(() => import('@/pages/admin/StreamingPage'));
 const AdminArticlesPage = lazy(() => import('@/pages/admin/ArticlesPage'));
 const AdminArticleEditorPage = lazy(() => import('@/pages/admin/ArticleEditorPage'));
 const AdminMembersPage = lazy(() => import('@/pages/admin/MembersPage'));
@@ -105,7 +104,6 @@ export const router = createBrowserRouter([
           { path: 'events/:id/registrants', element: <AdminEventRegistrantsPage /> },
           { path: 'certificates', element: <AdminCertificatesPage /> },
           { path: 'certificates/issue', element: <AdminIssueCertificatesPage /> },
-          { path: 'streaming', element: <AdminStreamingPage /> },
           { path: 'articles', element: <AdminArticlesPage /> },
           { path: 'articles/create', element: <AdminArticleEditorPage /> },
           { path: 'articles/:id/edit', element: <AdminArticleEditorPage /> },

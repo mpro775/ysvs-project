@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUpcomingEvent, useEvents } from "@/api/hooks/useEvents";
 import { useLatestArticles } from "@/api/hooks/useContent";
-import { useStreamStatus } from "@/api/hooks/useStreaming";
 import { HeroSection } from "@/components/home/HeroSection";
 import { StatsSection } from "@/components/home/StatsSection";
 import { UpcomingEventsSection } from "@/components/home/UpcomingEventsSection";
@@ -14,7 +13,6 @@ import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 
 export default function HomePage() {
-  const { data: streamStatus } = useStreamStatus();
   const { data: upcomingEvent } = useUpcomingEvent();
   const { data: eventsData, isLoading: loadingEvents } = useEvents({
     limit: 3,
@@ -25,10 +23,7 @@ export default function HomePage() {
   return (
     <div>
       {/* Hero Section */}
-      <HeroSection
-        isLive={streamStatus?.isLive}
-        streamUrl={streamStatus?.embedUrl}
-      />
+      <HeroSection />
 
       {/* Countdown Section */}
       {upcomingEvent && (

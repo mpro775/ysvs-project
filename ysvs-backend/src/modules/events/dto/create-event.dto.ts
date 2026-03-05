@@ -12,6 +12,8 @@ import {
   ArrayMinSize,
   IsUrl,
   ValidateIf,
+  IsLatitude,
+  IsLongitude,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -20,8 +22,20 @@ import {
   RegistrationAccess,
   GuestEmailMode,
   SessionType,
+  EventMode,
+  EventStreamProvider,
 } from '../schemas/event.schema';
 import { FormFieldDto } from './form-schema.dto';
+
+class CoordinatesDto {
+  @ApiProperty({ example: 15.3694 })
+  @IsLatitude({ message: 'خط العرض غير صالح' })
+  lat: number;
+
+  @ApiProperty({ example: 44.191 })
+  @IsLongitude({ message: 'خط الطول غير صالح' })
+  lng: number;
+}
 
 class LocationDto {
   @ApiProperty({ example: 'فندق موفنبيك' })
@@ -55,20 +69,13 @@ class LocationDto {
   cityEn?: string;
 
   @ApiPropertyOptional({
-    example: 'https://maps.google.com/?q=15.3694,44.1910',
-    description: 'Public Google Maps link for opening in new tab',
+    example: { lat: 15.3694, lng: 44.191 },
+    description: 'Selected map coordinates using web map picker',
   })
   @IsOptional()
-  @IsUrl()
-  googleMapsUrl?: string;
-
-  @ApiPropertyOptional({
-    example: 'https://www.google.com/maps/embed?pb=!1m18!...',
-    description: 'Google Maps embed URL (no API key required)',
-  })
-  @IsOptional()
-  @IsUrl()
-  mapEmbedUrl?: string;
+  @ValidateNested()
+  @Type(() => CoordinatesDto)
+  coordinates?: CoordinatesDto;
 }
 
 class EventSpeakerDto {
@@ -182,6 +189,71 @@ class EventScheduleItemDto {
   speakerIds?: string[];
 }
 
+class EventLiveStreamDto {
+  @ApiPropertyOptional({
+    enum: EventStreamProvider,
+    default: EventStreamProvider.YOUTUBE,
+  })
+  @IsOptional()
+  @IsEnum(EventStreamProvider, { message: 'مزود البث غير صالح' })
+  provider?: EventStreamProvider;
+
+  @ApiPropertyOptional({
+    description: 'Embed URL for inline player',
+    example: 'https://www.youtube.com/embed/VIDEO_ID',
+  })
+  @IsOptional()
+  @IsString()
+  embedUrl?: string;
+
+  @ApiPropertyOptional({
+    description: 'External join URL for attendees',
+    example: 'https://zoom.us/j/123456789',
+  })
+  @IsOptional()
+  @IsUrl()
+  joinUrl?: string;
+
+  @ApiPropertyOptional({ description: 'Meeting ID for live session' })
+  @IsOptional()
+  @IsString()
+  meetingId?: string;
+
+  @ApiPropertyOptional({ description: 'Meeting passcode' })
+  @IsOptional()
+  @IsString()
+  passcode?: string;
+
+  @ApiPropertyOptional({ description: 'Joining instructions in Arabic' })
+  @IsOptional()
+  @IsString()
+  instructions?: string;
+
+  @ApiPropertyOptional({ description: 'Technical support contact details' })
+  @IsOptional()
+  @IsString()
+  supportContact?: string;
+
+  @ApiPropertyOptional({
+    description: 'Minutes before start when joining is allowed',
+    default: 0,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  joinWindowMinutes?: number;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  recordingAvailable?: boolean;
+
+  @ApiPropertyOptional({ description: 'Recording URL after event ends' })
+  @IsOptional()
+  @IsUrl()
+  recordingUrl?: string;
+}
+
 export class CreateEventDto {
   @ApiProperty({ example: 'المؤتمر السنوي الخامس', description: 'Title in Arabic' })
   @IsString({ message: 'العنوان بالعربي يجب أن يكون نصاً' })
@@ -228,6 +300,25 @@ export class CreateEventDto {
   @ValidateNested()
   @Type(() => LocationDto)
   location?: LocationDto;
+
+  @ApiPropertyOptional({ enum: EventMode, default: EventMode.IN_PERSON })
+  @IsOptional()
+  @IsEnum(EventMode, { message: 'نوع المؤتمر غير صالح' })
+  eventMode?: EventMode;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  hasLiveStream?: boolean;
+
+  @ApiPropertyOptional({
+    type: EventLiveStreamDto,
+    description: 'Live stream settings linked to the event',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EventLiveStreamDto)
+  liveStream?: EventLiveStreamDto;
 
   @ApiPropertyOptional({ enum: EventStatus, default: EventStatus.UPCOMING })
   @IsOptional()

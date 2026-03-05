@@ -22,6 +22,7 @@ import {
 import { useEvent, useUpdateEvent, checkSlugAvailability } from "@/api/hooks/useEvents";
 import { FormBuilder } from "@/components/form-builder/FormBuilder";
 import { EventCoverImageField } from "@/components/events/EventCoverImageField";
+import { LocationMapPicker } from "@/components/events/LocationMapPicker";
 import type { FormField } from "@/types";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
@@ -35,6 +36,13 @@ const sessionTypeOptions = [
   { value: "closing", label: "ختام" },
   { value: "break", label: "استراحة" },
   { value: "networking", label: "جلسة تواصل" },
+] as const;
+
+const streamProviderOptions = [
+  { value: "youtube", label: "YouTube" },
+  { value: "vimeo", label: "Vimeo" },
+  { value: "zoom", label: "Zoom" },
+  { value: "custom", label: "منصة أخرى" },
 ] as const;
 
 const requiresSpeakers = (sessionType: string) =>
@@ -75,6 +83,22 @@ const scheduleItemSchema = z
     message: "وقت نهاية الجلسة يجب أن يكون بعد وقت البداية",
   });
 
+const liveStreamSchema = z.object({
+  provider: z.enum(streamProviderOptions.map((item) => item.value) as [
+    (typeof streamProviderOptions)[number]["value"],
+    ...(typeof streamProviderOptions)[number]["value"][],
+  ]),
+  embedUrl: z.string().url("رابط تضمين البث غير صالح").optional().or(z.literal("")),
+  joinUrl: z.string().url("رابط الانضمام غير صالح").optional().or(z.literal("")),
+  meetingId: z.string().optional(),
+  passcode: z.string().optional(),
+  instructions: z.string().optional(),
+  supportContact: z.string().optional(),
+  joinWindowMinutes: z.number().min(0).optional(),
+  recordingAvailable: z.boolean().optional(),
+  recordingUrl: z.string().url("رابط إعادة البث غير صالح").optional().or(z.literal("")),
+});
+
 const eventSchema = z
   .object({
     titleAr: z.string().min(3, "العنوان بالعربي يجب أن يكون 3 أحرف على الأقل"),
@@ -89,11 +113,14 @@ const eventSchema = z
     startDate: z.string().min(1, "تاريخ البداية مطلوب"),
     endDate: z.string().min(1, "تاريخ النهاية مطلوب"),
     registrationDeadline: z.string().optional(),
+    eventMode: z.enum(["in_person", "online"]),
+    hasLiveStream: z.boolean(),
+    liveStream: liveStreamSchema,
     venue: z.string().optional(),
     address: z.string().optional(),
     city: z.string().optional(),
-    googleMapsUrl: z.string().url("رابط خرائط جوجل غير صالح").optional().or(z.literal("")),
-    mapEmbedUrl: z.string().url("رابط تضمين الخريطة غير صالح").optional().or(z.literal("")),
+    coordinatesLat: z.number().min(-90, "خط العرض يجب أن يكون بين -90 و 90").max(90).optional(),
+    coordinatesLng: z.number().min(-180, "خط الطول يجب أن يكون بين -180 و 180").max(180).optional(),
     maxAttendees: z.number().min(0).optional(),
     cmeHours: z.number().min(0).optional(),
     registrationOpen: z.boolean(),
@@ -160,6 +187,71 @@ const eventSchema = z
         }
       });
     });
+
+    const hasLocationData = Boolean(
+      values.venue?.trim() ||
+        values.address?.trim() ||
+        values.city?.trim() ||
+        values.coordinatesLat !== undefined ||
+        values.coordinatesLng !== undefined
+    );
+
+    if (values.eventMode === "in_person") {
+      if (!values.venue?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["venue"],
+          message: "اسم مكان المؤتمر مطلوب",
+        });
+      }
+      if (!values.address?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["address"],
+          message: "عنوان المؤتمر مطلوب",
+        });
+      }
+      if (!values.city?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["city"],
+          message: "مدينة المؤتمر مطلوبة",
+        });
+      }
+      if (values.coordinatesLat === undefined || values.coordinatesLng === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["coordinatesLat"],
+          message: "يرجى تحديد موقع المؤتمر على الخريطة",
+        });
+      }
+    } else if (hasLocationData) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["eventMode"],
+        message: "الموقع غير مطلوب عند اختيار مؤتمر أونلاين",
+      });
+    }
+
+    if (values.hasLiveStream) {
+      const hasEmbed = Boolean(values.liveStream.embedUrl?.trim());
+      const hasJoin = Boolean(values.liveStream.joinUrl?.trim());
+      if (!hasEmbed && !hasJoin) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["liveStream", "embedUrl"],
+          message: "أدخل رابط بث مدمج أو رابط انضمام مباشر",
+        });
+      }
+
+      if (values.liveStream.recordingUrl && !values.liveStream.recordingAvailable) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["liveStream", "recordingAvailable"],
+          message: "فعّل خيار التسجيل أولاً قبل إدخال رابط إعادة البث",
+        });
+      }
+    }
   });
 
 type EventForm = z.infer<typeof eventSchema>;
@@ -192,6 +284,22 @@ export default function AdminEventEditPage() {
       registrationAccess: "authenticated_only",
       guestEmailMode: "required",
       registrationOpen: false,
+      eventMode: "in_person",
+      hasLiveStream: false,
+      liveStream: {
+        provider: "youtube",
+        embedUrl: "",
+        joinUrl: "",
+        meetingId: "",
+        passcode: "",
+        instructions: "",
+        supportContact: "",
+        joinWindowMinutes: undefined,
+        recordingAvailable: false,
+        recordingUrl: "",
+      },
+      coordinatesLat: undefined,
+      coordinatesLng: undefined,
       outcomes: [""],
       objectives: [""],
       targetAudience: [""],
@@ -212,11 +320,25 @@ export default function AdminEventEditPage() {
         startDate: toDateTimeLocal(event.startDate),
         endDate: toDateTimeLocal(event.endDate),
         registrationDeadline: toDateTimeLocal(event.registrationDeadline),
+        eventMode: event.eventMode || "in_person",
+        hasLiveStream: Boolean(event.hasLiveStream),
+        liveStream: {
+          provider: event.liveStream?.provider || "youtube",
+          embedUrl: event.liveStream?.embedUrl || "",
+          joinUrl: event.liveStream?.joinUrl || "",
+          meetingId: event.liveStream?.meetingId || "",
+          passcode: event.liveStream?.passcode || "",
+          instructions: event.liveStream?.instructions || "",
+          supportContact: event.liveStream?.supportContact || "",
+          joinWindowMinutes: event.liveStream?.joinWindowMinutes,
+          recordingAvailable: Boolean(event.liveStream?.recordingAvailable),
+          recordingUrl: event.liveStream?.recordingUrl || "",
+        },
         venue: event.location?.venue || "",
         address: event.location?.address || "",
         city: event.location?.city || "",
-        googleMapsUrl: event.location?.googleMapsUrl || "",
-        mapEmbedUrl: event.location?.mapEmbedUrl || "",
+        coordinatesLat: event.location?.coordinates?.lat,
+        coordinatesLng: event.location?.coordinates?.lng,
         maxAttendees: event.maxAttendees,
         cmeHours: event.cmeHours,
         registrationOpen: event.registrationOpen,
@@ -249,6 +371,7 @@ export default function AdminEventEditPage() {
   const targetAudience = watchedValues.targetAudience || [];
   const speakers = watchedValues.speakers || [];
   const schedule = watchedValues.schedule || [];
+  const liveStream = watchedValues.liveStream;
 
   const addOutcome = () => {
     setValue("outcomes", [...outcomes, ""], { shouldDirty: true, shouldValidate: true });
@@ -410,7 +533,17 @@ export default function AdminEventEditPage() {
   const onSubmit = (data: EventForm) => {
     if (!id) return;
 
-    const { venue, address, city, googleMapsUrl, mapEmbedUrl, ...rest } = data;
+    const {
+      venue,
+      address,
+      city,
+      coordinatesLat,
+      coordinatesLng,
+      eventMode,
+      hasLiveStream,
+      liveStream,
+      ...rest
+    } = data;
 
     if (slugStatus === "taken") {
       setSummaryError("لا يمكن حفظ التعديلات لأن الرابط المختصر مستخدم مسبقاً");
@@ -418,6 +551,16 @@ export default function AdminEventEditPage() {
     }
 
     setSummaryError("");
+    const hasLocationData =
+      eventMode === "in_person" &&
+      Boolean(
+        venue?.trim() ||
+          address?.trim() ||
+          city?.trim() ||
+          coordinatesLat !== undefined ||
+          coordinatesLng !== undefined
+      );
+
     updateEvent(
       {
         id,
@@ -429,13 +572,34 @@ export default function AdminEventEditPage() {
           registrationDeadline: rest.registrationDeadline
             ? new Date(rest.registrationDeadline)
             : undefined,
-          location: venue
+          eventMode,
+          hasLiveStream,
+          liveStream: hasLiveStream
             ? {
-                venue,
+                provider: liveStream.provider,
+                embedUrl: liveStream.embedUrl || undefined,
+                joinUrl: liveStream.joinUrl || undefined,
+                meetingId: liveStream.meetingId || undefined,
+                passcode: liveStream.passcode || undefined,
+                instructions: liveStream.instructions || undefined,
+                supportContact: liveStream.supportContact || undefined,
+                joinWindowMinutes: liveStream.joinWindowMinutes,
+                recordingAvailable: Boolean(liveStream.recordingAvailable),
+                recordingUrl: liveStream.recordingUrl || undefined,
+              }
+            : undefined,
+          location: hasLocationData
+            ? {
+                venue: venue || "",
                 address: address || "",
                 city: city || "",
-                googleMapsUrl: googleMapsUrl || undefined,
-                mapEmbedUrl: mapEmbedUrl || undefined,
+                coordinates:
+                  coordinatesLat !== undefined && coordinatesLng !== undefined
+                    ? {
+                        lat: coordinatesLat,
+                        lng: coordinatesLng,
+                      }
+                    : undefined,
               }
             : undefined,
           outcomes: rest.outcomes.map((item) => item.trim()).filter(Boolean),
@@ -617,6 +781,39 @@ export default function AdminEventEditPage() {
                   )}
                 </div>
 
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="eventMode">نوع المؤتمر *</Label>
+                    <Select
+                      value={watchedValues.eventMode}
+                      onValueChange={(value: "in_person" | "online") => {
+                        setValue("eventMode", value, { shouldDirty: true, shouldValidate: true });
+                        if (value === "online") {
+                          setValue("venue", "", { shouldDirty: true, shouldValidate: true });
+                          setValue("address", "", { shouldDirty: true, shouldValidate: true });
+                          setValue("city", "", { shouldDirty: true, shouldValidate: true });
+                          setValue("coordinatesLat", undefined, { shouldDirty: true, shouldValidate: true });
+                          setValue("coordinatesLng", undefined, { shouldDirty: true, shouldValidate: true });
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="eventMode">
+                        <SelectValue placeholder="اختر نوع المؤتمر" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="in_person">حضوري</SelectItem>
+                        <SelectItem value="online">أونلاين</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {errors.eventMode && <p className="text-sm text-destructive">{errors.eventMode.message}</p>}
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    {watchedValues.eventMode === "in_person"
+                      ? "المؤتمر حضوري: سيتم إظهار بيانات الموقع والخريطة وإلزامها."
+                      : "المؤتمر أونلاين: سيتم إخفاء بيانات الموقع والتركيز على بيانات الانضمام والبث."}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="descriptionAr">الوصف (عربي)</Label>
                   <Textarea id="descriptionAr" rows={4} {...register("descriptionAr")} />
@@ -633,20 +830,29 @@ export default function AdminEventEditPage() {
                   disabled={isPending}
                 />
 
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="venue">المكان</Label>
-                    <Input id="venue" {...register("venue")} />
+                {watchedValues.eventMode === "in_person" ? (
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="venue">المكان *</Label>
+                      <Input id="venue" {...register("venue")} />
+                      {errors.venue && <p className="text-sm text-destructive">{errors.venue.message}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="address">العنوان *</Label>
+                      <Input id="address" {...register("address")} />
+                      {errors.address && <p className="text-sm text-destructive">{errors.address.message}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="city">المدينة *</Label>
+                      <Input id="city" {...register("city")} />
+                      {errors.city && <p className="text-sm text-destructive">{errors.city.message}</p>}
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="address">العنوان</Label>
-                    <Input id="address" {...register("address")} />
+                ) : (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    تم اختيار مؤتمر أونلاين، لذلك تم إخفاء بيانات الموقع والخريطة.
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="city">المدينة</Label>
-                    <Input id="city" {...register("city")} />
-                  </div>
-                </div>
+                )}
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
@@ -726,28 +932,154 @@ export default function AdminEventEditPage() {
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="googleMapsUrl">رابط خرائط جوجل</Label>
-                    <Input
-                      id="googleMapsUrl"
-                      dir="ltr"
-                      placeholder="https://maps.google.com/..."
-                      {...register("googleMapsUrl")}
-                    />
-                    <p className="text-xs text-muted-foreground">رابط لفتح الموقع في خرائط جوجل مباشرة</p>
+                <div className="space-y-4 rounded-xl border p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold">البث المباشر المرتبط بالمؤتمر</h3>
+                      <p className="text-xs text-muted-foreground">يمكن تفعيله للحضوري أو الأونلاين حسب الحاجة.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id="hasLiveStream"
+                        checked={watchedValues.hasLiveStream}
+                        onCheckedChange={(checked) =>
+                          setValue("hasLiveStream", checked, { shouldDirty: true, shouldValidate: true })
+                        }
+                      />
+                      <Label htmlFor="hasLiveStream">تفعيل البث</Label>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="mapEmbedUrl">رابط تضمين الخريطة</Label>
-                    <Input
-                      id="mapEmbedUrl"
-                      dir="ltr"
-                      placeholder="https://www.google.com/maps/embed?..."
-                      {...register("mapEmbedUrl")}
-                    />
-                    <p className="text-xs text-muted-foreground">يتم عرضه داخل صفحة المؤتمر بدون API Key</p>
-                  </div>
+
+                  {watchedValues.hasLiveStream ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>مزود البث</Label>
+                        <Select
+                          value={liveStream.provider}
+                          onValueChange={(value: "youtube" | "vimeo" | "zoom" | "custom") =>
+                            setValue("liveStream.provider", value, { shouldDirty: true, shouldValidate: true })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="اختر مزود البث" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {streamProviderOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>رابط البث المدمج</Label>
+                        <Input dir="ltr" placeholder="https://www.youtube.com/embed/..." {...register("liveStream.embedUrl")} />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>رابط الانضمام المباشر</Label>
+                        <Input dir="ltr" placeholder="https://zoom.us/j/..." {...register("liveStream.joinUrl")} />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>معرف الاجتماع</Label>
+                        <Input {...register("liveStream.meetingId")} />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>رمز الدخول</Label>
+                        <Input {...register("liveStream.passcode")} />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>دعم فني</Label>
+                        <Input placeholder="واتساب أو بريد الدعم" {...register("liveStream.supportContact")} />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>السماح بالدخول قبل البداية (دقائق)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          {...register("liveStream.joinWindowMinutes", {
+                            setValueAs: (value) => (value === "" ? undefined : Number(value)),
+                          })}
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-6">
+                        <Switch
+                          id="recordingAvailable"
+                          checked={Boolean(liveStream.recordingAvailable)}
+                          onCheckedChange={(checked) =>
+                            setValue("liveStream.recordingAvailable", checked, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                        />
+                        <Label htmlFor="recordingAvailable">إتاحة إعادة البث</Label>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>رابط إعادة البث</Label>
+                        <Input dir="ltr" placeholder="https://..." {...register("liveStream.recordingUrl")} />
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>تعليمات الانضمام</Label>
+                        <Textarea rows={3} {...register("liveStream.instructions")} />
+                      </div>
+
+                      {(errors.liveStream?.embedUrl?.message ||
+                        errors.liveStream?.joinUrl?.message ||
+                        errors.liveStream?.recordingAvailable?.message ||
+                        errors.liveStream?.recordingUrl?.message) && (
+                        <p className="text-sm text-destructive md:col-span-2">
+                          {errors.liveStream?.embedUrl?.message ||
+                            errors.liveStream?.joinUrl?.message ||
+                            errors.liveStream?.recordingAvailable?.message ||
+                            errors.liveStream?.recordingUrl?.message}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">يمكنك تفعيل البث عند الحاجة فقط.</p>
+                  )}
                 </div>
+
+                {watchedValues.eventMode === "in_person" && (
+                  <>
+                    <LocationMapPicker
+                      value={
+                        watchedValues.coordinatesLat !== undefined &&
+                        watchedValues.coordinatesLng !== undefined
+                          ? {
+                              lat: watchedValues.coordinatesLat,
+                              lng: watchedValues.coordinatesLng,
+                            }
+                          : undefined
+                      }
+                      onChange={(coords) => {
+                        setValue("coordinatesLat", Number(coords.lat.toFixed(6)), {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        setValue("coordinatesLng", Number(coords.lng.toFixed(6)), {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }}
+                    />
+                    {(errors.coordinatesLat?.message || errors.coordinatesLng?.message) && (
+                      <p className="text-sm text-destructive">
+                        {errors.coordinatesLat?.message || errors.coordinatesLng?.message}
+                      </p>
+                    )}
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

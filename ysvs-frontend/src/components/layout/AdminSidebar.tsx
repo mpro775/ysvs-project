@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   Calendar,
   Award,
-  Radio,
   Newspaper,
   Users,
   UserCog,
@@ -47,11 +46,6 @@ const navItems = [
       { title: "سجل الشهادات", href: "/admin/certificates" },
       { title: "إصدار شهادات", href: "/admin/certificates/issue" },
     ],
-  },
-  {
-    title: "البث المباشر",
-    href: "/admin/streaming",
-    icon: Radio,
   },
   {
     title: "الأخبار",

@@ -14,12 +14,10 @@ import { Certificate, CertificateDocument } from '../../modules/certificates/sch
 import { Event, EventDocument } from '../../modules/events/schemas/event.schema';
 import { TicketType, TicketTypeDocument } from '../../modules/events/schemas/ticket-type.schema';
 import { Registration, RegistrationDocument } from '../../modules/events/schemas/registration.schema';
-import { StreamConfig, StreamConfigDocument } from '../../modules/streaming/schemas/stream-config.schema';
 import { UserRole } from '../../common/decorators/roles.decorator';
 import { ArticleStatus } from '../../modules/content/schemas/article.schema';
 import { EventStatus } from '../../modules/events/schemas/event.schema';
 import { RegistrationStatus, PaymentStatus } from '../../modules/events/schemas/registration.schema';
-import { StreamProvider } from '../../modules/streaming/schemas/stream-config.schema';
 
 const DEFAULT_PASSWORD = 'Password123!';
 
@@ -42,7 +40,6 @@ export class SeedService {
     @InjectModel(Event.name) private eventModel: Model<EventDocument>,
     @InjectModel(TicketType.name) private ticketTypeModel: Model<TicketTypeDocument>,
     @InjectModel(Registration.name) private registrationModel: Model<RegistrationDocument>,
-    @InjectModel(StreamConfig.name) private streamConfigModel: Model<StreamConfigDocument>,
   ) {}
 
   async run(fresh = false) {
@@ -59,7 +56,6 @@ export class SeedService {
     await this.seedRegistrations();
     await this.seedCertificates();
     await this.seedArticles();
-    await this.seedStreamConfig();
     console.log('✅ اكتمل البذر بنجاح.');
   }
 
@@ -68,7 +64,6 @@ export class SeedService {
     await this.certificateModel.deleteMany({});
     await this.registrationModel.deleteMany({});
     await this.ticketTypeModel.deleteMany({});
-    await this.streamConfigModel.deleteMany({});
     await this.eventModel.deleteMany({});
     await this.articleModel.deleteMany({});
     await this.templateModel.deleteMany({});
@@ -226,7 +221,6 @@ export class SeedService {
         currentAttendees: 85,
         formSchema,
         cmeHours: 15,
-        isLive: false,
         createdBy: adminId,
       },
       {
@@ -382,24 +376,5 @@ export class SeedService {
     ];
     await this.articleModel.insertMany(articles);
     console.log(`   📰 تم إنشاء ${articles.length} مقالات`);
-  }
-
-  private async seedStreamConfig() {
-    await this.streamConfigModel.insertMany([
-      {
-        isLive: false,
-        provider: StreamProvider.YOUTUBE,
-        embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-        titleAr: 'البث المباشر - المؤتمر السنوي',
-        titleEn: 'Live Stream - Annual Conference',
-        descriptionAr: 'بث مباشر لفعاليات المؤتمر',
-        descriptionEn: 'Live stream of conference activities',
-        event: this.eventIds[0],
-        viewerCount: 0,
-        notificationSent: false,
-        startedBy: this.userIds[1],
-      },
-    ]);
-    console.log('   📺 تم إنشاء إعداد البث');
   }
 }

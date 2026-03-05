@@ -17,7 +17,6 @@ import { Certificate, CertificateSchema } from '../../modules/certificates/schem
 import { Event, EventSchema } from '../../modules/events/schemas/event.schema';
 import { TicketType, TicketTypeSchema } from '../../modules/events/schemas/ticket-type.schema';
 import { Registration, RegistrationSchema } from '../../modules/events/schemas/registration.schema';
-import { StreamConfig, StreamConfigSchema } from '../../modules/streaming/schemas/stream-config.schema';
 
 @Module({
   imports: [
@@ -42,7 +41,6 @@ import { StreamConfig, StreamConfigSchema } from '../../modules/streaming/schema
       { name: Event.name, schema: EventSchema },
       { name: TicketType.name, schema: TicketTypeSchema },
       { name: Registration.name, schema: RegistrationSchema },
-      { name: StreamConfig.name, schema: StreamConfigSchema },
     ]),
   ],
   providers: [SeedService],
