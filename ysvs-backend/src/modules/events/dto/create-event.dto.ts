@@ -124,10 +124,15 @@ class EventSpeakerDto {
   @IsString()
   bioEn?: string;
 
-  @ApiPropertyOptional({ description: 'Speaker image URL' })
+  @ApiPropertyOptional({ description: 'Media library file id for speaker image' })
   @IsOptional()
-  @IsUrl()
-  image?: string;
+  @IsString()
+  imageMediaId?: string;
+
+  @ApiPropertyOptional({ description: 'Resolved speaker image URL from media library' })
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }
 
 class EventScheduleItemDto {

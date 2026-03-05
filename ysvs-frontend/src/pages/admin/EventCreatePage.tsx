@@ -22,6 +22,7 @@ import { useCreateEvent, checkSlugAvailability } from "@/api/hooks/useEvents";
 import { FormBuilder } from "@/components/form-builder/FormBuilder";
 import { EventCoverImageField } from "@/components/events/EventCoverImageField";
 import { LocationMapPicker } from "@/components/events/LocationMapPicker";
+import { SpeakerImageField } from "@/components/events/SpeakerImageField";
 import type { FormField } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +59,8 @@ const speakerSchema = z.object({
   organizationEn: z.string().optional(),
   bioAr: z.string().optional(),
   bioEn: z.string().optional(),
-  image: z.string().url("رابط صورة المتحدث غير صالح").optional().or(z.literal("")),
+  imageMediaId: z.string().optional(),
+  imageUrl: z.string().optional(),
 });
 
 const scheduleItemSchema = z
@@ -414,7 +416,8 @@ export default function AdminEventCreatePage() {
         organizationEn: "",
         bioAr: "",
         bioEn: "",
-        image: "",
+        imageMediaId: "",
+        imageUrl: "",
       },
     ];
     setValue("speakers", next, { shouldDirty: true, shouldValidate: true });
@@ -423,6 +426,19 @@ export default function AdminEventCreatePage() {
   const updateSpeakerField = (index: number, key: keyof EventForm["speakers"][number], value: string) => {
     const next = [...speakers];
     next[index] = { ...next[index], [key]: value };
+    setValue("speakers", next, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const updateSpeakerImage = (
+    index: number,
+    image?: { imageMediaId?: string; imageUrl?: string }
+  ) => {
+    const next = [...speakers];
+    next[index] = {
+      ...next[index],
+      imageMediaId: image?.imageMediaId || "",
+      imageUrl: image?.imageUrl || "",
+    };
     setValue("speakers", next, { shouldDirty: true, shouldValidate: true });
   };
 
@@ -592,7 +608,8 @@ export default function AdminEventCreatePage() {
         targetAudience: rest.targetAudience.map((item) => item.trim()).filter(Boolean),
         speakers: rest.speakers.map((speaker) => ({
           ...speaker,
-          image: speaker.image || undefined,
+          imageMediaId: speaker.imageMediaId || undefined,
+          imageUrl: speaker.imageUrl || undefined,
         })),
         schedule: rest.schedule
           .map((session) => ({
@@ -1256,11 +1273,13 @@ export default function AdminEventCreatePage() {
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label>صورة المتحدث (رابط)</Label>
-                          <Input
-                            value={speaker.image || ""}
-                            dir="ltr"
-                            onChange={(event) => updateSpeakerField(index, "image", event.target.value)}
+                          <Label>صورة المتحدث</Label>
+                          <SpeakerImageField
+                            value={{
+                              imageMediaId: speaker.imageMediaId,
+                              imageUrl: speaker.imageUrl,
+                            }}
+                            onChange={(image) => updateSpeakerImage(index, image)}
                           />
                         </div>
                       </div>
@@ -1276,11 +1295,11 @@ export default function AdminEventCreatePage() {
 
                       {(errors.speakers?.[index]?.nameAr?.message ||
                         errors.speakers?.[index]?.titleAr?.message ||
-                        errors.speakers?.[index]?.image?.message) && (
+                        errors.speakers?.[index]?.imageUrl?.message) && (
                         <p className="mt-2 text-sm text-destructive">
                           {errors.speakers?.[index]?.nameAr?.message ||
                             errors.speakers?.[index]?.titleAr?.message ||
-                            errors.speakers?.[index]?.image?.message}
+                            errors.speakers?.[index]?.imageUrl?.message}
                         </p>
                       )}
                     </div>

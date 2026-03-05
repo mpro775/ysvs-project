@@ -108,7 +108,8 @@ export interface EventSpeaker {
   organizationEn?: string;
   bioAr?: string;
   bioEn?: string;
-  image?: string;
+  imageMediaId?: string;
+  imageUrl?: string;
 }
 
 export interface EventScheduleItem {

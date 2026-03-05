@@ -155,6 +155,8 @@ export interface EventSpeaker {
   organizationEn?: string;
   bioAr?: string;
   bioEn?: string;
+  imageMediaId?: string;
+  imageUrl?: string;
   image?: string;
 }
 

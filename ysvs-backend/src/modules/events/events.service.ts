@@ -347,6 +347,7 @@ export class EventsService {
     this.validateTextList(payload.outcomes, 'مخرجات المؤتمر');
     this.validateTextList(payload.objectives, 'أهداف المؤتمر');
     this.validateTextList(payload.targetAudience, 'الفئة المستهدفة');
+    this.validateSpeakers(payload.speakers);
     this.validateEventModeAndLocation(payload.eventMode, payload.location);
     this.validateLiveStreamSettings(
       payload.eventMode,
@@ -540,6 +541,26 @@ export class EventsService {
         if (!allowedSpeakerIds.has(speakerId)) {
           throw new BadRequestException('تمت الإشارة إلى متحدث غير موجود في قائمة المتحدثين');
         }
+      }
+    }
+  }
+
+  private validateSpeakers(
+    speakers?: Array<{ id: string; imageMediaId?: string; imageUrl?: string }>,
+  ): void {
+    if (!speakers?.length) {
+      return;
+    }
+
+    const ids = new Set<string>();
+    for (const speaker of speakers) {
+      if (ids.has(speaker.id)) {
+        throw new BadRequestException('يوجد تكرار في معرفات المتحدثين');
+      }
+      ids.add(speaker.id);
+
+      if (speaker.imageMediaId && !speaker.imageUrl) {
+        throw new BadRequestException('صورة المتحدث يجب أن تكون مرتبطة بمكتبة الوسائط بشكل صحيح');
       }
     }
   }

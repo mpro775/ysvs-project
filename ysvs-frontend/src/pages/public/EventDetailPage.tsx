@@ -355,9 +355,9 @@ export default function EventDetailPage() {
                         {event.speakers.map((speaker) => (
                           <div id={`speaker-${speaker.id}`} key={speaker.id} className="rounded-xl border p-4">
                             <div className="mb-3 flex items-center gap-3">
-                              {speaker.image ? (
+                              {(speaker.imageUrl || speaker.image) ? (
                                 <img
-                                  src={speaker.image}
+                                  src={speaker.imageUrl || speaker.image}
                                   alt={speaker.nameAr}
                                   className="h-14 w-14 rounded-full object-cover"
                                 />
