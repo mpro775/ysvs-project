@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Bell, LogOut, Moon, Sun, User, Home, Menu } from "lucide-react";
+import { Bell, LogOut, User, Home, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,10 +13,11 @@ import { useAuthStore } from "@/stores/authStore";
 import { useUIStore } from "@/stores/uiStore";
 import { useLogout } from "@/api/hooks/useAuth";
 import { Breadcrumbs } from "./Breadcrumbs";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
 
 export function AdminTopBar() {
   const { user } = useAuthStore();
-  const { theme, setTheme, setSidebarOpen } = useUIStore();
+  const { setSidebarOpen } = useUIStore();
   const { mutate: logout } = useLogout();
   const navigate = useNavigate();
   const location = useLocation();
@@ -26,12 +27,8 @@ export function AdminTopBar() {
     navigate("/");
   };
 
-  const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
-  };
-
   return (
-    <header className="sticky top-0 z-30 flex h-14 min-h-14 shrink-0 items-center justify-between gap-2 border-b bg-white px-4 sm:px-6">
+    <header className="sticky top-0 z-30 flex h-14 min-h-14 shrink-0 items-center justify-between gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <Button
           variant="ghost"
@@ -57,14 +54,7 @@ export function AdminTopBar() {
           </Link>
         </Button>
 
-        {/* Theme Toggle */}
-        <Button variant="ghost" size="icon" onClick={toggleTheme}>
-          {theme === "light" ? (
-            <Moon className="h-5 w-5" />
-          ) : (
-            <Sun className="h-5 w-5" />
-          )}
-        </Button>
+        <ThemeToggle />
 
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">

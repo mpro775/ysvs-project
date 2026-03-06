@@ -14,6 +14,7 @@ import {
 } from './schemas/certificate-template.schema';
 import { EventsModule } from '../events/events.module';
 import { MediaModule } from '../media/media.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { MediaModule } from '../media/media.module';
     }),
     EventsModule,
     MediaModule,
+    NotificationsModule,
   ],
   controllers: [CertificatesController],
   providers: [

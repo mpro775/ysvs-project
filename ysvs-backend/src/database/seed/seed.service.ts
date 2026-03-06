@@ -4,6 +4,10 @@ import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { User, UserDocument } from '../../modules/users/schemas/user.schema';
 import { BoardMember, BoardMemberDocument } from '../../modules/board/schemas/board-member.schema';
+import {
+  AboutContent,
+  AboutContentDocument,
+} from '../../modules/about/schemas/about-content.schema';
 import { Category, CategoryDocument } from '../../modules/content/schemas/category.schema';
 import { Article, ArticleDocument } from '../../modules/content/schemas/article.schema';
 import {
@@ -14,6 +18,10 @@ import { Certificate, CertificateDocument } from '../../modules/certificates/sch
 import { Event, EventDocument } from '../../modules/events/schemas/event.schema';
 import { TicketType, TicketTypeDocument } from '../../modules/events/schemas/ticket-type.schema';
 import { Registration, RegistrationDocument } from '../../modules/events/schemas/registration.schema';
+import {
+  SiteContent,
+  SiteContentDocument,
+} from '../../modules/site-content/schemas/site-content.schema';
 import { UserRole } from '../../common/decorators/roles.decorator';
 import { ArticleStatus } from '../../modules/content/schemas/article.schema';
 import { EventStatus } from '../../modules/events/schemas/event.schema';
@@ -33,6 +41,8 @@ export class SeedService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(BoardMember.name) private boardModel: Model<BoardMemberDocument>,
+    @InjectModel(AboutContent.name)
+    private aboutContentModel: Model<AboutContentDocument>,
     @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
     @InjectModel(Article.name) private articleModel: Model<ArticleDocument>,
     @InjectModel(CertificateTemplate.name) private templateModel: Model<CertificateTemplateDocument>,
@@ -40,6 +50,8 @@ export class SeedService {
     @InjectModel(Event.name) private eventModel: Model<EventDocument>,
     @InjectModel(TicketType.name) private ticketTypeModel: Model<TicketTypeDocument>,
     @InjectModel(Registration.name) private registrationModel: Model<RegistrationDocument>,
+    @InjectModel(SiteContent.name)
+    private siteContentModel: Model<SiteContentDocument>,
   ) {}
 
   async run(fresh = false) {
@@ -48,6 +60,8 @@ export class SeedService {
       await this.clearAll();
     }
     await this.seedUsers();
+    await this.seedAboutContent();
+    await this.seedSiteContent();
     await this.seedCategories();
     await this.seedBoardMembers();
     await this.seedCertificateTemplates();
@@ -68,8 +82,141 @@ export class SeedService {
     await this.articleModel.deleteMany({});
     await this.templateModel.deleteMany({});
     await this.categoryModel.deleteMany({});
+    await this.aboutContentModel.deleteMany({});
+    await this.siteContentModel.deleteMany({});
     await this.boardModel.deleteMany({});
     await this.userModel.deleteMany({});
+  }
+
+  private async seedAboutContent() {
+    const aboutContent = {
+      singletonKey: 'about',
+      heroTitleAr: 'عن الجمعية',
+      heroTitleEn: 'About The Society',
+      heroDescriptionAr:
+        'الجمعية اليمنية لجراحة الأوعية الدموية هي جمعية طبية متخصصة تأسست بهدف تطوير وتعزيز مجال جراحة الأوعية الدموية في اليمن',
+      heroDescriptionEn:
+        'The Yemeni Society for Vascular Surgery is a specialized medical society founded to advance vascular surgery in Yemen.',
+      visionTitleAr: 'رؤيتنا',
+      visionTitleEn: 'Our Vision',
+      visionTextAr:
+        'أن نكون الجمعية الرائدة في مجال جراحة الأوعية الدموية على مستوى المنطقة، ونساهم في تقديم أفضل رعاية صحية للمرضى من خلال التعليم المستمر والبحث العلمي.',
+      visionTextEn:
+        'To be the leading society in vascular surgery in the region and contribute to better patient care through continuous education and scientific research.',
+      missionTitleAr: 'رسالتنا',
+      missionTitleEn: 'Our Mission',
+      missionTextAr:
+        'تطوير مهارات ومعارف الأطباء في مجال جراحة الأوعية الدموية من خلال تنظيم المؤتمرات والورش العلمية، وتبادل الخبرات مع الجمعيات الدولية.',
+      missionTextEn:
+        'Develop physicians skills and knowledge in vascular surgery through conferences, workshops, and knowledge exchange with international societies.',
+      objectives: [
+        {
+          textAr: 'تنظيم المؤتمرات والندوات العلمية المتخصصة',
+          textEn: 'Organize specialized scientific conferences and seminars',
+          order: 0,
+          isActive: true,
+        },
+        {
+          textAr: 'توفير برامج التعليم الطبي المستمر (CME)',
+          textEn: 'Provide continuing medical education (CME) programs',
+          order: 1,
+          isActive: true,
+        },
+        {
+          textAr: 'تعزيز التعاون مع الجمعيات الطبية المحلية والدولية',
+          textEn: 'Strengthen collaboration with local and international medical societies',
+          order: 2,
+          isActive: true,
+        },
+        {
+          textAr: 'دعم البحث العلمي في مجال جراحة الأوعية',
+          textEn: 'Support scientific research in vascular surgery',
+          order: 3,
+          isActive: true,
+        },
+        {
+          textAr: 'رفع مستوى الوعي الصحي في المجتمع',
+          textEn: 'Raise health awareness in the community',
+          order: 4,
+          isActive: true,
+        },
+        {
+          textAr: 'تبادل الخبرات والمعرفة بين الأعضاء',
+          textEn: 'Exchange expertise and knowledge among members',
+          order: 5,
+          isActive: true,
+        },
+      ],
+    };
+
+    await this.aboutContentModel.create(aboutContent);
+    console.log('   ℹ️ تم إنشاء محتوى صفحة عن الجمعية');
+  }
+
+  private async seedSiteContent() {
+    const siteContent = {
+      singletonKey: 'site-content',
+      footer: {
+        descriptionAr:
+          'الجمعية اليمنية لجراحة الأوعية الدموية - تسعى لتطوير الرعاية الصحية المتخصصة في اليمن من خلال التدريب والبحث العلمي.',
+        descriptionEn:
+          'The Yemeni Society for Vascular Surgery advances specialized healthcare in Yemen through training and scientific research.',
+        addressAr: 'صنعاء، اليمن شارع الزبيري',
+        addressEn: 'Al Zubairy Street, Sanaa, Yemen',
+        phone: '+967 123 456 789',
+        email: 'info@ysvs.org',
+        quickLinks: [
+          { labelAr: 'عن الجمعية', labelEn: 'About', href: '/about', order: 0, isActive: true },
+          { labelAr: 'المؤتمرات', labelEn: 'Events', href: '/events', order: 1, isActive: true },
+          { labelAr: 'الأخبار', labelEn: 'News', href: '/news', order: 2, isActive: true },
+          {
+            labelAr: 'التحقق من الشهادات',
+            labelEn: 'Certificate Verification',
+            href: '/verify',
+            order: 3,
+            isActive: true,
+          },
+          { labelAr: 'تواصل معنا', labelEn: 'Contact', href: '/contact', order: 4, isActive: true },
+        ],
+        socialLinks: [
+          { platform: 'facebook', url: 'https://facebook.com', order: 0, isActive: true },
+          { platform: 'twitter', url: 'https://twitter.com', order: 1, isActive: true },
+          { platform: 'instagram', url: 'https://instagram.com', order: 2, isActive: true },
+          { platform: 'youtube', url: 'https://youtube.com', order: 3, isActive: true },
+        ],
+        copyrightAr: 'جميع الحقوق محفوظة.',
+        copyrightEn: 'All rights reserved.',
+      },
+      legalPages: {
+        privacy: {
+          titleAr: 'سياسة الخصوصية',
+          titleEn: 'Privacy Policy',
+          contentAr:
+            '<h2>سياسة الخصوصية</h2><p>نلتزم بحماية خصوصية البيانات الشخصية للمستخدمين، واستخدامها فقط للأغراض المشروعة المتعلقة بخدمات الجمعية.</p>',
+          contentEn:
+            '<h2>Privacy Policy</h2><p>We are committed to protecting users personal data and using it only for lawful purposes related to society services.</p>',
+          version: 1,
+          effectiveDate: new Date(),
+          publishedAt: new Date(),
+          isPublished: true,
+        },
+        terms: {
+          titleAr: 'الشروط والأحكام',
+          titleEn: 'Terms and Conditions',
+          contentAr:
+            '<h2>الشروط والأحكام</h2><p>باستخدامك للموقع، فإنك توافق على الالتزام بسياسات الجمعية ولوائح الاستخدام المعتمدة.</p>',
+          contentEn:
+            '<h2>Terms and Conditions</h2><p>By using this website, you agree to comply with society policies and approved usage regulations.</p>',
+          version: 1,
+          effectiveDate: new Date(),
+          publishedAt: new Date(),
+          isPublished: true,
+        },
+      },
+    };
+
+    await this.siteContentModel.create(siteContent);
+    console.log('   ℹ️ تم إنشاء المحتوى العام (الفوتر + الصفحات القانونية)');
   }
 
   private async seedUsers() {

@@ -310,6 +310,97 @@ export interface BoardMember {
   updatedAt: Date;
 }
 
+export interface AboutObjective {
+  textAr: string;
+  textEn: string;
+  order: number;
+  isActive: boolean;
+}
+
+export interface AboutContent {
+  _id: string;
+  singletonKey: string;
+  heroTitleAr: string;
+  heroTitleEn: string;
+  heroDescriptionAr: string;
+  heroDescriptionEn: string;
+  visionTitleAr: string;
+  visionTitleEn: string;
+  visionTextAr: string;
+  visionTextEn: string;
+  missionTitleAr: string;
+  missionTitleEn: string;
+  missionTextAr: string;
+  missionTextEn: string;
+  objectives: AboutObjective[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface FooterQuickLink {
+  labelAr: string;
+  labelEn: string;
+  href: string;
+  order: number;
+  isActive: boolean;
+}
+
+export interface FooterSocialLink {
+  platform: string;
+  url: string;
+  order: number;
+  isActive: boolean;
+}
+
+export interface FooterContent {
+  descriptionAr: string;
+  descriptionEn: string;
+  addressAr: string;
+  addressEn: string;
+  phone: string;
+  email: string;
+  quickLinks: FooterQuickLink[];
+  socialLinks: FooterSocialLink[];
+  copyrightAr: string;
+  copyrightEn: string;
+}
+
+export interface LegalPage {
+  titleAr: string;
+  titleEn: string;
+  contentAr: string;
+  contentEn: string;
+  version: number;
+  effectiveDate?: Date;
+  publishedAt?: Date;
+  isPublished: boolean;
+}
+
+export interface LegalPageMetadata {
+  titleAr: string;
+  titleEn: string;
+  version: number;
+  effectiveDate?: Date;
+  slug: 'privacy' | 'terms';
+}
+
+export interface SitePublicContent {
+  footer: FooterContent;
+  legal: LegalPageMetadata[];
+}
+
+export interface SiteContent {
+  _id: string;
+  singletonKey: string;
+  footer: FooterContent;
+  legalPages: {
+    privacy: LegalPage;
+    terms: LegalPage;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Streaming types
 export interface StreamStatus {
   isLive: boolean;
@@ -390,13 +481,75 @@ export interface DashboardStats {
   certificatesChange: number;
   articlesCount: number;
   articlesChange: number;
+  newsletterSubscribersCount: number;
+  newsletterSubscribersChange: number;
+  contactMessagesCount: number;
+  contactMessagesChange: number;
+  unreadContactMessagesCount: number;
   upcomingEvents: Event[];
   recentActivities: Activity[];
 }
 
 export interface Activity {
   id: string;
-  type: 'registration' | 'article' | 'certificate' | 'member';
+  type:
+    | 'registration'
+    | 'article'
+    | 'certificate'
+    | 'member'
+    | 'newsletter'
+    | 'contact';
   message: string;
   timestamp: Date;
+}
+
+export interface NewsletterSubscriber {
+  _id: string;
+  email: string;
+  status: 'pending' | 'subscribed' | 'unsubscribed';
+  source?: string;
+  locale?: string;
+  subscribedAt?: Date;
+  confirmedAt?: Date;
+  unsubscribedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type ContactMessageStatus =
+  | 'new'
+  | 'in_progress'
+  | 'replied'
+  | 'archived'
+  | 'spam';
+
+export interface ContactReply {
+  body: string;
+  subject?: string;
+  repliedBy: string;
+  repliedAt: Date;
+  sentSuccessfully: boolean;
+  error?: string;
+}
+
+export interface ContactMessage {
+  _id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: ContactMessageStatus;
+  isRead: boolean;
+  readAt?: Date;
+  assignedTo?: string;
+  source?: string;
+  locale?: string;
+  ip?: string;
+  userAgent?: string;
+  replies: ContactReply[];
+  lastRepliedAt?: Date;
+  lastReplyBy?: string;
+  archivedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }

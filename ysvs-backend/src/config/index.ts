@@ -5,3 +5,5 @@ export { default as redisConfig } from './redis.config';
 export { default as mailConfig } from './mail.config';
 export { default as storageConfig } from './storage.config';
 export { default as throttleConfig } from './throttle.config';
+export { default as newsletterConfig } from './newsletter.config';
+export { default as contactConfig } from './contact.config';

@@ -145,7 +145,7 @@ export default function AdminEventRegistrantsPage() {
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border bg-white -mx-4 sm:mx-0">
+      <div className="-mx-4 overflow-x-auto rounded-lg border bg-card sm:mx-0">
         <Table className="min-w-[560px]">
           <TableHeader>
             <TableRow>

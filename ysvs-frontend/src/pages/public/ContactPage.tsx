@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
-import { useState } from 'react';
+import { useSubmitContactMessage } from '@/api/hooks/useContact';
 
 const contactSchema = z.object({
   name: z.string().min(3, 'الاسم يجب أن يكون 3 أحرف على الأقل'),
@@ -20,7 +19,7 @@ const contactSchema = z.object({
 type ContactForm = z.infer<typeof contactSchema>;
 
 export default function ContactPage() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitContactMessage = useSubmitContactMessage();
 
   const {
     register,
@@ -32,28 +31,35 @@ export default function ContactPage() {
   });
 
   const onSubmit = async (data: ContactForm) => {
-    setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    console.log(data);
-    toast.success('تم إرسال رسالتك بنجاح');
-    reset();
-    setIsSubmitting(false);
+    submitContactMessage.mutate(
+      {
+        ...data,
+        source: 'contact-page',
+        locale: 'ar',
+      },
+      {
+        onSuccess: () => {
+          reset();
+        },
+      },
+    );
   };
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold">تواصل معنا</h1>
-        <p className="mt-2 text-muted-foreground">
-          نسعد بتواصلكم معنا والرد على استفساراتكم
-        </p>
-      </div>
+    <div className="bg-muted/20">
+      <section className="bg-gradient-to-l from-primary-900 via-primary-800 to-primary-700 py-14 text-white dark:from-primary-950 dark:via-neutral-900 dark:to-neutral-800">
+        <div className="container mx-auto px-4 text-center">
+          <h1 className="text-3xl font-bold">تواصل معنا</h1>
+          <p className="mt-2 text-primary-100">
+            نسعد بتواصلكم معنا والرد على استفساراتكم
+          </p>
+        </div>
+      </section>
 
-      <div className="grid gap-8 lg:grid-cols-3">
+      <div className="container mx-auto grid gap-8 px-4 py-12 lg:grid-cols-3">
         {/* Contact Info */}
         <div className="space-y-6">
-          <Card>
+          <Card className="border-primary-100">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-primary-600" />
@@ -69,7 +75,7 @@ export default function ContactPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-primary-100">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Phone className="h-5 w-5 text-primary-600" />
@@ -83,7 +89,7 @@ export default function ContactPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-primary-100">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="h-5 w-5 text-primary-600" />
@@ -97,7 +103,7 @@ export default function ContactPage() {
         </div>
 
         {/* Contact Form */}
-        <Card className="lg:col-span-2">
+        <Card className="border-primary-100 lg:col-span-2">
           <CardHeader>
             <CardTitle>أرسل لنا رسالة</CardTitle>
           </CardHeader>
@@ -160,8 +166,12 @@ export default function ContactPage() {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? (
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={submitContactMessage.isPending}
+              >
+                {submitContactMessage.isPending ? (
                   <Loader2 className="ml-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Send className="ml-2 h-4 w-4" />

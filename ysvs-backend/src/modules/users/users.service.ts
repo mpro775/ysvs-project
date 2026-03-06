@@ -9,10 +9,15 @@ import * as bcrypt from 'bcryptjs';
 import { User, UserDocument } from './schemas/user.schema';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { UserRole } from '../../common/decorators/roles.decorator';
+import { NotificationsPublisherService } from '../notifications/notifications.publisher.service';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    private readonly notificationsPublisherService: NotificationsPublisherService,
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const existingUser = await this.userModel.findOne({
@@ -31,8 +36,25 @@ export class UsersService {
       password: hashedPassword,
       membershipDate: new Date(),
     });
+    const savedUser = await user.save();
 
-    return user.save();
+    if (savedUser.role === UserRole.MEMBER) {
+      this.notificationsPublisherService.publishToAdmins({
+        type: 'member.created',
+        title: 'عضو جديد',
+        message: `تم إنشاء حساب عضو جديد: ${savedUser.fullNameAr}`,
+        entityId: savedUser._id.toString(),
+        entityType: 'user',
+        severity: 'info',
+        actionUrl: '/admin/members',
+        meta: {
+          email: savedUser.email,
+          source: 'admin_create',
+        },
+      });
+    }
+
+    return savedUser;
   }
 
   async findAll(paginationDto: PaginationDto): Promise<PaginatedResult<User>> {
@@ -81,6 +103,15 @@ export class UsersService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+    const existingUser = await this.userModel
+      .findById(id)
+      .select('isActive role fullNameAr')
+      .exec();
+
+    if (!existingUser) {
+      throw new NotFoundException('المستخدم غير موجود');
+    }
+
     const user = await this.userModel
       .findByIdAndUpdate(id, updateUserDto, { new: true })
       .select('-password -refreshToken -passwordResetToken -verificationToken')
@@ -88,6 +119,23 @@ export class UsersService {
 
     if (!user) {
       throw new NotFoundException('المستخدم غير موجود');
+    }
+
+    const becameActiveMember =
+      existingUser.role === UserRole.MEMBER &&
+      existingUser.isActive === false &&
+      user.isActive === true;
+
+    if (becameActiveMember) {
+      this.notificationsPublisherService.publishToAdmins({
+        type: 'member.activated',
+        title: 'تفعيل عضو',
+        message: `تم تفعيل العضو: ${user.fullNameAr}`,
+        entityId: user._id.toString(),
+        entityType: 'user',
+        severity: 'info',
+        actionUrl: '/admin/members',
+      });
     }
 
     return user;

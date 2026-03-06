@@ -1,56 +1,89 @@
 import { Target, Eye, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useBoardMembers } from '@/api/hooks/useContent';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useAboutContent, useBoardMembers } from '@/api/hooks/useContent';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function AboutPage() {
-  const { data: boardMembers, isLoading } = useBoardMembers();
+  const {
+    data: aboutContent,
+    isLoading: isAboutLoading,
+    isError: isAboutError,
+  } = useAboutContent();
+  const { data: boardMembers, isLoading: isBoardLoading } = useBoardMembers();
+
+  const objectives = aboutContent?.objectives
+    ? [...aboutContent.objectives]
+        .filter((objective) => objective.isActive)
+        .sort((a, b) => a.order - b.order)
+    : [];
 
   return (
     <div>
       {/* Hero */}
       <section className="bg-gradient-to-bl from-primary-900 to-primary-800 py-20 text-white">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl font-bold">عن الجمعية</h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-primary-200">
-            الجمعية اليمنية لجراحة الأوعية الدموية هي جمعية طبية متخصصة تأسست بهدف
-            تطوير وتعزيز مجال جراحة الأوعية الدموية في اليمن
-          </p>
+          {isAboutLoading ? (
+            <>
+              <Skeleton className="mx-auto h-10 w-56 bg-primary-700" />
+              <Skeleton className="mx-auto mt-4 h-6 w-full max-w-2xl bg-primary-700" />
+              <Skeleton className="mx-auto mt-2 h-6 w-[70%] max-w-xl bg-primary-700" />
+            </>
+          ) : (
+            <>
+              <h1 className="text-4xl font-bold">
+                {aboutContent?.heroTitleAr || 'عن الجمعية'}
+              </h1>
+              <p className="mx-auto mt-4 max-w-2xl text-lg text-primary-200">
+                {aboutContent?.heroDescriptionAr || 'لا توجد بيانات متاحة حالياً'}
+              </p>
+            </>
+          )}
         </div>
       </section>
 
+      {isAboutError && (
+        <section className="py-6">
+          <div className="container mx-auto px-4">
+            <Alert variant="destructive">
+              <AlertTitle>تعذر تحميل المحتوى</AlertTitle>
+              <AlertDescription>
+                حدث خطأ أثناء جلب محتوى صفحة عن الجمعية. تم عرض بيانات احتياطية.
+              </AlertDescription>
+            </Alert>
+          </div>
+        </section>
+      )}
+
       {/* Vision & Mission */}
-      <section className="py-16">
+      <section className="bg-muted/20 py-16">
         <div className="container mx-auto px-4">
           <div className="grid gap-8 md:grid-cols-2">
             <Card className="border-primary-200 bg-primary-50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-primary-900">
                   <Eye className="h-6 w-6" />
-                  رؤيتنا
+                  {aboutContent?.visionTitleAr || 'رؤيتنا'}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-primary-800">
-                  أن نكون الجمعية الرائدة في مجال جراحة الأوعية الدموية على مستوى
-                  المنطقة، ونساهم في تقديم أفضل رعاية صحية للمرضى من خلال التعليم
-                  المستمر والبحث العلمي.
+                  {aboutContent?.visionTextAr || 'لا توجد بيانات متاحة حالياً'}
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="border-accent-200 bg-accent-50">
+            <Card className="border-primary-200 bg-primary-50/60 dark:bg-primary-950/30">
               <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-accent-900">
+                <CardTitle className="flex items-center gap-3 text-primary-900">
                   <Target className="h-6 w-6" />
-                  رسالتنا
+                  {aboutContent?.missionTitleAr || 'رسالتنا'}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-accent-800">
-                  تطوير مهارات ومعارف الأطباء في مجال جراحة الأوعية الدموية من خلال
-                  تنظيم المؤتمرات والورش العلمية، وتبادل الخبرات مع الجمعيات الدولية.
+                <p className="text-primary-800">
+                  {aboutContent?.missionTextAr || 'لا توجد بيانات متاحة حالياً'}
                 </p>
               </CardContent>
             </Card>
@@ -59,28 +92,37 @@ export default function AboutPage() {
       </section>
 
       {/* Objectives */}
-      <section className="bg-neutral-50 py-16">
+      <section className="bg-muted/30 py-16">
         <div className="container mx-auto px-4">
           <h2 className="mb-8 text-center text-2xl font-bold">أهدافنا</h2>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {[
-              'تنظيم المؤتمرات والندوات العلمية المتخصصة',
-              'توفير برامج التعليم الطبي المستمر (CME)',
-              'تعزيز التعاون مع الجمعيات الطبية المحلية والدولية',
-              'دعم البحث العلمي في مجال جراحة الأوعية',
-              'رفع مستوى الوعي الصحي في المجتمع',
-              'تبادل الخبرات والمعرفة بين الأعضاء',
-            ].map((objective, index) => (
-              <Card key={index}>
-                <CardContent className="flex items-center gap-4 pt-6">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600 font-bold">
-                    {index + 1}
-                  </div>
-                  <p>{objective}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {isAboutLoading ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <Card key={index}>
+                  <CardContent className="pt-6">
+                    <Skeleton className="h-6 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : objectives?.length ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {objectives.map((objective, index) => (
+                <Card key={`${objective.textAr}-${index}`}>
+                  <CardContent className="flex items-center gap-4 pt-6">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 font-bold text-primary-600">
+                      {index + 1}
+                    </div>
+                    <p>{objective.textAr}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground">
+              لا توجد أهداف متاحة حالياً
+            </p>
+          )}
         </div>
       </section>
 
@@ -97,7 +139,7 @@ export default function AboutPage() {
             </p>
           </div>
 
-          {isLoading ? (
+          {isBoardLoading ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
                 <Card key={i} className="text-center">

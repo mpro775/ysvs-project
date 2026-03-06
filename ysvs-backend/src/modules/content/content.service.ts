@@ -17,6 +17,7 @@ import {
   UpdateCategoryDto,
 } from './dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { NotificationsPublisherService } from '../notifications/notifications.publisher.service';
 
 @Injectable()
 export class ContentService {
@@ -24,6 +25,7 @@ export class ContentService {
     @InjectModel(Article.name) private articleModel: Model<ArticleDocument>,
     @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly notificationsPublisherService: NotificationsPublisherService,
   ) {}
 
   // ============= ARTICLES =============
@@ -71,6 +73,23 @@ export class ContentService {
     });
 
     const savedArticle = await article.save();
+
+    if (savedArticle.status === ArticleStatus.PUBLISHED) {
+      this.notificationsPublisherService.publishToAdmins({
+        type: 'content.article_published',
+        title: 'خبر منشور جديد',
+        message: `تم نشر الخبر: ${savedArticle.titleAr}`,
+        entityId: savedArticle._id.toString(),
+        entityType: 'article',
+        severity: 'info',
+        actionUrl: '/admin/articles',
+        meta: {
+          slug: savedArticle.slug,
+          category: savedArticle.category?.toString(),
+        },
+      });
+    }
+
     await this.invalidateArticleCache();
     return savedArticle;
   }
@@ -234,13 +253,21 @@ export class ContentService {
     id: string,
     updateArticleDto: UpdateArticleDto,
   ): Promise<Article> {
+    const existingArticle = await this.articleModel
+      .findById(id)
+      .select('status titleAr slug')
+      .exec();
+
+    if (!existingArticle) {
+      throw new NotFoundException('المقال غير موجود');
+    }
+
     const updateData = this.normalizeArticlePayload(
       updateArticleDto as unknown as Record<string, unknown>,
     );
 
     // Set publishedAt if status changed to published
     if (updateArticleDto.status === ArticleStatus.PUBLISHED) {
-      const existingArticle = await this.articleModel.findById(id);
       if (existingArticle && existingArticle.status !== ArticleStatus.PUBLISHED) {
         updateData.publishedAt = new Date();
       }
@@ -254,6 +281,25 @@ export class ContentService {
 
     if (!article) {
       throw new NotFoundException('المقال غير موجود');
+    }
+
+    const becamePublished =
+      existingArticle.status !== ArticleStatus.PUBLISHED &&
+      article.status === ArticleStatus.PUBLISHED;
+
+    if (becamePublished) {
+      this.notificationsPublisherService.publishToAdmins({
+        type: 'content.article_published',
+        title: 'خبر منشور جديد',
+        message: `تم نشر الخبر: ${article.titleAr}`,
+        entityId: article._id.toString(),
+        entityType: 'article',
+        severity: 'info',
+        actionUrl: '/admin/articles',
+        meta: {
+          slug: article.slug,
+        },
+      });
     }
 
     await this.invalidateArticleCache();

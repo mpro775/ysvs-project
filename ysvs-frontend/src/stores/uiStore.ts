@@ -1,14 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { applyTheme, type ThemeMode } from '@/lib/theme';
 
 interface UIState {
   sidebarOpen: boolean;
   sidebarCollapsed: boolean;
-  theme: 'light' | 'dark' | 'system';
+  theme: ThemeMode;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   toggleSidebarCollapse: () => void;
-  setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  setTheme: (theme: ThemeMode) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -16,7 +17,7 @@ export const useUIStore = create<UIState>()(
     (set) => ({
       sidebarOpen: true,
       sidebarCollapsed: false,
-      theme: 'light',
+      theme: 'system',
 
       toggleSidebar: () =>
         set((state) => ({ sidebarOpen: !state.sidebarOpen })),
@@ -27,20 +28,7 @@ export const useUIStore = create<UIState>()(
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
       setTheme: (theme) => {
-        // Apply theme to document
-        const root = document.documentElement;
-        root.classList.remove('light', 'dark');
-
-        if (theme === 'system') {
-          const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-            .matches
-            ? 'dark'
-            : 'light';
-          root.classList.add(systemTheme);
-        } else {
-          root.classList.add(theme);
-        }
-
+        applyTheme(theme);
         set({ theme });
       },
     }),

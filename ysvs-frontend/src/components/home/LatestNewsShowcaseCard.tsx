@@ -24,25 +24,25 @@ export function LatestNewsShowcaseCard({ article }: LatestNewsShowcaseCardProps)
   const categoryLabel = getCategoryLabel(article.category);
 
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#e5e8ef] bg-white shadow-[0_6px_18px_rgba(20,30,54,0.1)]">
-      <div className="relative h-40 overflow-hidden bg-[#edf1fa] sm:h-44">
+    <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_6px_18px_rgba(80,18,18,0.1)] dark:shadow-[0_6px_18px_rgba(0,0,0,0.35)]">
+      <div className="relative h-40 overflow-hidden bg-muted/40 sm:h-44">
         {article.coverImage ? (
           <img src={article.coverImage} alt={article.titleAr} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-[#7a85a2]">لا توجد صورة</div>
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">لا توجد صورة</div>
         )}
 
-        <Badge className="absolute right-3 top-3 border-0 bg-[#4b48d8] px-3 py-1 text-[11px] font-semibold text-white">
+        <Badge className="absolute right-3 top-3 border-0 bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground">
           {categoryLabel}
         </Badge>
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <h3 className="line-clamp-2 min-h-[62px] text-right text-xl font-bold leading-8 text-[#1e2438]">
+        <h3 className="line-clamp-2 min-h-[62px] text-right text-xl font-bold leading-8 text-foreground">
           {article.titleAr}
         </h3>
 
-        <div className="mt-3 flex items-center justify-between text-xs text-[#6c758e]">
+        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <Eye className="h-3.5 w-3.5" />
             {views} مشاهدة
@@ -55,7 +55,7 @@ export function LatestNewsShowcaseCard({ article }: LatestNewsShowcaseCardProps)
 
         <Link
           to={`/news/${article.slug}`}
-          className="mt-auto pt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#4c46dd] hover:text-[#3a36bc]"
+          className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-semibold text-primary hover:text-primary/80"
         >
           اقرأ المزيد
           <ArrowLeft className="h-4 w-4" />

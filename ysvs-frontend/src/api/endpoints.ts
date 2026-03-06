@@ -67,6 +67,12 @@ export const ENDPOINTS = {
     REORDER: '/board/members/reorder',
   },
 
+  // About Page Content
+  ABOUT: {
+    BASE: '/about',
+    ADMIN: '/about/admin',
+  },
+
   // Media
   MEDIA: {
     UPLOAD: '/media/upload',
@@ -78,5 +84,33 @@ export const ENDPOINTS = {
   DASHBOARD: {
     STATS: '/dashboard/stats',
     ACTIVITIES: '/dashboard/activities',
+  },
+
+  // Newsletter
+  NEWSLETTER: {
+    SUBSCRIBE: '/newsletter/subscribe',
+    SUBSCRIBERS: '/newsletter/subscribers',
+    UPDATE_STATUS: (id: string) => `/newsletter/subscribers/${id}/status`,
+  },
+
+  // Contact
+  CONTACT: {
+    MESSAGES: '/contact/messages',
+    BY_ID: (id: string) => `/contact/messages/${id}`,
+    UPDATE_STATUS: (id: string) => `/contact/messages/${id}/status`,
+    UPDATE_READ: (id: string) => `/contact/messages/${id}/read`,
+    REPLY: (id: string) => `/contact/messages/${id}/reply`,
+  },
+
+  // Site Content
+  SITE_CONTENT: {
+    PUBLIC: '/site-content/public',
+    ADMIN: '/site-content/admin',
+    BASE: '/site-content',
+    FOOTER: '/site-content/footer',
+    LEGAL_PRIVACY: '/site-content/legal/privacy',
+    LEGAL_TERMS: '/site-content/legal/terms',
+    PUBLISH_PRIVACY: '/site-content/legal/privacy/publish',
+    PUBLISH_TERMS: '/site-content/legal/terms/publish',
   },
 } as const;

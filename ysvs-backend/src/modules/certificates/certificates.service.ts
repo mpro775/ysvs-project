@@ -25,6 +25,7 @@ import { MediaService } from '../media/media.service';
 import { MediaType } from '../media/dto';
 import { CreateTemplateDto, RevokeCertificateDto } from './dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { NotificationsPublisherService } from '../notifications/notifications.publisher.service';
 
 @Injectable()
 export class CertificatesService {
@@ -42,6 +43,7 @@ export class CertificatesService {
     private certificateMailService: CertificateMailService,
     private configService: ConfigService,
     private jwtService: JwtService,
+    private readonly notificationsPublisherService: NotificationsPublisherService,
   ) {}
 
   // ============= CERTIFICATES =============
@@ -49,6 +51,7 @@ export class CertificatesService {
   async generateCertificate(
     registrationId: string,
     templateId?: string,
+    emitNotification: boolean = true,
   ): Promise<Certificate> {
     // Check if certificate already exists
     const existingCert = await this.certificateModel.findOne({
@@ -171,6 +174,23 @@ export class CertificatesService {
       }
     }
 
+    if (emitNotification) {
+      this.notificationsPublisherService.publishToAdmins({
+        type: 'certificate.issued',
+        title: 'تم إصدار شهادة',
+        message: `تم إصدار شهادة لـ ${savedCertificate.recipientNameAr} في ${savedCertificate.eventTitleAr}`,
+        entityId: savedCertificate._id.toString(),
+        entityType: 'certificate',
+        severity: 'success',
+        actionUrl: '/admin/certificates',
+        meta: {
+          serialNumber: savedCertificate.serialNumber,
+          eventId: eventId,
+          holderType: savedCertificate.holderType,
+        },
+      });
+    }
+
     return savedCertificate;
   }
 
@@ -200,6 +220,7 @@ export class CertificatesService {
         await this.generateCertificate(
           registration._id.toString(),
           templateId,
+          false,
         );
         generated++;
       } catch (error) {
@@ -216,6 +237,24 @@ export class CertificatesService {
     this.logger.log(
       `Bulk generation for event ${eventId}: ${generated} generated, ${skipped} skipped, ${errors.length} errors`,
     );
+
+    if (generated > 0) {
+      this.notificationsPublisherService.publishToAdmins({
+        type: 'certificate.bulk_issued',
+        title: 'إصدار شهادات دفعي',
+        message: `تم إصدار ${generated} شهادة في عملية دفعية${errors.length ? ` مع ${errors.length} أخطاء` : ''}`,
+        entityId: eventId,
+        entityType: 'event',
+        severity: errors.length ? 'warning' : 'success',
+        actionUrl: '/admin/certificates',
+        meta: {
+          eventId,
+          generated,
+          skipped,
+          errorsCount: errors.length,
+        },
+      });
+    }
 
     return { generated, skipped, errors };
   }

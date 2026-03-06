@@ -10,6 +10,16 @@ import {
   RegistrationDocument,
 } from '../events/schemas/registration.schema';
 import { UserRole } from '../../common/decorators/roles.decorator';
+import {
+  NewsletterSubscriber,
+  NewsletterSubscriberDocument,
+  NewsletterSubscriberStatus,
+} from '../newsletter/schemas/newsletter-subscriber.schema';
+import {
+  ContactMessage,
+  ContactMessageDocument,
+  ContactMessageStatus,
+} from '../contact/schemas/contact-message.schema';
 
 export interface DashboardStatsDto {
   eventsCount: number;
@@ -20,13 +30,24 @@ export interface DashboardStatsDto {
   certificatesChange: number;
   articlesCount: number;
   articlesChange: number;
+  newsletterSubscribersCount: number;
+  newsletterSubscribersChange: number;
+  contactMessagesCount: number;
+  contactMessagesChange: number;
+  unreadContactMessagesCount: number;
   upcomingEvents: Event[];
   recentActivities: ActivityDto[];
 }
 
 export interface ActivityDto {
   id: string;
-  type: 'registration' | 'article' | 'certificate' | 'member';
+  type:
+    | 'registration'
+    | 'article'
+    | 'certificate'
+    | 'member'
+    | 'newsletter'
+    | 'contact';
   message: string;
   timestamp: Date;
 }
@@ -40,6 +61,10 @@ export class DashboardService {
     @InjectModel(Article.name) private articleModel: Model<ArticleDocument>,
     @InjectModel(Registration.name)
     private registrationModel: Model<RegistrationDocument>,
+    @InjectModel(NewsletterSubscriber.name)
+    private newsletterSubscriberModel: Model<NewsletterSubscriberDocument>,
+    @InjectModel(ContactMessage.name)
+    private contactMessageModel: Model<ContactMessageDocument>,
   ) {}
 
   private startOfMonth(date: Date): Date {
@@ -66,6 +91,13 @@ export class DashboardService {
       articlesCount,
       articlesThisMonth,
       articlesLastMonth,
+      newsletterSubscribersCount,
+      newsletterSubscribersThisMonth,
+      newsletterSubscribersLastMonth,
+      contactMessagesCount,
+      contactMessagesThisMonth,
+      contactMessagesLastMonth,
+      unreadContactMessagesCount,
       upcomingEvents,
       recentActivities,
     ] = await Promise.all([
@@ -97,6 +129,32 @@ export class DashboardService {
       this.articleModel.countDocuments({
         createdAt: { $gte: startLastMonth, $lt: startThisMonth },
       }),
+      this.newsletterSubscriberModel.countDocuments({
+        status: NewsletterSubscriberStatus.SUBSCRIBED,
+      }),
+      this.newsletterSubscriberModel.countDocuments({
+        status: NewsletterSubscriberStatus.SUBSCRIBED,
+        createdAt: { $gte: startThisMonth },
+      }),
+      this.newsletterSubscriberModel.countDocuments({
+        status: NewsletterSubscriberStatus.SUBSCRIBED,
+        createdAt: { $gte: startLastMonth, $lt: startThisMonth },
+      }),
+      this.contactMessageModel.countDocuments({
+        status: { $ne: ContactMessageStatus.SPAM },
+      }),
+      this.contactMessageModel.countDocuments({
+        status: { $ne: ContactMessageStatus.SPAM },
+        createdAt: { $gte: startThisMonth },
+      }),
+      this.contactMessageModel.countDocuments({
+        status: { $ne: ContactMessageStatus.SPAM },
+        createdAt: { $gte: startLastMonth, $lt: startThisMonth },
+      }),
+      this.contactMessageModel.countDocuments({
+        isRead: false,
+        status: { $nin: [ContactMessageStatus.ARCHIVED, ContactMessageStatus.SPAM] },
+      }),
       this.getUpcomingEvents(5),
       this.getRecentActivities(10),
     ]);
@@ -110,6 +168,12 @@ export class DashboardService {
       certificatesChange: certificatesThisMonth - certificatesLastMonth,
       articlesCount,
       articlesChange: articlesThisMonth - articlesLastMonth,
+      newsletterSubscribersCount,
+      newsletterSubscribersChange:
+        newsletterSubscribersThisMonth - newsletterSubscribersLastMonth,
+      contactMessagesCount,
+      contactMessagesChange: contactMessagesThisMonth - contactMessagesLastMonth,
+      unreadContactMessagesCount,
       upcomingEvents,
       recentActivities,
     };
@@ -129,7 +193,14 @@ export class DashboardService {
   }
 
   private async getRecentActivities(limit: number): Promise<ActivityDto[]> {
-    const [registrations, articles, certificates, members] = await Promise.all([
+    const [
+      registrations,
+      articles,
+      certificates,
+      members,
+      newsletterSubscribers,
+      contactMessages,
+    ] = await Promise.all([
       this.registrationModel
         .find()
         .sort({ createdAt: -1 })
@@ -158,6 +229,20 @@ export class DashboardService {
         .select('fullNameAr createdAt')
         .lean()
         .exec(),
+      this.newsletterSubscriberModel
+        .find({ status: NewsletterSubscriberStatus.SUBSCRIBED })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .select('email createdAt')
+        .lean()
+        .exec(),
+      this.contactMessageModel
+        .find({ status: { $ne: ContactMessageStatus.SPAM } })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .select('name subject createdAt')
+        .lean()
+        .exec(),
     ]);
 
     const activities: ActivityDto[] = [
@@ -183,6 +268,18 @@ export class DashboardService {
         id: m._id.toString(),
         type: 'member' as const,
         message: `عضو جديد: ${m.fullNameAr}`,
+        timestamp: m.createdAt,
+      })),
+      ...newsletterSubscribers.map((s: any) => ({
+        id: s._id.toString(),
+        type: 'newsletter' as const,
+        message: `اشتراك جديد في النشرة: ${s.email}`,
+        timestamp: s.createdAt,
+      })),
+      ...contactMessages.map((m: any) => ({
+        id: m._id.toString(),
+        type: 'contact' as const,
+        message: `رسالة تواصل جديدة من ${m.name}: ${m.subject}`,
         timestamp: m.createdAt,
       })),
     ]

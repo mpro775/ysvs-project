@@ -3,8 +3,13 @@ import api from '../axios';
 import { ENDPOINTS } from '../endpoints';
 import type { ApiResponse, DashboardStats, Activity } from '@/types';
 
+interface DashboardStatsOptions {
+  staleTime?: number;
+  refetchInterval?: number;
+}
+
 // Get dashboard stats
-export const useDashboardStats = () => {
+export const useDashboardStats = (options?: DashboardStatsOptions) => {
   return useQuery({
     queryKey: ['dashboard', 'stats'],
     queryFn: async () => {
@@ -13,7 +18,8 @@ export const useDashboardStats = () => {
       );
       return response.data;
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: options?.staleTime ?? 5 * 60 * 1000, // 5 minutes
+    refetchInterval: options?.refetchInterval,
   });
 };
 

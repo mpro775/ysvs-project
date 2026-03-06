@@ -701,7 +701,7 @@ export default function AdminEventCreatePage() {
                   ? "border-primary-600 bg-primary-600 text-white"
                   : index === currentStep
                   ? "border-primary-600 text-primary-600"
-                  : "border-neutral-300 text-neutral-400"
+                  : "border-border text-muted-foreground"
               )}
             >
               {index < currentStep ? <Check className="h-5 w-5" /> : index + 1}
@@ -718,7 +718,7 @@ export default function AdminEventCreatePage() {
               <div
                 className={cn(
                   "mx-4 h-0.5 w-12 transition-colors",
-                  index < currentStep ? "bg-primary-600" : "bg-neutral-200"
+                  index < currentStep ? "bg-primary-600" : "bg-muted"
                 )}
               />
             )}

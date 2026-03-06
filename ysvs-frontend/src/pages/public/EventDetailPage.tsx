@@ -129,12 +129,12 @@ export default function EventDetailPage() {
     closing: "ختام",
   };
   const sessionTypeBadgeClasses: Record<string, string> = {
-    talk: "border-sky-200 bg-sky-50 text-sky-800",
-    panel: "border-indigo-200 bg-indigo-50 text-indigo-800",
-    workshop: "border-violet-200 bg-violet-50 text-violet-800",
+    talk: "border-red-200 bg-red-50 text-red-800",
+    panel: "border-rose-200 bg-rose-50 text-rose-800",
+    workshop: "border-red-200 bg-red-50 text-red-800",
     break: "border-amber-200 bg-amber-50 text-amber-800",
     networking: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    opening: "border-blue-200 bg-blue-50 text-blue-800",
+    opening: "border-red-200 bg-red-50 text-red-800",
     closing: "border-rose-200 bg-rose-50 text-rose-800",
   };
   const locationCoordinates = event.location?.coordinates;
@@ -186,7 +186,7 @@ export default function EventDetailPage() {
       {/* Hero Section */}
       <div className="event-detail-hero relative overflow-hidden rounded-b-[2rem] text-white shadow-[var(--event-hero-shadow)]">
         <div className="pointer-events-none absolute -left-20 top-10 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
-        <div className="pointer-events-none absolute -right-16 bottom-6 h-40 w-40 rounded-full bg-[#7cc2ff]/20 blur-3xl" />
+        <div className="pointer-events-none absolute -right-16 bottom-6 h-40 w-40 rounded-full bg-[#f8b4b4]/20 blur-3xl" />
         {event.coverImage && (
           <div
             className="absolute inset-0 bg-cover bg-center opacity-20"

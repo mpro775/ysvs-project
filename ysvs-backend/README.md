@@ -109,6 +109,13 @@ Once the server is running, access Swagger documentation at:
 - `POST /members` - Add member (Admin)
 - `PATCH /members/reorder` - Reorder members (Admin)
 
+### Newsletter (`/newsletter`)
+- `POST /subscribe` - Subscribe to newsletter (Public)
+- `GET /confirm?token=...` - Confirm subscription (Public)
+- `POST /unsubscribe` - Unsubscribe from newsletter (Public)
+- `GET /subscribers` - List subscribers (Admin)
+- `PATCH /subscribers/:id/status` - Update subscriber status (Admin)
+
 ### Streaming (`/streaming`)
 - `GET /status` - Get stream status (Public)
 - `POST /start/:configId` - Start stream (Admin)
@@ -170,6 +177,8 @@ npm run test:cov
 | `REDIS_HOST` | Redis host | localhost |
 | `REDIS_PORT` | Redis port | 6379 |
 | `FRONTEND_URL` | Frontend URL for CORS | - |
+| `NEWSLETTER_DOUBLE_OPT_IN` | Require email confirmation for subscription | false |
+| `NEWSLETTER_CONFIRM_TOKEN_TTL_HOURS` | Confirmation token expiration (hours) | 48 |
 | `STORAGE_PROVIDER` | Storage backend (`local` or `r2`) | local |
 | `R2_ACCOUNT_ID` | Cloudflare account ID for R2 | - |
 | `R2_ACCESS_KEY_ID` | R2 access key | - |

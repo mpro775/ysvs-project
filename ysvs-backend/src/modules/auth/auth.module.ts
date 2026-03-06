@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { EventsModule } from '../events/events.module';
 import { CertificatesModule } from '../certificates/certificates.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
@@ -16,6 +17,7 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
     UsersModule,
     EventsModule,
     CertificatesModule,
+    NotificationsModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

@@ -17,6 +17,10 @@ const pathNames: Record<string, string> = {
   articles: "الأخبار",
   members: "الأعضاء",
   board: "مجلس الإدارة",
+  about: "عن الجمعية",
+  "site-content": "المحتوى العام",
+  newsletter: "النشرة البريدية",
+  contact: "رسائل التواصل",
   media: "مكتبة الوسائط",
   settings: "الإعدادات",
 };

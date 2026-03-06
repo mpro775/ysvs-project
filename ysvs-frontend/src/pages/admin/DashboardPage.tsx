@@ -4,6 +4,8 @@ import {
   Users,
   Award,
   Newspaper,
+  Mail,
+  MessageSquare,
   ArrowLeft,
   TrendingUp,
   TrendingDown,
@@ -72,8 +74,8 @@ export default function AdminDashboardPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i}>
               <CardContent className="pt-6">
                 <Skeleton className="h-20 w-full" />
@@ -95,7 +97,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-6">
         <StatCard
           title="المؤتمرات"
           value={stats?.eventsCount || 0}
@@ -124,7 +126,30 @@ export default function AdminDashboardPage() {
           icon={<Newspaper className="h-6 w-6" />}
           href="/admin/articles"
         />
+        <StatCard
+          title="مشتركو النشرة"
+          value={stats?.newsletterSubscribersCount || 0}
+          change={stats?.newsletterSubscribersChange || 0}
+          icon={<Mail className="h-6 w-6" />}
+          href="/admin/newsletter"
+        />
+        <StatCard
+          title="رسائل التواصل"
+          value={stats?.contactMessagesCount || 0}
+          change={stats?.contactMessagesChange || 0}
+          icon={<MessageSquare className="h-6 w-6" />}
+          href="/admin/contact"
+        />
       </div>
+
+      <Card>
+        <CardContent className="py-4 text-sm text-muted-foreground sm:text-base">
+          الرسائل غير المقروءة حالياً:{' '}
+          <span className="font-semibold text-foreground">
+            {(stats?.unreadContactMessagesCount || 0).toLocaleString('ar-EG')}
+          </span>
+        </CardContent>
+      </Card>
 
       {/* Content Grid */}
       <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
@@ -191,13 +216,17 @@ export default function AdminDashboardPage() {
                       className={cn(
                         "flex h-10 w-10 items-center justify-center rounded-full",
                         activity.type === "registration" &&
-                          "bg-blue-100 text-blue-600",
+                          "bg-primary-100 text-primary-600",
                         activity.type === "certificate" &&
                           "bg-amber-100 text-amber-600",
                         activity.type === "article" &&
                           "bg-green-100 text-green-600",
                         activity.type === "member" &&
-                          "bg-purple-100 text-purple-600"
+                          "bg-primary-100 text-primary-700",
+                        activity.type === "newsletter" &&
+                          "bg-primary-50 text-primary-700",
+                        activity.type === "contact" &&
+                          "bg-rose-100 text-rose-700"
                       )}
                     >
                       {activity.type === "registration" && (
@@ -211,6 +240,12 @@ export default function AdminDashboardPage() {
                       )}
                       {activity.type === "member" && (
                         <Users className="h-5 w-5" />
+                      )}
+                      {activity.type === "newsletter" && (
+                        <Mail className="h-5 w-5" />
+                      )}
+                      {activity.type === "contact" && (
+                        <MessageSquare className="h-5 w-5" />
                       )}
                     </div>
                     <div className="flex-1">

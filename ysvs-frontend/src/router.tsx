@@ -18,6 +18,8 @@ const NewsDetailPage = lazy(() => import('@/pages/public/NewsDetailPage'));
 const EventsPage = lazy(() => import('@/pages/public/EventsPage'));
 const EventDetailPage = lazy(() => import('@/pages/public/EventDetailPage'));
 const ContactPage = lazy(() => import('@/pages/public/ContactPage'));
+const PrivacyPage = lazy(() => import('@/pages/public/PrivacyPage'));
+const TermsPage = lazy(() => import('@/pages/public/TermsPage'));
 const VerifyPage = lazy(() => import('@/pages/public/VerifyPage'));
 const GuestCertificateDownloadPage = lazy(
   () => import('@/pages/public/GuestCertificateDownloadPage'),
@@ -40,6 +42,14 @@ const AdminArticlesPage = lazy(() => import('@/pages/admin/ArticlesPage'));
 const AdminArticleEditorPage = lazy(() => import('@/pages/admin/ArticleEditorPage'));
 const AdminMembersPage = lazy(() => import('@/pages/admin/MembersPage'));
 const AdminBoardPage = lazy(() => import('@/pages/admin/BoardPage'));
+const AdminAboutContentPage = lazy(() => import('@/pages/admin/AboutContentPage'));
+const AdminNewsletterSubscribersPage = lazy(
+  () => import('@/pages/admin/NewsletterSubscribersPage'),
+);
+const AdminContactMessagesPage = lazy(
+  () => import('@/pages/admin/ContactMessagesPage'),
+);
+const AdminSiteContentPage = lazy(() => import('@/pages/admin/SiteContentPage'));
 const AdminMediaPage = lazy(() => import('@/pages/admin/MediaPage'));
 const AdminSettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
 
@@ -71,6 +81,8 @@ export const router = createBrowserRouter([
       { path: 'events', element: <EventsPage /> },
       { path: 'events/:slug', element: <EventDetailPage /> },
       { path: 'contact', element: <ContactPage /> },
+      { path: 'privacy', element: <PrivacyPage /> },
+      { path: 'terms', element: <TermsPage /> },
       { path: 'verify', element: <VerifyPage /> },
       { path: 'verify/:serial', element: <VerifyPage /> },
       { path: 'certificate-download', element: <GuestCertificateDownloadPage /> },
@@ -109,6 +121,10 @@ export const router = createBrowserRouter([
           { path: 'articles/:id/edit', element: <AdminArticleEditorPage /> },
           { path: 'members', element: <AdminMembersPage /> },
           { path: 'board', element: <AdminBoardPage /> },
+          { path: 'about', element: <AdminAboutContentPage /> },
+          { path: 'site-content', element: <AdminSiteContentPage /> },
+          { path: 'newsletter', element: <AdminNewsletterSubscribersPage /> },
+          { path: 'contact', element: <AdminContactMessagesPage /> },
           { path: 'media', element: <AdminMediaPage /> },
           { path: 'settings', element: <AdminSettingsPage /> },
         ],

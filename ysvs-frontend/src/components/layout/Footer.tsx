@@ -9,45 +9,81 @@ import {
   Instagram,
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
+import { useSitePublicContent } from '@/api/hooks/useContent';
+import type { FooterQuickLink, FooterSocialLink } from '@/types';
 
-const quickLinks = [
-  { href: '/about', label: 'عن الجمعية' },
-  { href: '/events', label: 'المؤتمرات' },
-  { href: '/news', label: 'الأخبار' },
-  { href: '/verify', label: 'التحقق من الشهادات' },
-  { href: '/contact', label: 'تواصل معنا' },
+const fallbackQuickLinks: FooterQuickLink[] = [
+  { href: '/about', labelAr: 'عن الجمعية', labelEn: 'About', order: 0, isActive: true },
+  { href: '/events', labelAr: 'المؤتمرات', labelEn: 'Events', order: 1, isActive: true },
+  { href: '/news', labelAr: 'الأخبار', labelEn: 'News', order: 2, isActive: true },
+  {
+    href: '/verify',
+    labelAr: 'التحقق من الشهادات',
+    labelEn: 'Certificate Verification',
+    order: 3,
+    isActive: true,
+  },
+  { href: '/contact', labelAr: 'تواصل معنا', labelEn: 'Contact', order: 4, isActive: true },
 ];
 
-const socialLinks = [
-  { href: 'https://facebook.com', icon: Facebook, label: 'Facebook' },
-  { href: 'https://twitter.com', icon: Twitter, label: 'Twitter' },
-  { href: 'https://instagram.com', icon: Instagram, label: 'Instagram' },
-  { href: 'https://youtube.com', icon: Youtube, label: 'YouTube' },
+const fallbackSocialLinks: FooterSocialLink[] = [
+  { platform: 'facebook', url: 'https://facebook.com', order: 0, isActive: true },
+  { platform: 'twitter', url: 'https://twitter.com', order: 1, isActive: true },
+  { platform: 'instagram', url: 'https://instagram.com', order: 2, isActive: true },
+  { platform: 'youtube', url: 'https://youtube.com', order: 3, isActive: true },
 ];
+
+const socialIconMap = {
+  facebook: Facebook,
+  twitter: Twitter,
+  instagram: Instagram,
+  youtube: Youtube,
+};
+
+const isInternalHref = (href: string) => href.startsWith('/');
 
 export function Footer() {
+  const { data } = useSitePublicContent();
+
+  const footer = data?.footer;
+  const quickLinks =
+    footer?.quickLinks?.filter((link) => link.isActive).sort((a, b) => a.order - b.order) ||
+    fallbackQuickLinks;
+  const socialLinks =
+    footer?.socialLinks
+      ?.filter((social) => social.isActive)
+      .sort((a, b) => a.order - b.order) || fallbackSocialLinks;
+
+  const address = footer?.addressAr || 'صنعاء، اليمن شارع الزبيري';
+  const phone = footer?.phone || '+967 123 456 789';
+  const email = footer?.email || 'info@ysvs.org';
+  const description =
+    footer?.descriptionAr ||
+    'الجمعية اليمنية لجراحة الأوعية الدموية - تسعى لتطوير الرعاية الصحية المتخصصة في اليمن من خلال التدريب والبحث العلمي.';
+  const copyright = footer?.copyrightAr || 'جميع الحقوق محفوظة.';
+
   return (
-    <footer className="border-t border-[#0f63b6] bg-[#0f1f3a] text-white">
+    <footer className="border-t border-primary-900/40 bg-gradient-to-b from-primary-950 to-primary-900 text-white dark:border-white/10 dark:from-neutral-950 dark:to-neutral-900">
       <div className="mx-auto max-w-[1400px] px-4 py-10 sm:px-6">
         <div className="grid gap-10 text-right md:grid-cols-2 lg:grid-cols-3">
           <div className="lg:order-3">
             <h3 className="mb-5 text-xl font-bold">تواصل معنا</h3>
             <ul className="space-y-4 text-sm text-white/85">
               <li className="flex items-center justify-between gap-4">
-                <span>صنعاء، اليمن شارع الزبيري</span>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1f3661] text-[#6cb7ff]">
+                <span>{address}</span>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-primary-200">
                   <MapPin className="h-5 w-5" />
                 </span>
               </li>
               <li className="flex items-center justify-between gap-4">
-                <span dir="ltr">+967 123 456 789</span>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1f3661] text-[#6cb7ff]">
+                <span dir="ltr">{phone}</span>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-primary-200">
                   <Phone className="h-5 w-5" />
                 </span>
               </li>
               <li className="flex items-center justify-between gap-4">
-                <span>info@ysvs.org</span>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1f3661] text-[#6cb7ff]">
+                <span>{email}</span>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-primary-200">
                   <Mail className="h-5 w-5" />
                 </span>
               </li>
@@ -59,12 +95,23 @@ export function Footer() {
             <ul className="space-y-3">
               {quickLinks.map((link) => (
                 <li key={link.href}>
-                  <Link
-                    to={link.href}
-                    className="text-sm text-white/80 transition-colors hover:text-white"
-                  >
-                    {link.label}
-                  </Link>
+                  {isInternalHref(link.href) ? (
+                    <Link
+                      to={link.href}
+                      className="text-sm text-white/80 transition-colors hover:text-white"
+                    >
+                      {link.labelAr}
+                    </Link>
+                  ) : (
+                    <a
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-white/80 transition-colors hover:text-white"
+                    >
+                      {link.labelAr}
+                    </a>
+                  )}
                 </li>
               ))}
             </ul>
@@ -79,20 +126,24 @@ export function Footer() {
               />
             </Link>
             <p className="mb-6 max-w-md text-sm leading-7 text-white/85">
-              الجمعية اليمنية لجراحة الأوعية الدموية - تسعى لتطوير الرعاية الصحية
-              المتخصصة في اليمن من خلال التدريب والبحث العلمي.
+              {description}
             </p>
             <div className="flex flex-row-reverse gap-2">
               {socialLinks.map((social) => (
                 <a
-                  key={social.label}
-                  href={social.href}
+                  key={`${social.platform}-${social.url}`}
+                  href={social.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2b3d5f] text-white/90 transition-colors hover:bg-[#3b5f93]"
-                  aria-label={social.label}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/90 transition-colors hover:bg-white/20"
+                  aria-label={social.platform}
                 >
-                  <social.icon className="h-4 w-4" />
+                  {(() => {
+                    const Icon =
+                      socialIconMap[social.platform.toLowerCase() as keyof typeof socialIconMap] ||
+                      Instagram;
+                    return <Icon className="h-4 w-4" />;
+                  })()}
                 </a>
               ))}
             </div>
@@ -109,8 +160,7 @@ export function Footer() {
             </Link>
           </div>
           <p>
-            © {new Date().getFullYear()} الجمعية اليمنية لجراحة الأوعية الدموية.
-            جميع الحقوق محفوظة.
+            © {new Date().getFullYear()} الجمعية اليمنية لجراحة الأوعية الدموية. {copyright}
           </p>
         </div>
       </div>

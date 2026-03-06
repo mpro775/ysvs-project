@@ -10,6 +10,14 @@ import {
   Registration,
   RegistrationSchema,
 } from '../events/schemas/registration.schema';
+import {
+  NewsletterSubscriber,
+  NewsletterSubscriberSchema,
+} from '../newsletter/schemas/newsletter-subscriber.schema';
+import {
+  ContactMessage,
+  ContactMessageSchema,
+} from '../contact/schemas/contact-message.schema';
 
 @Module({
   imports: [
@@ -19,6 +27,8 @@ import {
       { name: Certificate.name, schema: CertificateSchema },
       { name: Article.name, schema: ArticleSchema },
       { name: Registration.name, schema: RegistrationSchema },
+      { name: NewsletterSubscriber.name, schema: NewsletterSubscriberSchema },
+      { name: ContactMessage.name, schema: ContactMessageSchema },
     ]),
   ],
   controllers: [DashboardController],

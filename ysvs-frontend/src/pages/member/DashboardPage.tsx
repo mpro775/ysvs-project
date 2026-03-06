@@ -29,8 +29,8 @@ export default function MemberDashboardPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardContent className="flex items-center gap-4 pt-6">
-            <div className="rounded-lg bg-blue-100 p-3">
-              <Calendar className="h-6 w-6 text-blue-600" />
+            <div className="rounded-lg bg-primary-100 p-3">
+              <Calendar className="h-6 w-6 text-primary-600" />
             </div>
             <div>
               <p className="text-2xl font-bold">{registrations?.length || 0}</p>
@@ -104,7 +104,7 @@ export default function MemberDashboardPage() {
                         reg.status === 'attended'
                           ? 'bg-green-100 text-green-700'
                           : reg.status === 'confirmed'
-                          ? 'bg-blue-100 text-blue-700'
+                          ? 'bg-primary-100 text-primary-700'
                           : 'bg-neutral-100 text-neutral-700'
                       }`}
                     >

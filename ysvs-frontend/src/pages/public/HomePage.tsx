@@ -39,7 +39,7 @@ export default function HomePage() {
             <Button
               asChild
               size="lg"
-              className="mt-6 bg-white text-primary-900 hover:bg-primary-50"
+              className="mt-6 bg-card text-primary-900 hover:bg-card/90 dark:text-primary-200"
             >
               <Link to={`/events/${upcomingEvent.slug}`}>سجل الآن</Link>
             </Button>

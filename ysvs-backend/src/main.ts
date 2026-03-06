@@ -81,7 +81,12 @@ async function bootstrap() {
     .addTag('Certificates', 'Certificate generation and verification')
     .addTag('Content', 'News and articles management')
     .addTag('Board', 'Board members management')
+    .addTag('About', 'About page content management')
+    .addTag('Site Content', 'Footer and legal pages management')
     .addTag('Media', 'File upload and management')
+    .addTag('Newsletter', 'Newsletter subscription management')
+    .addTag('Contact', 'Contact messages and inbox management')
+    .addTag('Notifications', 'Admin realtime notifications')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);

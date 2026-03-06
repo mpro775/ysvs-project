@@ -33,7 +33,7 @@ function SidebarNav({ onLinkClick }: { onLinkClick?: () => void }) {
               "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
               isActive
                 ? "bg-primary-50 text-primary-700"
-                : "text-neutral-600 hover:bg-neutral-100"
+                : "text-muted-foreground hover:bg-muted"
             )
           }
         >
@@ -54,7 +54,7 @@ export default function MemberLayout() {
       <div className="container mx-auto flex flex-1 flex-col gap-6 px-4 py-4 sm:flex-row sm:py-8">
         {/* Desktop Sidebar */}
         <aside className="hidden w-64 shrink-0 lg:block">
-          <nav className="sticky top-24 rounded-lg border bg-white p-4">
+          <nav className="sticky top-24 rounded-lg border bg-card p-4">
             <SidebarNav />
           </nav>
         </aside>

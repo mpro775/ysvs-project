@@ -132,7 +132,7 @@ export default function AdminMediaPage() {
               >
                 {viewMode === "grid" ? (
                   <>
-                    <div className="relative aspect-square bg-neutral-100">
+                    <div className="relative aspect-square bg-muted">
                       {item.mimeType.startsWith("image/") ? (
                         <img
                           src={item.url}
@@ -163,7 +163,7 @@ export default function AdminMediaPage() {
                   </>
                 ) : (
                   <>
-                    <div className="flex h-12 w-12 items-center justify-center rounded bg-neutral-100">
+                    <div className="flex h-12 w-12 items-center justify-center rounded bg-muted">
                       {item.mimeType.startsWith("image/") ? (
                         <img
                           src={item.thumbnailUrl || item.url}

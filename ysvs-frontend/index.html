@@ -5,6 +5,34 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ysvs-frontend</title>
+    <script>
+      (function () {
+        var root = document.documentElement;
+        var theme = 'system';
+
+        try {
+          var stored = localStorage.getItem('ui-storage');
+          if (stored) {
+            var parsed = JSON.parse(stored);
+            var savedTheme = parsed && parsed.state ? parsed.state.theme : null;
+            if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
+              theme = savedTheme;
+            }
+          }
+        } catch (_error) {}
+
+        var resolvedTheme =
+          theme === 'system'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : theme;
+
+        root.classList.remove('light', 'dark');
+        root.classList.add(resolvedTheme);
+        root.style.colorScheme = resolvedTheme;
+      })();
+    </script>
   </head>
   <body dir="rtl">
     <div id="root"></div>

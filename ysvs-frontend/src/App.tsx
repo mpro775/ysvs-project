@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { useUIStore } from '@/stores/uiStore';
 import { useCurrentUser } from '@/api/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
+import { applyTheme, watchSystemTheme } from '@/lib/theme';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -23,17 +24,15 @@ function ThemeInitializer() {
   const { theme } = useUIStore();
 
   useEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove('light', 'dark');
+    applyTheme(theme);
 
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light';
-      root.classList.add(systemTheme);
-    } else {
-      root.classList.add(theme);
+    if (theme !== 'system') {
+      return;
     }
+
+    return watchSystemTheme(() => {
+      applyTheme('system');
+    });
   }, [theme]);
 
   return null;

@@ -9,10 +9,12 @@ import { TicketType, TicketTypeSchema } from './schemas/ticket-type.schema';
 import { Registration, RegistrationSchema } from './schemas/registration.schema';
 import { MediaModule } from '../media/media.module';
 import { User, UserSchema } from '../users/schemas/user.schema';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     MediaModule,
+    NotificationsModule,
     MongooseModule.forFeature([
       { name: Event.name, schema: EventSchema },
       { name: TicketType.name, schema: TicketTypeSchema },

@@ -29,6 +29,7 @@ import { EventsService } from './events.service';
 import { MediaService } from '../media/media.service';
 import { MediaType } from '../media/dto';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { NotificationsPublisherService } from '../notifications/notifications.publisher.service';
 
 @Injectable()
 export class RegistrationService {
@@ -44,6 +45,7 @@ export class RegistrationService {
     private formValidatorService: FormValidatorService,
     private eventsService: EventsService,
     private mediaService: MediaService,
+    private readonly notificationsPublisherService: NotificationsPublisherService,
   ) {}
 
   async uploadRegistrationFile(
@@ -243,6 +245,27 @@ export class RegistrationService {
 
     // Increment event attendees
     await this.eventsService.incrementAttendees(eventId);
+
+    const participantName =
+      user?.fullNameAr ||
+      this.extractNameFromFormData(createRegistrationDto.formData) ||
+      normalizedGuestEmail ||
+      'مشارك جديد';
+
+    this.notificationsPublisherService.publishToAdmins({
+      type: 'event.new_registration',
+      title: 'تسجيل جديد في مؤتمر',
+      message: `${participantName} سجّل في ${event.titleAr}`,
+      entityId: savedRegistration._id.toString(),
+      entityType: 'registration',
+      severity: 'success',
+      actionUrl: `/admin/events/${eventId}/registrants`,
+      meta: {
+        eventId,
+        eventTitleAr: event.titleAr,
+        registrationSource: savedRegistration.registrationSource,
+      },
+    });
 
     return savedRegistration.populate([
       { path: 'event', select: 'titleAr titleEn slug startDate' },
@@ -459,6 +482,33 @@ export class RegistrationService {
     const year = new Date().getFullYear();
     const random = Math.random().toString(36).substring(2, 8).toUpperCase();
     return `REG-${year}-${random}`;
+  }
+
+  private extractNameFromFormData(formData: unknown): string | null {
+    if (!formData || typeof formData !== 'object') {
+      return null;
+    }
+
+    const entries = Object.entries(formData as Record<string, unknown>);
+    const candidate = entries.find(([key, value]) => {
+      if (typeof value !== 'string') {
+        return false;
+      }
+
+      const normalizedKey = key.toLowerCase();
+      return (
+        normalizedKey.includes('name') ||
+        normalizedKey.includes('full') ||
+        normalizedKey.includes('اسم')
+      );
+    });
+
+    if (!candidate || typeof candidate[1] !== 'string') {
+      return null;
+    }
+
+    const value = candidate[1].trim();
+    return value || null;
   }
 
   private validateUploadAgainstField(

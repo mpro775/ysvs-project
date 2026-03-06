@@ -3,12 +3,14 @@ import { AdminSidebar } from "./AdminSidebar";
 import { AdminTopBar } from "./AdminTopBar";
 import { useUIStore } from "@/stores/uiStore";
 import { cn } from "@/lib/utils";
+import { useAdminNotificationsSocket } from "@/api/hooks/useAdminNotificationsSocket";
 
 export default function AdminLayout() {
   const { sidebarCollapsed } = useUIStore();
+  useAdminNotificationsSocket();
 
   return (
-    <div className="flex min-h-screen bg-neutral-50" dir="rtl">
+    <div className="flex min-h-screen bg-muted/30" dir="rtl">
       <AdminSidebar />
       <div
         className={cn(

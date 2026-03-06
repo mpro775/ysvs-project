@@ -4,9 +4,11 @@ import { ContentService } from './content.service';
 import { ContentController } from './content.controller';
 import { Article, ArticleSchema } from './schemas/article.schema';
 import { Category, CategorySchema } from './schemas/category.schema';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
+    NotificationsModule,
     MongooseModule.forFeature([
       { name: Article.name, schema: ArticleSchema },
       { name: Category.name, schema: CategorySchema },

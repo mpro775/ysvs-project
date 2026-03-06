@@ -13,6 +13,7 @@ import { UserRole } from '../../common/decorators/roles.decorator';
 import { v4 as uuidv4 } from 'uuid';
 import { RegistrationService } from '../events/registration.service';
 import { CertificatesService } from '../certificates/certificates.service';
+import { NotificationsPublisherService } from '../notifications/notifications.publisher.service';
 
 export interface TokenPayload {
   sub: string;
@@ -41,6 +42,7 @@ export class AuthService {
     private configService: ConfigService,
     private registrationService: RegistrationService,
     private certificatesService: CertificatesService,
+    private readonly notificationsPublisherService: NotificationsPublisherService,
   ) {}
 
   async validateUser(email: string, password: string) {
@@ -91,6 +93,20 @@ export class AuthService {
 
     await this.usersService.updateRefreshToken(user._id.toString(), tokens.refreshToken);
     await this.usersService.updateLastLogin(user._id.toString());
+
+    this.notificationsPublisherService.publishToAdmins({
+      type: 'member.created',
+      title: 'عضو جديد',
+      message: `انضم عضو جديد: ${user.fullNameAr}`,
+      entityId: user._id.toString(),
+      entityType: 'user',
+      severity: 'info',
+      actionUrl: '/admin/members',
+      meta: {
+        role: user.role,
+        email: user.email,
+      },
+    });
 
     return {
       data: {

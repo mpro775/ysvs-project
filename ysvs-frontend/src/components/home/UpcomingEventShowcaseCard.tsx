@@ -20,8 +20,8 @@ const statusConfig: Record<
 > = {
   upcoming: { label: 'مفتوح', className: 'bg-emerald-500 text-white' },
   ongoing: { label: 'مباشر', className: 'bg-red-500 text-white' },
-  completed: { label: 'منتهي', className: 'bg-slate-300 text-slate-700' },
-  cancelled: { label: 'ملغي', className: 'bg-slate-300 text-slate-700' },
+  completed: { label: 'منتهي', className: 'bg-muted text-muted-foreground' },
+  cancelled: { label: 'ملغي', className: 'bg-muted text-muted-foreground' },
 };
 
 export function UpcomingEventShowcaseCard({ event }: UpcomingEventShowcaseCardProps) {
@@ -29,12 +29,12 @@ export function UpcomingEventShowcaseCard({ event }: UpcomingEventShowcaseCardPr
   const status = event.status === 'cancelled' ? statusConfig.cancelled : statusConfig[displayStatus];
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-[#e5e8ef] bg-white shadow-[0_8px_26px_rgba(20,30,54,0.1)]">
-      <div className="relative h-48 overflow-hidden bg-[#edf1fa]">
+    <article className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_8px_26px_rgba(80,18,18,0.1)] dark:shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
+      <div className="relative h-48 overflow-hidden bg-muted/40">
         {event.coverImage ? (
           <img src={event.coverImage} alt={event.titleAr} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-[#7a85a2]">لا توجد صورة</div>
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">لا توجد صورة</div>
         )}
 
         <Badge className={cn('absolute right-3 top-3 border-0 px-3 py-1 text-xs font-semibold', status.className)}>
@@ -49,9 +49,9 @@ export function UpcomingEventShowcaseCard({ event }: UpcomingEventShowcaseCardPr
       </div>
 
       <div className="space-y-4 p-4">
-        <h3 className="line-clamp-1 text-right text-xl font-bold text-[#1e2438]">{event.titleAr}</h3>
+        <h3 className="line-clamp-1 text-right text-xl font-bold text-foreground">{event.titleAr}</h3>
 
-        <div className="space-y-2 text-sm text-[#64708a]">
+        <div className="space-y-2 text-sm text-muted-foreground">
           <div className="flex items-center justify-between">
             <span>
               {format(new Date(event.startDate), 'd MMMM yyyy', { locale: ar })} -{' '}
@@ -77,7 +77,7 @@ export function UpcomingEventShowcaseCard({ event }: UpcomingEventShowcaseCardPr
           </div>
         </div>
 
-        <Button asChild className="h-11 w-full rounded-xl bg-[#3b39c8] text-base font-semibold hover:bg-[#2f2db1]">
+        <Button asChild className="h-11 w-full rounded-xl bg-primary text-base font-semibold hover:bg-primary/90">
           <Link to={`/events/${event.slug}`} className="flex items-center justify-center gap-2">
             عرض التفاصيل
             <ArrowLeft className="h-4 w-4" />

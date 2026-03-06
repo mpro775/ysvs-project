@@ -14,6 +14,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/api/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/logo.png";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
 
 const navLinks = [
   { href: "/", label: "الرئيسية" },
@@ -37,7 +38,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 text-white">
       {/* الشريط الرئيسي */}
-      <div className="overflow-hidden rounded-b-2xl bg-gradient-to-l from-[#214f96] to-[#2e2d9f] shadow-sm">
+      <div className="overflow-hidden rounded-b-2xl border-b border-primary-900/40 bg-gradient-to-l from-primary-900 via-primary-800 to-primary-700 shadow-sm dark:border-white/10 dark:from-neutral-950 dark:via-neutral-900 dark:to-primary-950">
         <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between px-3 sm:px-6">
           {/* RIGHT: logo only (لازم يكون أول عنصر في RTL) */}
           <Link to="/" className="flex items-center">
@@ -49,7 +50,7 @@ export function Header() {
           </Link>
 
           {/* CENTER: links */}
-          <nav className="hidden flex-1 items-center justify-center gap-6 lg:flex">
+            <nav className="hidden flex-1 items-center justify-center gap-6 lg:flex">
             {navLinks.map((link) => (
               <NavLink
                 key={link.href}
@@ -77,8 +78,10 @@ export function Header() {
           </nav>
 
           {/* LEFT: Auth buttons + mobile menu (لازم يكون آخر عنصر) */}
-          <div className="flex items-center gap-2">
-            {isAuthenticated ? (
+            <div className="flex items-center gap-2">
+              <ThemeToggle className="text-white hover:bg-white/10" />
+
+              {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -142,7 +145,7 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <div className="hidden items-center gap-2 sm:flex">
+                <div className="hidden items-center gap-2 sm:flex">
                 {/* outlined */}
                 <Link
                   to="/login"
@@ -151,10 +154,10 @@ export function Header() {
                   تسجيل الدخول
                 </Link>
                 {/* filled */}
-                <Link
-                  to="/register"
-                  className="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-[#214f96] transition hover:bg-white/90"
-                >
+                  <Link
+                    to="/register"
+                    className="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-primary-900 transition hover:bg-white/90"
+                  >
                   إنشاء حساب
                 </Link>
               </div>
@@ -212,12 +215,22 @@ export function Header() {
                     <Link
                       to="/register"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="rounded-full bg-white px-3 py-2 text-center text-sm font-semibold text-[#214f96] hover:bg-white/90"
+                      className="rounded-full bg-white px-3 py-2 text-center text-sm font-semibold text-primary-900 hover:bg-white/90"
                     >
                       إنشاء حساب
                     </Link>
                   </div>
                 )}
+
+                <div className="mt-2 border-t border-white/15 pt-2">
+                  <p className="mb-1 px-3 text-xs text-white/70">وضع العرض</p>
+                  <div className="px-1">
+                    <ThemeToggle
+                      showLabel
+                      className="w-full justify-center rounded-md text-white hover:bg-white/10"
+                    />
+                  </div>
+                </div>
               </div>
             </nav>
           </div>

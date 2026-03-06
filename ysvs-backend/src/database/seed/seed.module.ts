@@ -7,6 +7,10 @@ import { SeedService } from './seed.service';
 // Schemas
 import { User, UserSchema } from '../../modules/users/schemas/user.schema';
 import { BoardMember, BoardMemberSchema } from '../../modules/board/schemas/board-member.schema';
+import {
+  AboutContent,
+  AboutContentSchema,
+} from '../../modules/about/schemas/about-content.schema';
 import { Category, CategorySchema } from '../../modules/content/schemas/category.schema';
 import { Article, ArticleSchema } from '../../modules/content/schemas/article.schema';
 import {
@@ -17,6 +21,10 @@ import { Certificate, CertificateSchema } from '../../modules/certificates/schem
 import { Event, EventSchema } from '../../modules/events/schemas/event.schema';
 import { TicketType, TicketTypeSchema } from '../../modules/events/schemas/ticket-type.schema';
 import { Registration, RegistrationSchema } from '../../modules/events/schemas/registration.schema';
+import {
+  SiteContent,
+  SiteContentSchema,
+} from '../../modules/site-content/schemas/site-content.schema';
 
 @Module({
   imports: [
@@ -34,6 +42,7 @@ import { Registration, RegistrationSchema } from '../../modules/events/schemas/r
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: BoardMember.name, schema: BoardMemberSchema },
+      { name: AboutContent.name, schema: AboutContentSchema },
       { name: Category.name, schema: CategorySchema },
       { name: Article.name, schema: ArticleSchema },
       { name: CertificateTemplate.name, schema: CertificateTemplateSchema },
@@ -41,6 +50,7 @@ import { Registration, RegistrationSchema } from '../../modules/events/schemas/r
       { name: Event.name, schema: EventSchema },
       { name: TicketType.name, schema: TicketTypeSchema },
       { name: Registration.name, schema: RegistrationSchema },
+      { name: SiteContent.name, schema: SiteContentSchema },
     ]),
   ],
   providers: [SeedService],

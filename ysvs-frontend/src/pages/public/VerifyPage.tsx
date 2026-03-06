@@ -69,8 +69,8 @@ export default function VerifyPage() {
           <Card
             className={
               data.valid
-                ? 'border-accent-500 bg-accent-50'
-                : 'border-destructive bg-red-50'
+                  ? 'border-accent-500 bg-accent-50'
+                  : 'border-destructive bg-destructive/10'
             }
           >
             <CardHeader>
@@ -91,7 +91,7 @@ export default function VerifyPage() {
             <CardContent>
               {data.valid && data.certificate ? (
                 <div className="space-y-4">
-                  <div className="rounded-lg bg-white p-4">
+                  <div className="rounded-lg bg-card p-4">
                     <div className="mb-4 flex items-center justify-center">
                       <Award className="h-16 w-16 text-amber-500" />
                     </div>
@@ -170,7 +170,7 @@ export default function VerifyPage() {
         )}
 
         {!isLoading && activeSerial && isError && (
-          <Card className="border-destructive bg-red-50">
+          <Card className="border-destructive bg-destructive/10">
             <CardContent className="py-8 text-center">
               <XCircle className="mx-auto h-12 w-12 text-destructive" />
               <p className="mt-4 text-destructive">
