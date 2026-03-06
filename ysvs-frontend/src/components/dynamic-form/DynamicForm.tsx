@@ -108,10 +108,12 @@ function renderField(
   onChange: (value: unknown) => void,
   error?: string
 ) {
+  const isLtrField = field.type === 'email' || field.type === 'phone';
   const commonProps = {
     id: field.id,
     placeholder: field.placeholder,
-    className: error ? 'border-destructive' : '',
+    dir: isLtrField ? 'ltr' : 'rtl',
+    className: `${error ? 'border-destructive ' : ''}${isLtrField ? 'text-left' : 'text-right'}`,
   };
 
   switch (field.type) {
@@ -128,10 +130,10 @@ function renderField(
     case 'select':
       return (
         <Select value={(value as string) || ''} onValueChange={onChange}>
-          <SelectTrigger className={error ? 'border-destructive' : ''}>
+          <SelectTrigger className={`${error ? 'border-destructive ' : ''}text-right`} dir="rtl">
             <SelectValue placeholder={field.placeholder || 'اختر...'} />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent dir="rtl">
             {field.options?.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
@@ -145,7 +147,7 @@ function renderField(
       return (
         <div className="space-y-2">
           {field.options?.map((option) => (
-            <div key={option.value} className="flex items-center gap-2">
+            <div key={option.value} className="flex flex-row-reverse items-center justify-end gap-2 text-right">
               <Checkbox
                 id={`${field.id}-${option.value}`}
                 checked={(value as string[] || []).includes(option.value)}
@@ -166,7 +168,7 @@ function renderField(
 
     case 'checkbox':
       return (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-row-reverse items-center justify-end gap-2 text-right">
           <Checkbox
             id={field.id}
             checked={(value as boolean) || false}
@@ -178,9 +180,9 @@ function renderField(
 
     case 'radio':
       return (
-        <RadioGroup value={(value as string) || ''} onValueChange={onChange}>
+        <RadioGroup value={(value as string) || ''} onValueChange={onChange} dir="rtl">
           {field.options?.map((option) => (
-            <div key={option.value} className="flex items-center gap-2">
+            <div key={option.value} className="flex flex-row-reverse items-center justify-end gap-2 text-right">
               <RadioGroupItem value={option.value} id={`${field.id}-${option.value}`} />
               <Label htmlFor={`${field.id}-${option.value}`}>{option.label}</Label>
             </div>
@@ -213,7 +215,6 @@ function renderField(
         <Input
           {...commonProps}
           type="email"
-          dir="ltr"
           value={(value as string) || ''}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -224,7 +225,6 @@ function renderField(
         <Input
           {...commonProps}
           type="tel"
-          dir="ltr"
           value={(value as string) || ''}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -386,13 +386,13 @@ export function DynamicForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 text-right" dir="rtl">
       {guestRegistrationEnabled && !isAuthenticated && (
-        <div className="space-y-2">
+        <div className="space-y-2 text-right">
           <Label htmlFor="guest-email">
             البريد الإلكتروني
             {guestEmailMode === 'required' && (
-              <span className="mr-1 text-destructive">*</span>
+              <span className="ml-1 text-destructive">*</span>
             )}
           </Label>
           <Input
@@ -430,10 +430,10 @@ export function DynamicForm({
         }
 
         return (
-          <div key={field.id} className="space-y-2">
+          <div key={field.id} className="space-y-2 text-right">
             <Label htmlFor={field.id}>
               {field.label}
-              {field.required && <span className="mr-1 text-destructive">*</span>}
+              {field.required && <span className="ml-1 text-destructive">*</span>}
             </Label>
             {renderField(
               field,

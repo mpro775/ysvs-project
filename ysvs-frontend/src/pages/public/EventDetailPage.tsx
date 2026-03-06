@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useParams, Link, useLocation } from "react-router-dom";
 import {
   Calendar,
   MapPin,
@@ -31,9 +31,43 @@ import { cn, getEventDisplayStatus } from "@/lib/utils";
 
 export default function EventDetailPage() {
   const { slug } = useParams<{ slug: string }>();
+  const location = useLocation();
   const { data: event, isLoading } = useEventBySlug(slug || "");
   const { isAuthenticated } = useAuthStore();
   const [activeTab, setActiveTab] = useState("about");
+  const tabsContainerRef = useRef<HTMLDivElement | null>(null);
+  const registrationDeadlinePassed = Boolean(
+    event?.registrationDeadline &&
+      new Date() > new Date(event.registrationDeadline)
+  );
+  const canRegister = Boolean(
+    event &&
+      getEventDisplayStatus(event) === "upcoming" &&
+      event.registrationOpen &&
+      !registrationDeadlinePassed
+  );
+
+  useEffect(() => {
+    const hashValue = location.hash.replace("#", "");
+    if (!hashValue) {
+      return;
+    }
+
+    const validTabs = ["about", "speakers", "schedule"];
+    if (canRegister) {
+      validTabs.push("register");
+    }
+
+    if (validTabs.includes(hashValue) && hashValue !== activeTab) {
+      setActiveTab(hashValue);
+    }
+  }, [location.hash, canRegister, activeTab]);
+
+  useEffect(() => {
+    if (!canRegister && activeTab === "register") {
+      setActiveTab("about");
+    }
+  }, [canRegister, activeTab]);
 
   if (isLoading) {
     return (
@@ -61,11 +95,6 @@ export default function EventDetailPage() {
 
   const displayStatus = getEventDisplayStatus(event);
   const isUpcoming = displayStatus === "upcoming";
-  const registrationDeadlinePassed =
-    event.registrationDeadline &&
-    new Date() > new Date(event.registrationDeadline);
-  const canRegister =
-    isUpcoming && event.registrationOpen && !registrationDeadlinePassed;
   const allowsGuestRegistration = event.registrationAccess === 'public';
   const startDate = new Date(event.startDate);
   const endDate = new Date(event.endDate);
@@ -117,6 +146,30 @@ export default function EventDetailPage() {
     ? `https://www.openstreetmap.org/?mlat=${locationCoordinates.lat}&mlon=${locationCoordinates.lng}#map=15/${locationCoordinates.lat}/${locationCoordinates.lng}`
     : undefined;
   const eventModeLabel = isOnlineMode ? "أونلاين" : "حضوري";
+
+  const updateHashForTab = (tab: string) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const nextHash = tab === "about" ? "" : `#${tab}`;
+    const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
+    window.history.replaceState(null, "", nextUrl);
+  };
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    updateHashForTab(tab);
+  };
+
+  const handleRegisterCtaClick = () => {
+    if (!canRegister) {
+      return;
+    }
+
+    handleTabChange("register");
+    tabsContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const goToSpeakerCard = (speakerId: string) => {
     setActiveTab("speakers");
@@ -264,8 +317,8 @@ export default function EventDetailPage() {
       <div className="container mx-auto px-4 py-12">
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Main Content */}
-          <div className="lg:col-span-2">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <div className="lg:col-span-2" ref={tabsContainerRef}>
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
               <TabsList className="w-full justify-start rounded-xl border border-[var(--event-border)] bg-[var(--event-surface-muted)] p-1">
                 <TabsTrigger value="about">نبذة عن المؤتمر</TabsTrigger>
                 <TabsTrigger value="speakers">المتحدثون</TabsTrigger>
@@ -277,7 +330,7 @@ export default function EventDetailPage() {
 
               <TabsContent value="about" className="mt-6">
                 <div className="event-surface-card rounded-2xl p-6">
-                  <div className="prose prose-lg max-w-none">
+                  <div className="event-rich-content prose prose-lg max-w-none">
                     {event.descriptionAr ? (
                       <div
                         dangerouslySetInnerHTML={{ __html: event.descriptionAr }}
@@ -287,17 +340,17 @@ export default function EventDetailPage() {
                     )}
                   </div>
 
-                  <div className="mt-8 border-t border-[var(--event-border)] pt-6">
-                    <h3 className="mb-4 flex items-center gap-2 text-lg font-bold">
+                  <div className="mt-8 border-t border-[var(--event-border)] pt-6 text-right">
+                    <h3 className="mb-4 flex w-full items-center justify-end gap-2 text-right text-lg font-bold">
+                      <span>ماذا ستحصل عليه من المؤتمر</span>
                       <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                      ماذا ستحصل عليه من المؤتمر
                     </h3>
                     {event.outcomes?.length ? (
-                      <ul className="space-y-3">
+                      <ul className="space-y-3 text-right">
                         {event.outcomes.map((outcome, index) => (
                           <li
                             key={`${index}-${outcome}`}
-                            className="flex items-start gap-2 text-sm text-foreground"
+                            className="flex flex-row-reverse items-start gap-2 text-right text-sm text-foreground"
                           >
                             <span className="mt-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />
                             <span>{outcome}</span>
@@ -313,11 +366,11 @@ export default function EventDetailPage() {
 
                   <div className="mt-8 grid gap-4 border-t border-[var(--event-border)] pt-6 md:grid-cols-2">
                     <div className="rounded-xl border p-4">
-                      <h3 className="mb-3 font-bold">أهداف المؤتمر</h3>
+                      <h3 className="mb-3 text-right font-bold">أهداف المؤتمر</h3>
                       {event.objectives?.length ? (
-                        <ul className="space-y-2 text-sm">
+                        <ul className="space-y-2 text-right text-sm">
                           {event.objectives.map((objective, index) => (
-                            <li key={`${index}-${objective}`} className="flex items-start gap-2">
+                            <li key={`${index}-${objective}`} className="flex flex-row-reverse items-start gap-2 text-right">
                               <span className="mt-1 inline-block h-2 w-2 rounded-full bg-primary-500" />
                               <span>{objective}</span>
                             </li>
@@ -329,11 +382,11 @@ export default function EventDetailPage() {
                     </div>
 
                     <div className="rounded-xl border p-4">
-                      <h3 className="mb-3 font-bold">الفئة المستهدفة</h3>
+                      <h3 className="mb-3 text-right font-bold">الفئة المستهدفة</h3>
                       {event.targetAudience?.length ? (
-                        <ul className="space-y-2 text-sm">
+                        <ul className="space-y-2 text-right text-sm">
                           {event.targetAudience.map((audience, index) => (
-                            <li key={`${index}-${audience}`} className="flex items-start gap-2">
+                            <li key={`${index}-${audience}`} className="flex flex-row-reverse items-start gap-2 text-right">
                               <span className="mt-1 inline-block h-2 w-2 rounded-full bg-amber-500" />
                               <span>{audience}</span>
                             </li>
@@ -353,8 +406,8 @@ export default function EventDetailPage() {
                     {event.speakers?.length ? (
                       <div className="grid gap-4 md:grid-cols-2">
                         {event.speakers.map((speaker) => (
-                          <div id={`speaker-${speaker.id}`} key={speaker.id} className="rounded-xl border p-4">
-                            <div className="mb-3 flex items-center gap-3">
+                          <div id={`speaker-${speaker.id}`} key={speaker.id} className="rounded-xl border p-4 text-right">
+                            <div className="mb-3 flex flex-row-reverse items-center gap-3">
                               {(speaker.imageUrl || speaker.image) ? (
                                 <img
                                   src={speaker.imageUrl || speaker.image}
@@ -366,7 +419,7 @@ export default function EventDetailPage() {
                                   <UserRound className="h-6 w-6 text-primary-700" />
                                 </div>
                               )}
-                              <div>
+                              <div className="text-right">
                                 <p className="font-semibold">{speaker.nameAr}</p>
                                 <p className="text-sm text-muted-foreground">{speaker.titleAr}</p>
                               </div>
@@ -394,7 +447,7 @@ export default function EventDetailPage() {
 
               <TabsContent value="schedule" className="mt-6">
                 <Card className="event-surface-card">
-                  <CardContent className="pt-6">
+                  <CardContent className="pt-6 text-right" dir="rtl">
                     {sortedSchedule.length ? (
                       <div className="space-y-4">
                         {sortedSchedule.map((item) => {
@@ -403,9 +456,9 @@ export default function EventDetailPage() {
                             .filter(Boolean);
 
                           return (
-                            <div key={item.id} className="rounded-xl border p-4">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div>
+                            <div key={item.id} className="rounded-xl border p-4 text-right" dir="rtl">
+                              <div className="flex flex-wrap items-start justify-between gap-2" dir="rtl">
+                                <div className="text-right">
                                   <p className="font-semibold">{item.titleAr}</p>
                                   <p className="mt-1 text-sm text-muted-foreground">
                                     {format(new Date(item.startTime), "EEEE، d MMMM yyyy", {
@@ -425,7 +478,7 @@ export default function EventDetailPage() {
                                 </Badge>
                               </div>
 
-                              <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                              <div className="mt-3 flex flex-row-reverse items-center justify-end gap-2 text-sm text-muted-foreground">
                                 <Clock className="h-4 w-4" />
                                 <span>
                                   {format(new Date(item.startTime), "h:mm a", { locale: ar })} -{" "}
@@ -434,16 +487,16 @@ export default function EventDetailPage() {
                               </div>
 
                               {item.descriptionAr && (
-                                <p className="mt-3 text-sm leading-relaxed">{item.descriptionAr}</p>
+                                <p className="mt-3 text-right text-sm leading-relaxed">{item.descriptionAr}</p>
                               )}
 
                               {sessionSpeakers.length > 0 && (
                                 <div className="mt-3 border-t pt-3">
-                                  <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                                  <p className="mb-2 flex flex-row-reverse items-center justify-end gap-2 text-xs font-semibold text-muted-foreground">
                                     <Mic className="h-3.5 w-3.5" />
                                     المتحدثون
                                   </p>
-                                  <div className="flex flex-wrap gap-2">
+                                  <div className="flex flex-wrap justify-end gap-2">
                                     {sessionSpeakers.map((speaker) => (
                                       <button
                                         key={speaker!.id}
@@ -587,8 +640,8 @@ export default function EventDetailPage() {
                       </div>
                     </div>
                   )}
-                  <Button className="w-full" asChild>
-                    <a href="#register">سجل الآن</a>
+                  <Button className="w-full" type="button" onClick={handleRegisterCtaClick}>
+                    سجل الآن
                   </Button>
                 </CardContent>
               </Card>
