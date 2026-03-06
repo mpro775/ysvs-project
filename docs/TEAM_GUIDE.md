@@ -47,6 +47,8 @@
 | `/events`                         | المؤتمرات               | قائمة الفعاليات                             |
 | `/events/:slug`                   | تفاصيل المؤتمر          | عرض فعالية واحدة والتسجيل فيها              |
 | `/contact`                        | تواصل معنا              | نموذج التواصل                               |
+| `/privacy`                        | سياسة الخصوصية          | صفحة السياسة المنشورة من لوحة المحتوى       |
+| `/terms`                          | الشروط والأحكام         | صفحة الشروط المنشورة من لوحة المحتوى        |
 | `/verify` و `/verify/:serial`     | التحقق من الشهادة       | التحقق من صحة شهادة CME                     |
 | `/certificate-download?token=...` | تنزيل شهادة ضيف         | تنزيل شهادة الضيف عبر رابط مؤقت موقّع       |
 | `/login`                          | تسجيل الدخول            | نموذج الدخول                                |
@@ -65,12 +67,15 @@
 | `/admin/events/:id/registrants` | المسجلون        | قائمة وتفاصيل المسجلين في الفعالية        |
 | `/admin/certificates`           | سجل الشهادات    | قائمة الشهادات الصادرة                    |
 | `/admin/certificates/issue`     | إصدار شهادات    | إصدار شهادات للمسجلين                     |
-| `/admin/streaming`              | البث المباشر    | إعدادات البث الحي                         |
 | `/admin/articles`               | قائمة الأخبار   | إدارة المقالات                            |
 | `/admin/articles/create`        | إضافة خبر       | إنشاء مقال                                |
 | `/admin/articles/:id/edit`      | تعديل خبر       | تعديل مقال                                |
 | `/admin/members`                | الأعضاء         | إدارة أعضاء الجمعية                       |
 | `/admin/board`                  | مجلس الإدارة    | إدارة أعضاء مجلس الإدارة                  |
+| `/admin/about`                  | عن الجمعية      | إدارة محتوى صفحة عن الجمعية               |
+| `/admin/site-content`           | المحتوى العام   | إدارة الفوتر + صفحات الخصوصية والشروط     |
+| `/admin/newsletter`             | النشرة البريدية | إدارة المشتركين وحالة الاشتراك            |
+| `/admin/contact`                | رسائل التواصل   | إدارة رسائل تواصل معنا والرد عليها        |
 | `/admin/media`                  | مكتبة الوسائط   | رفع وإدارة الملفات                        |
 | `/admin/settings`               | الإعدادات       | إعدادات الحساب والأمان                    |
 
@@ -79,7 +84,7 @@
 | المسار                 | الصفحة       | الوصف                                 |
 | ---------------------- | ------------ | ------------------------------------- |
 | `/member`              | لوحة التحكم  | ملخص تسجيلاتي، شهاداتي، مرحباً بالعضو |
-| `/member/profile`      | الملف الشخصي | تعديل البيانات الشخصية                |
+| `/member/profile`      | الملف الشخصي | عرض البيانات + تغيير كلمة المرور فقط  |
 | `/member/events`       | مؤتمراتي     | تسجيلاتي في الفعاليات                 |
 | `/member/certificates` | شهاداتي      | الشهادات الصادرة للعضو                |
 
@@ -145,6 +150,10 @@ npm run seed:fresh  # حذف كل البيانات وإعادة البذر
   - `JWT_SECRET` و `JWT_REFRESH_SECRET`
   - `FRONTEND_URL`
   - `CORS_ORIGINS` (متعدد، مفصول بفواصل)
+  - `MAIL_HOST` و `MAIL_PORT` و `MAIL_USER` و `MAIL_PASS` و `MAIL_FROM` (لإرسال البريد)
+  - `CONTACT_NOTIFY_TO` و `CONTACT_AUTO_ACK_ENABLED` و `CONTACT_SUBMIT_RATE_LIMIT_PER_MINUTE`
+  - `NEWSLETTER_DOUBLE_OPT_IN` و `NEWSLETTER_CONFIRM_TOKEN_TTL_HOURS`
+  - `NEWSLETTER_SUBSCRIBE_RATE_LIMIT_PER_MINUTE` و `NEWSLETTER_UNSUBSCRIBE_RATE_LIMIT_PER_MINUTE`
   - `STORAGE_PROVIDER` (`local` أو `r2`)
   - `R2_*` عند استخدام Cloudflare R2
 
@@ -161,28 +170,34 @@ npm run seed:fresh  # حذف كل البيانات وإعادة البذر
 | المسارات العامة والأساسية | ✅ مكتمل | الصفحة العامة، الأخبار، المؤتمرات، التحقق من الشهادات |
 | تسجيل المؤتمرات الديناميكي + رفع الملفات | ✅ مكتمل | مع تحقق نوع/حجم الملف + دعم ضيوف |
 | ربط تاريخ الضيف بالحساب | ✅ مكتمل | يتم تلقائياً بعد login/register |
-| لوحة الإدارة - الأحداث/المقالات/الشهادات/البث/الوسائط | ✅ مكتمل جزئياً | وظائف أساسية تعمل |
+| لوحة الإدارة - الأحداث/المقالات/المجلس/عن الجمعية/المحتوى/النشرة/التواصل/الوسائط | ✅ مكتمل جزئياً | أغلب الشاشات مربوطة بالـ API وتعمل |
 | صفحة إدارة الأعضاء `/admin/members` | ⚠️ جزئي | حالياً تستخدم بيانات Mock في الواجهة |
-| التواصل `/contact` | ⚠️ جزئي | إرسال النموذج محاكاة فقط (لا يوجد endpoint فعلي) |
+| الملف الشخصي للعضو `/member/profile` | ⚠️ جزئي | الصفحة للعرض فقط (لا يوجد تعديل بيانات شخصية فعلي) |
+| إدارة الوسائط (حذف/رفع متعدد) | ⚠️ جزئي | يوجد فروقات عقد API تمنع بعض العمليات بشكل موثوق |
+| النشرة البريدية (تأكيد/إلغاء الاشتراك للزائر) | ⚠️ جزئي | لا توجد صفحات Frontend مخصصة لتدفق التأكيد/الإلغاء |
 | استعادة كلمة المرور بالبريد | ⚠️ جزئي | منطق الإرسال الفعلي للبريد غير مفعل بعد |
 
 ---
 
-## 8. فروقات واجهة/خلفية يجب متابعتها
+## 8. فروقات واجهة/خلفية + نواقص غير موثقة يجب متابعتها
 
 هذه البنود مهمة لتفادي أخطاء تكامل بين الـ frontend والـ backend:
 
-- **Bulk certificates endpoint:**
-  - الواجهة تستخدم: `/certificates/bulk-generate`
-  - الخلفية توفر: `/certificates/generate-bulk/:eventId`
-- **Revoke certificate method:**
-  - الواجهة تستخدم `POST`
-  - الخلفية تتوقع `PATCH` على `/certificates/:id/revoke`
-- **Delete media parameter:**
-  - الواجهة ترسل `_id`
-  - الخلفية تتعامل مع `path` في `DELETE /media/:path`
+- **Media multiple upload endpoint:**
+  - الواجهة (hook الرفع المتعدد) تستخدم: `POST /media/upload`
+  - الخلفية توفر الرفع المتعدد على: `POST /media/upload/multiple`
+- **Delete media parameter & routing:**
+  - الواجهة ترسل `_id` عبر: `DELETE /media/:id`
+  - الخلفية تتعامل مع: `DELETE /media/:path`
+  - عند وجود `/` داخل المسار قد يفشل الالتقاط كـ route param واحد
+- **Member profile editing gap:**
+  - وصف المسار في الدليل كان "تعديل البيانات الشخصية"
+  - فعلياً الصفحة تعرض البيانات فقط + تغيير كلمة المرور
+- **Newsletter confirmation/unsubscribe UX gap:**
+  - الخلفية توفر endpoints (`/newsletter/confirm` و `/newsletter/unsubscribe`)
+  - الواجهة لا توفر صفحات مخصصة لمعالجة هذا التدفق للزائر
 
-> يفضّل توحيد هذه العقود قبل أي إصدار إنتاجي نهائي.
+> يفضّل معالجة هذه الفروقات قبل أي إصدار إنتاجي نهائي لتفادي أعطال تكامل أو تجربة مستخدم ناقصة.
 
 ---
 
@@ -230,6 +245,10 @@ flowchart TB
 | [ysvs-backend/src/modules/events/registration.service.ts](../ysvs-backend/src/modules/events/registration.service.ts) | منطق تسجيل الفعاليات (عضو/ضيف) والتحقق |
 | [ysvs-backend/src/modules/auth/auth.service.ts](../ysvs-backend/src/modules/auth/auth.service.ts) | منطق تسجيل الدخول وربط سجل الضيف بالحساب |
 | [ysvs-backend/src/modules/certificates/certificates.service.ts](../ysvs-backend/src/modules/certificates/certificates.service.ts) | إصدار/تحقق الشهادات وروابط تنزيل الضيف |
+| [ysvs-frontend/src/pages/member/ProfilePage.tsx](../ysvs-frontend/src/pages/member/ProfilePage.tsx) | واقع صفحة الملف الشخصي (عرض + تغيير كلمة المرور فقط) |
+| [ysvs-frontend/src/api/hooks/useMedia.ts](../ysvs-frontend/src/api/hooks/useMedia.ts) | نقاط تكامل الوسائط في الواجهة (رفع/حذف) |
+| [ysvs-backend/src/modules/media/media.controller.ts](../ysvs-backend/src/modules/media/media.controller.ts) | عقود API الخاصة بمسارات الوسائط |
+| [ysvs-backend/src/modules/newsletter/newsletter.controller.ts](../ysvs-backend/src/modules/newsletter/newsletter.controller.ts) | مسارات الاشتراك/التأكيد/الإلغاء للنشرة |
 | [ysvs-backend/src/database/seed/seed.service.ts](../ysvs-backend/src/database/seed/seed.service.ts) | خدمة إنشاء البيانات الوهمية |
 | [ysvs-backend/src/database/seed/README.md](../ysvs-backend/src/database/seed/README.md) | وثائق Seeds في الباك إند |
 | [docs/PRODUCTION_RUNBOOK.md](./PRODUCTION_RUNBOOK.md) | دليل النشر والتحقق في الإنتاج |
