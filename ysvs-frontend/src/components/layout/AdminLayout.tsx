@@ -1,13 +1,23 @@
+import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminTopBar } from "./AdminTopBar";
 import { useUIStore } from "@/stores/uiStore";
 import { cn } from "@/lib/utils";
 import { useAdminNotificationsSocket } from "@/api/hooks/useAdminNotificationsSocket";
+import { setSeo, SITE_NAME } from "@/lib/seo";
 
 export default function AdminLayout() {
   const { sidebarCollapsed } = useUIStore();
   useAdminNotificationsSocket();
+
+  useEffect(() => {
+    setSeo({
+      title: `Admin Dashboard | ${SITE_NAME}`,
+      description: "Administrative dashboard for Yemen Society of Vascular Surgery.",
+      robots: "noindex, nofollow",
+    });
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-muted/30" dir="rtl">

@@ -63,7 +63,7 @@ export function Footer() {
   const copyright = footer?.copyrightAr || 'جميع الحقوق محفوظة.';
 
   return (
-    <footer className="border-t border-primary-900/40 bg-gradient-to-b from-primary-950 to-primary-900 text-white dark:border-white/10 dark:from-neutral-950 dark:to-neutral-900">
+    <footer className="border-t border-primary-900/40 bg-gradient-to-l from-primary-900 via-primary-800 to-primary-700 text-white dark:border-white/10 dark:from-neutral-950 dark:via-neutral-900 dark:to-primary-950">
       <div className="mx-auto max-w-[1400px] px-4 py-10 sm:px-6">
         <div className="grid gap-10 text-right md:grid-cols-2 lg:grid-cols-3">
           <div className="lg:order-3">
@@ -98,7 +98,7 @@ export function Footer() {
                   {isInternalHref(link.href) ? (
                     <Link
                       to={link.href}
-                      className="text-sm text-white/80 transition-colors hover:text-white"
+                       className="text-sm text-white/80 transition-colors hover:text-white"
                     >
                       {link.labelAr}
                     </Link>
@@ -107,7 +107,7 @@ export function Footer() {
                       href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-white/80 transition-colors hover:text-white"
+                       className="text-sm text-white/80 transition-colors hover:text-white"
                     >
                       {link.labelAr}
                     </a>

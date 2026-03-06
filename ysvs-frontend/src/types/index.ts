@@ -503,6 +503,23 @@ export interface Activity {
   timestamp: Date;
 }
 
+export type NotificationSeverity = 'info' | 'success' | 'warning' | 'critical';
+
+export interface AdminNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  entityId?: string;
+  entityType?: string;
+  severity: NotificationSeverity;
+  createdAt: Date | string;
+  actionUrl?: string;
+  meta?: Record<string, unknown>;
+  isRead: boolean;
+  readAt?: Date | string;
+}
+
 export interface NewsletterSubscriber {
   _id: string;
   email: string;

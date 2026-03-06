@@ -14,11 +14,25 @@ import { useUIStore } from "@/stores/uiStore";
 import { useLogout } from "@/api/hooks/useAuth";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import {
+  useAdminNotifications,
+  useMarkAdminNotificationAsRead,
+  useMarkAllAdminNotificationsAsRead,
+} from "@/api/hooks/useAdminNotifications";
+import { useAdminNotificationsStore } from "@/stores/adminNotificationsStore";
+import { formatDistanceToNow } from "date-fns";
+import { ar } from "date-fns/locale";
 
 export function AdminTopBar() {
   const { user } = useAuthStore();
   const { setSidebarOpen } = useUIStore();
   const { mutate: logout } = useLogout();
+  const { unreadCount, items, isConnected } = useAdminNotificationsStore();
+  const { mutate: markAsRead } = useMarkAdminNotificationAsRead();
+  const { mutate: markAllAsRead } = useMarkAllAdminNotificationsAsRead();
+
+  useAdminNotifications({ page: 1, limit: 25 });
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -57,12 +71,87 @@ export function AdminTopBar() {
         <ThemeToggle />
 
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute -left-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
-            3
-          </span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative" aria-label="الإشعارات">
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -left-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] text-white">
+                  {Math.min(unreadCount, 99)}
+                </span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-80 p-0">
+            <div className="border-b px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold">الإشعارات</p>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[11px] ${
+                    isConnected
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-amber-100 text-amber-700"
+                  }`}
+                >
+                  {isConnected ? "متصل" : "منقطع"}
+                </span>
+              </div>
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  غير المقروءة: {unreadCount.toLocaleString("ar-EG")}
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => markAllAsRead()}
+                  disabled={unreadCount === 0}
+                >
+                  تعليم الكل كمقروء
+                </Button>
+              </div>
+            </div>
+
+            <div className="max-h-96 overflow-y-auto">
+              {items.length === 0 ? (
+                <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                  لا توجد إشعارات حالياً
+                </p>
+              ) : (
+                items.slice(0, 20).map((notification) => (
+                  <DropdownMenuItem
+                    key={notification.id}
+                    className="flex cursor-pointer flex-col items-start gap-1 rounded-none border-b px-3 py-2.5 text-right"
+                    onClick={() => {
+                      if (!notification.isRead) {
+                        markAsRead(notification.id);
+                      }
+                      if (notification.actionUrl) {
+                        navigate(notification.actionUrl);
+                      }
+                    }}
+                  >
+                    <div className="flex w-full items-start justify-between gap-2">
+                      <p className="text-sm font-medium leading-5">{notification.title}</p>
+                      {!notification.isRead && (
+                        <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+                      )}
+                    </div>
+                    <p className="line-clamp-2 text-xs text-muted-foreground">
+                      {notification.message}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {formatDistanceToNow(new Date(notification.createdAt), {
+                        addSuffix: true,
+                        locale: ar,
+                      })}
+                    </p>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* User Menu */}
         <DropdownMenu>

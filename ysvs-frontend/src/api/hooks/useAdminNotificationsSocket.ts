@@ -3,23 +3,15 @@ import { io } from "socket.io-client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
-import type { Activity, DashboardStats } from "@/types";
+import type { Activity, AdminNotification, DashboardStats } from "@/types";
+import { useAdminNotificationsStore } from "@/stores/adminNotificationsStore";
 
-interface AdminNotificationEvent {
-  id: string;
-  type: string;
-  title: string;
-  message: string;
-  severity: "info" | "success" | "warning" | "critical";
-  createdAt: string;
-  actionUrl?: string;
-  meta?: Record<string, unknown>;
-}
+interface AdminNotificationEvent extends Omit<AdminNotification, "isRead" | "readAt"> {}
 
-const DEFAULT_MUTED_SEVERITIES: Array<AdminNotificationEvent["severity"]> = ["info"];
+const DEFAULT_MUTED_SEVERITIES: Array<AdminNotification["severity"]> = ["info"];
 const FALLBACK_STATS_POLL_INTERVAL = 60 * 1000;
 
-function getMutedSeverities(): Set<AdminNotificationEvent["severity"]> {
+function getMutedSeverities(): Set<AdminNotification["severity"]> {
   try {
     const raw = localStorage.getItem("admin.notifications.mutedSeverities");
     if (!raw) {
@@ -32,7 +24,7 @@ function getMutedSeverities(): Set<AdminNotificationEvent["severity"]> {
     }
 
     return new Set(
-      parsed.filter((value): value is AdminNotificationEvent["severity"] =>
+      parsed.filter((value): value is AdminNotification["severity"] =>
         ["info", "success", "warning", "critical"].includes(String(value))
       )
     );
@@ -136,10 +128,13 @@ export const useAdminNotificationsSocket = () => {
   const queryClient = useQueryClient();
   const { isAuthenticated, isAdmin } = useAuthStore();
   const fallbackPollingRef = useRef<number | null>(null);
+  const upsertNotification = useAdminNotificationsStore((state) => state.upsertNotification);
+  const setConnected = useAdminNotificationsStore((state) => state.setConnected);
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
     if (!isAuthenticated || !isAdmin() || !token) {
+      setConnected(false);
       return;
     }
 
@@ -171,18 +166,26 @@ export const useAdminNotificationsSocket = () => {
     };
 
     socket.on("connect", () => {
+      setConnected(true);
       clearFallbackPolling();
     });
 
     socket.on("disconnect", () => {
+      setConnected(false);
       startFallbackPolling();
     });
 
     socket.on("connect_error", () => {
+      setConnected(false);
       startFallbackPolling();
     });
 
     socket.on("notifications:new", (event: AdminNotificationEvent) => {
+      upsertNotification({
+        ...event,
+        isRead: false,
+      });
+
       queryClient.setQueryData<DashboardStats | undefined>(
         ["dashboard", "stats"],
         (previous) => applyStatsPatch(previous, event)
@@ -215,8 +218,9 @@ export const useAdminNotificationsSocket = () => {
     });
 
     return () => {
+      setConnected(false);
       clearFallbackPolling();
       socket.disconnect();
     };
-  }, [isAuthenticated, isAdmin, queryClient]);
+  }, [isAuthenticated, isAdmin, queryClient, setConnected, upsertNotification]);
 };

@@ -1,4 +1,13 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -10,6 +19,9 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles, UserRole } from '../../common/decorators/roles.decorator';
 import { NotificationsPublisherService } from './notifications.publisher.service';
 import { SendTestNotificationDto } from './dto/send-test-notification.dto';
+import { NotificationsService } from './notifications.service';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { NotificationsQueryDto } from './dto/notifications-query.dto';
 
 @ApiTags('Notifications')
 @ApiBearerAuth('JWT-auth')
@@ -19,16 +31,38 @@ import { SendTestNotificationDto } from './dto/send-test-notification.dto';
 export class NotificationsController {
   constructor(
     private readonly notificationsPublisherService: NotificationsPublisherService,
+    private readonly notificationsService: NotificationsService,
   ) {}
+
+  @Get()
+  @ApiOperation({ summary: 'List admin notifications' })
+  @ApiResponse({ status: 200, description: 'Notifications fetched successfully' })
+  findAll(@CurrentUser('id') userId: string, @Query() queryDto: NotificationsQueryDto) {
+    return this.notificationsService.listForAdmin(userId, queryDto);
+  }
+
+  @Patch(':id/read')
+  @ApiOperation({ summary: 'Mark notification as read' })
+  @ApiResponse({ status: 200, description: 'Notification marked as read' })
+  markAsRead(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return this.notificationsService.markAsRead(id, userId);
+  }
+
+  @Patch('read-all')
+  @ApiOperation({ summary: 'Mark all notifications as read for current admin' })
+  @ApiResponse({ status: 200, description: 'Notifications marked as read' })
+  markAllAsRead(@CurrentUser('id') userId: string) {
+    return this.notificationsService.markAllAsRead(userId);
+  }
 
   @Post('test')
   @ApiOperation({ summary: 'Send a test admin websocket notification' })
   @ApiResponse({ status: 201, description: 'Notification emitted successfully' })
-  emitTestNotification(@Body() dto: SendTestNotificationDto) {
+  async emitTestNotification(@Body() dto: SendTestNotificationDto) {
     const title = dto.title?.trim() || 'اختبار الإشعارات';
     const message = dto.message?.trim() || 'تم إرسال إشعار تجريبي إلى لوحة التحكم';
 
-    const event = this.notificationsPublisherService.publishToAdmins({
+    const event = await this.notificationsPublisherService.publishToAdmins({
       type: 'system.test',
       title,
       message,

@@ -113,4 +113,11 @@ export const ENDPOINTS = {
     PUBLISH_PRIVACY: '/site-content/legal/privacy/publish',
     PUBLISH_TERMS: '/site-content/legal/terms/publish',
   },
+
+  // Notifications
+  NOTIFICATIONS: {
+    BASE: '/notifications',
+    MARK_READ: (id: string) => `/notifications/${id}/read`,
+    MARK_ALL_READ: '/notifications/read-all',
+  },
 } as const;

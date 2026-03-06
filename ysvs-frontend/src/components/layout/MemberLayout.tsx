@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import { LayoutDashboard, User, Calendar, Award, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { setSeo, SITE_NAME } from "@/lib/seo";
 
 const sidebarLinks = [
   { href: "/member", icon: LayoutDashboard, label: "لوحة التحكم", end: true },
@@ -47,6 +48,14 @@ function SidebarNav({ onLinkClick }: { onLinkClick?: () => void }) {
 
 export default function MemberLayout() {
   const [memberSidebarOpen, setMemberSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    setSeo({
+      title: `Member Area | ${SITE_NAME}`,
+      description: "Member portal for Yemen Society of Vascular Surgery.",
+      robots: "noindex, nofollow",
+    });
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col" dir="rtl">

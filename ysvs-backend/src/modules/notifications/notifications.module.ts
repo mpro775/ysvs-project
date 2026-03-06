@@ -6,11 +6,19 @@ import { User, UserSchema } from '../users/schemas/user.schema';
 import { NotificationsGateway } from './notifications.gateway';
 import { NotificationsPublisherService } from './notifications.publisher.service';
 import { NotificationsController } from './notifications.controller';
+import {
+  AdminNotification,
+  AdminNotificationSchema,
+} from './schemas/admin-notification.schema';
+import { NotificationsService } from './notifications.service';
 
 @Module({
   imports: [
     ConfigModule,
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: AdminNotification.name, schema: AdminNotificationSchema },
+    ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -20,7 +28,7 @@ import { NotificationsController } from './notifications.controller';
     }),
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsGateway, NotificationsPublisherService],
-  exports: [NotificationsGateway, NotificationsPublisherService],
+  providers: [NotificationsGateway, NotificationsPublisherService, NotificationsService],
+  exports: [NotificationsGateway, NotificationsPublisherService, NotificationsService],
 })
 export class NotificationsModule {}

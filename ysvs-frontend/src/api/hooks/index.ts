@@ -6,3 +6,4 @@ export * from './useMedia';
 export * from './useDashboard';
 export * from './useContact';
 export * from './useAdminNotificationsSocket';
+export * from './useAdminNotifications';

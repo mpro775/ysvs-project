@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/api/hooks/useAuth";
 import { cn } from "@/lib/utils";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo.jpg";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 
 const navLinks = [
