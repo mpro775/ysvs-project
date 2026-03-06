@@ -30,7 +30,6 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles, UserRole } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { ArticleStatus } from './schemas/article.schema';
 
 @ApiTags('Content')
 @Controller('content')
@@ -65,13 +64,9 @@ export class ContentController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @Get('articles/all')
   @ApiOperation({ summary: 'Get all articles including drafts (Admin only)' })
-  @ApiQuery({ name: 'status', enum: ArticleStatus, required: false })
   @ApiResponse({ status: 200, description: 'List of all articles' })
-  findAllArticles(
-    @Query() paginationDto: PaginationDto,
-    @Query('status') status?: ArticleStatus,
-  ) {
-    return this.contentService.findAllArticles(paginationDto, status);
+  findAllArticles(@Query() queryDto: ArticlesQueryDto) {
+    return this.contentService.findAllArticles(queryDto);
   }
 
   @Public()

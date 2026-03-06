@@ -28,12 +28,41 @@ export class ContentService {
 
   // ============= ARTICLES =============
 
+  private normalizeArticlePayload(
+    payload: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const normalized: Record<string, unknown> = { ...payload };
+
+    if (
+      (!normalized.excerptAr || normalized.excerptAr === '') &&
+      typeof normalized.summaryAr === 'string'
+    ) {
+      normalized.excerptAr = normalized.summaryAr;
+    }
+
+    if (
+      (!normalized.excerptEn || normalized.excerptEn === '') &&
+      typeof normalized.summaryEn === 'string'
+    ) {
+      normalized.excerptEn = normalized.summaryEn;
+    }
+
+    delete normalized.summaryAr;
+    delete normalized.summaryEn;
+
+    return normalized;
+  }
+
   async createArticle(
     createArticleDto: CreateArticleDto,
     authorId: string,
   ): Promise<Article> {
+    const normalizedPayload = this.normalizeArticlePayload(
+      createArticleDto as unknown as Record<string, unknown>,
+    );
+
     const article = new this.articleModel({
-      ...createArticleDto,
+      ...normalizedPayload,
       author: authorId,
       publishedAt:
         createArticleDto.status === ArticleStatus.PUBLISHED
@@ -47,15 +76,50 @@ export class ContentService {
   }
 
   async findAllArticles(
-    paginationDto: PaginationDto,
-    status?: ArticleStatus,
+    queryDto: ArticlesQueryDto,
+    forcedStatus?: ArticleStatus,
   ): Promise<PaginatedResult<Article>> {
-    const { page = 1, limit = 10 } = paginationDto;
+    const { page = 1, limit = 10 } = queryDto;
     const skip = (page - 1) * limit;
 
     const query: Record<string, unknown> = {};
-    if (status) {
-      query.status = status;
+    const effectiveStatus = forcedStatus || queryDto.status;
+    if (effectiveStatus) {
+      query.status = effectiveStatus;
+    }
+
+    if (typeof queryDto.featured === 'boolean') {
+      query.isFeatured = queryDto.featured;
+    }
+
+    if (queryDto.search?.trim()) {
+      const searchTerm = queryDto.search.trim();
+      query.$or = [
+        { titleAr: { $regex: searchTerm, $options: 'i' } },
+        { titleEn: { $regex: searchTerm, $options: 'i' } },
+        { excerptAr: { $regex: searchTerm, $options: 'i' } },
+        { excerptEn: { $regex: searchTerm, $options: 'i' } },
+        { slug: { $regex: searchTerm, $options: 'i' } },
+      ];
+    }
+
+    if (queryDto.category?.trim()) {
+      const categoryValue = queryDto.category.trim();
+
+      if (Types.ObjectId.isValid(categoryValue)) {
+        query.category = new Types.ObjectId(categoryValue);
+      } else {
+        const category = await this.categoryModel
+          .findOne({ slug: categoryValue })
+          .select('_id')
+          .lean();
+
+        if (!category?._id) {
+          return new PaginatedResult([], 0, page, limit);
+        }
+
+        query.category = category._id;
+      }
     }
 
     const [articles, total] = await Promise.all([
@@ -76,7 +140,16 @@ export class ContentService {
   async findPublishedArticles(
     queryDto: ArticlesQueryDto,
   ): Promise<PaginatedResult<Article>> {
-    const cacheKey = `articles:published:${queryDto.page}:${queryDto.limit}`;
+    const cacheVersion = await this.getArticleCacheVersion();
+    const cacheKey = [
+      'articles:published',
+      cacheVersion,
+      queryDto.page || 1,
+      queryDto.limit || 10,
+      queryDto.search?.trim() || '',
+      queryDto.category?.trim() || '',
+      queryDto.featured === true ? 'featured' : 'all',
+    ].join(':');
     const cached = await this.cacheManager.get<PaginatedResult<Article>>(cacheKey);
 
     if (cached) {
@@ -90,7 +163,8 @@ export class ContentService {
   }
 
   async findFeaturedArticles(limit: number = 5): Promise<Article[]> {
-    const cacheKey = `articles:featured:${limit}`;
+    const cacheVersion = await this.getArticleCacheVersion();
+    const cacheKey = `articles:featured:${cacheVersion}:${limit}`;
     const cached = await this.cacheManager.get<Article[]>(cacheKey);
 
     if (cached) {
@@ -160,7 +234,9 @@ export class ContentService {
     id: string,
     updateArticleDto: UpdateArticleDto,
   ): Promise<Article> {
-    const updateData: Record<string, unknown> = { ...updateArticleDto };
+    const updateData = this.normalizeArticlePayload(
+      updateArticleDto as unknown as Record<string, unknown>,
+    );
 
     // Set publishedAt if status changed to published
     if (updateArticleDto.status === ArticleStatus.PUBLISHED) {
@@ -304,15 +380,18 @@ export class ContentService {
   // ============= CACHE HELPERS =============
 
   private async invalidateArticleCache(): Promise<void> {
-    // Clear specific cache keys
-    // Note: In production with Redis, you could use pattern matching
-    const keysToDelete = [
-      'articles:published:1:10',
-      'articles:published:1:20',
-      'articles:featured:5',
-      'articles:featured:10',
-    ];
-    await Promise.all(keysToDelete.map((key) => this.cacheManager.del(key)));
+    await this.cacheManager.set('articles:cache-version', Date.now().toString());
+  }
+
+  private async getArticleCacheVersion(): Promise<string> {
+    const cacheVersion = await this.cacheManager.get<string>('articles:cache-version');
+    if (cacheVersion) {
+      return cacheVersion;
+    }
+
+    const initialVersion = '1';
+    await this.cacheManager.set('articles:cache-version', initialVersion);
+    return initialVersion;
   }
 
   private async invalidateCategoryCache(): Promise<void> {

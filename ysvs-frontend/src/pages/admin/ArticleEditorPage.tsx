@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ArticleCoverImageField } from "@/components/articles/ArticleCoverImageField";
 import {
   useArticle,
   useCreateArticle,
@@ -21,11 +22,14 @@ const articleSchema = z.object({
   titleAr: z.string().min(3, "العنوان بالعربي مطلوب"),
   titleEn: z.string().min(3, "العنوان بالإنجليزي مطلوب"),
   slug: z.string().min(3, "الرابط المختصر مطلوب"),
-  summaryAr: z.string().optional(),
-  summaryEn: z.string().optional(),
+  excerptAr: z.string().optional(),
+  excerptEn: z.string().optional(),
+  coverImage: z.string().url("رابط الصورة غير صالح").optional().or(z.literal("")),
+  tags: z.string().optional(),
   contentAr: z.string().min(10, "المحتوى مطلوب"),
-  contentEn: z.string(),
+  contentEn: z.string().min(10, "المحتوى الإنجليزي مطلوب"),
   status: z.enum(["draft", "published"]),
+  isFeatured: z.boolean(),
 });
 
 type ArticleForm = z.infer<typeof articleSchema>;
@@ -48,7 +52,15 @@ export default function AdminArticleEditorPage() {
     formState: { errors },
   } = useForm<ArticleForm>({
     resolver: zodResolver(articleSchema),
-    defaultValues: { status: "draft" },
+    defaultValues: {
+      status: "draft",
+      isFeatured: false,
+      coverImage: "",
+      tags: "",
+      excerptAr: "",
+      excerptEn: "",
+      contentEn: "",
+    },
   });
 
   useEffect(() => {
@@ -57,11 +69,14 @@ export default function AdminArticleEditorPage() {
         titleAr: article.titleAr,
         titleEn: article.titleEn,
         slug: article.slug,
-        summaryAr: article.summaryAr || "",
-        summaryEn: article.summaryEn || "",
+        excerptAr: article.excerptAr || article.summaryAr || "",
+        excerptEn: article.excerptEn || article.summaryEn || "",
+        coverImage: article.coverImage || "",
+        tags: article.tags?.join(", ") || "",
         contentAr: article.contentAr,
         contentEn: article.contentEn || "",
         status: article.status,
+        isFeatured: article.isFeatured || false,
       });
     }
   }, [article, reset]);
@@ -76,15 +91,30 @@ export default function AdminArticleEditorPage() {
   };
 
   const onSubmit = (data: ArticleForm) => {
+    const parsedTags = (data.tags || "")
+      .split(/[،,]/)
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+
+    const payload = {
+      ...data,
+      excerptAr: data.excerptAr?.trim() || undefined,
+      excerptEn: data.excerptEn?.trim() || undefined,
+      coverImage: data.coverImage || undefined,
+      tags: parsedTags.length ? parsedTags : undefined,
+    };
+
     if (isEdit && id) {
       updateArticle(
-        { id, data },
+        { id, data: payload },
         { onSuccess: () => navigate("/admin/articles") }
       );
     } else {
-      createArticle(data, { onSuccess: () => navigate("/admin/articles") });
+      createArticle(payload, { onSuccess: () => navigate("/admin/articles") });
     }
   };
+
+  const isPending = isCreating || isUpdating;
 
   if (isEdit && isLoading) {
     return (
@@ -166,35 +196,108 @@ export default function AdminArticleEditorPage() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="summaryAr">الملخص (عربي)</Label>
-              <Textarea id="summaryAr" rows={3} {...register("summaryAr")} />
+            <ArticleCoverImageField
+              value={watchedValues.coverImage || undefined}
+              onChange={(url) =>
+                setValue("coverImage", url || "", {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+              disabled={isPending}
+            />
+
+            {errors.coverImage && (
+              <p className="text-sm text-destructive">{errors.coverImage.message}</p>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="excerptAr">الملخص (عربي)</Label>
+                <Textarea id="excerptAr" rows={3} {...register("excerptAr")} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="excerptEn">الملخص (إنجليزي)</Label>
+                <Textarea
+                  id="excerptEn"
+                  rows={3}
+                  dir="ltr"
+                  {...register("excerptEn")}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="contentAr">المحتوى (عربي) *</Label>
-              <Textarea
-                id="contentAr"
-                rows={10}
-                {...register("contentAr")}
-                className={errors.contentAr ? "border-destructive" : ""}
+              <Label htmlFor="tags">الوسوم</Label>
+              <Input
+                id="tags"
+                placeholder="وعائي, مؤتمر, تعليم"
+                {...register("tags")}
               />
-              {errors.contentAr && (
-                <p className="text-sm text-destructive">
-                  {errors.contentAr.message}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                افصل بين الوسوم بفاصلة (، أو ,)
+              </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Switch
-                id="status"
-                checked={watchedValues.status === "published"}
-                onCheckedChange={(checked) =>
-                  setValue("status", checked ? "published" : "draft")
-                }
-              />
-              <Label htmlFor="status">نشر فوري</Label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="contentAr">المحتوى (عربي) *</Label>
+                <Textarea
+                  id="contentAr"
+                  rows={12}
+                  {...register("contentAr")}
+                  className={errors.contentAr ? "border-destructive" : ""}
+                />
+                {errors.contentAr && (
+                  <p className="text-sm text-destructive">
+                    {errors.contentAr.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="contentEn">المحتوى (إنجليزي) *</Label>
+                <Textarea
+                  id="contentEn"
+                  rows={12}
+                  dir="ltr"
+                  {...register("contentEn")}
+                  className={errors.contentEn ? "border-destructive" : ""}
+                />
+                {errors.contentEn && (
+                  <p className="text-sm text-destructive">
+                    {errors.contentEn.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="status"
+                  checked={watchedValues.status === "published"}
+                  onCheckedChange={(checked) =>
+                    setValue("status", checked ? "published" : "draft", {
+                      shouldDirty: true,
+                    })
+                  }
+                />
+                <Label htmlFor="status">نشر فوري</Label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="isFeatured"
+                  checked={!!watchedValues.isFeatured}
+                  onCheckedChange={(checked) =>
+                    setValue("isFeatured", checked, {
+                      shouldDirty: true,
+                    })
+                  }
+                />
+                <Label htmlFor="isFeatured">خبر مميز</Label>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -203,8 +306,8 @@ export default function AdminArticleEditorPage() {
           <Button type="button" variant="outline" asChild>
             <Link to="/admin/articles">إلغاء</Link>
           </Button>
-          <Button type="submit" disabled={isCreating || isUpdating}>
-            {(isCreating || isUpdating) && (
+          <Button type="submit" disabled={isPending}>
+            {isPending && (
               <Loader2 className="ml-2 h-4 w-4 animate-spin" />
             )}
             {isEdit ? "حفظ التغييرات" : "إنشاء الخبر"}

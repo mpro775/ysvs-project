@@ -3,7 +3,14 @@ import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useArticles } from '@/api/hooks/useContent';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useArticles, useCategories } from '@/api/hooks/useContent';
 import { ArticleCard } from '@/components/news/ArticleCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Newspaper } from 'lucide-react';
@@ -13,13 +20,16 @@ export default function NewsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const page = parseInt(searchParams.get('page') || '1');
+  const category = searchParams.get('category') || 'all';
 
   const { data, isLoading } = useArticles({
     status: 'published',
     search: searchParams.get('search') || undefined,
+    category: category !== 'all' ? category : undefined,
     page,
     limit: 9,
   });
+  const { data: categories } = useCategories();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +66,46 @@ export default function NewsPage() {
           />
         </div>
         <Button type="submit">بحث</Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            setSearch('');
+            setSearchParams({});
+          }}
+        >
+          مسح كل الفلاتر
+        </Button>
       </form>
+
+      <div className="mb-8 grid gap-2 sm:max-w-xs">
+        <Select
+          value={category}
+          onValueChange={(value) => {
+            setSearchParams((prev) => {
+              if (value === 'all') {
+                prev.delete('category');
+              } else {
+                prev.set('category', value);
+              }
+              prev.delete('page');
+              return prev;
+            });
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="التصنيف" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل التصنيفات</SelectItem>
+            {categories?.map((item) => (
+              <SelectItem key={item._id} value={item._id}>
+                {item.nameAr}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Articles Grid */}
       {isLoading ? (

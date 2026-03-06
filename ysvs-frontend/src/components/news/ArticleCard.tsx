@@ -36,9 +36,9 @@ export function ArticleCard({ article }: ArticleCardProps) {
 
         <CardContent className="space-y-3">
           {/* Summary */}
-          {article.summaryAr && (
+          {(article.excerptAr || article.summaryAr) && (
             <p className="line-clamp-2 text-sm text-muted-foreground">
-              {article.summaryAr}
+              {article.excerptAr || article.summaryAr}
             </p>
           )}
 

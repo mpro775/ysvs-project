@@ -31,10 +31,24 @@ export class CreateArticleDto {
   @IsString({ message: 'الملخص بالعربي يجب أن يكون نصاً' })
   excerptAr?: string;
 
+  @ApiPropertyOptional({
+    description: 'Deprecated alias for excerptAr (backward compatibility)',
+  })
+  @IsOptional()
+  @IsString({ message: 'الملخص بالعربي يجب أن يكون نصاً' })
+  summaryAr?: string;
+
   @ApiPropertyOptional({ description: 'Short excerpt in English' })
   @IsOptional()
   @IsString({ message: 'الملخص بالإنجليزي يجب أن يكون نصاً' })
   excerptEn?: string;
+
+  @ApiPropertyOptional({
+    description: 'Deprecated alias for excerptEn (backward compatibility)',
+  })
+  @IsOptional()
+  @IsString({ message: 'الملخص بالإنجليزي يجب أن يكون نصاً' })
+  summaryEn?: string;
 
   @ApiProperty({ description: 'Full content in Arabic (HTML)' })
   @IsString({ message: 'المحتوى بالعربي يجب أن يكون نصاً' })

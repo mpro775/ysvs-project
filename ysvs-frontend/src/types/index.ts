@@ -275,6 +275,8 @@ export interface Article {
   titleAr: string;
   titleEn: string;
   slug: string;
+  excerptAr?: string;
+  excerptEn?: string;
   summaryAr?: string;
   summaryEn?: string;
   contentAr: string;
@@ -283,6 +285,7 @@ export interface Article {
   category?: string;
   tags?: string[];
   status: 'draft' | 'published';
+  isFeatured?: boolean;
   publishedAt?: Date;
   author?: string | User;
   createdAt: Date;

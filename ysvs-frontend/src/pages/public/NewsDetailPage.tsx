@@ -78,9 +78,9 @@ export default function NewsDetailPage() {
         </div>
 
         {/* Summary */}
-        {article.summaryAr && (
+        {(article.excerptAr || article.summaryAr) && (
           <p className="mb-8 text-lg leading-relaxed text-muted-foreground">
-            {article.summaryAr}
+            {article.excerptAr || article.summaryAr}
           </p>
         )}
 

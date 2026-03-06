@@ -172,7 +172,7 @@ export function AdminSidebar() {
             )}
           </Button>
         </div>
-        <ScrollArea className="flex-1 py-4">
+        <ScrollArea dir="rtl" className="flex-1 py-4">
           <SidebarNavContent sidebarCollapsed={sidebarCollapsed} />
         </ScrollArea>
         {!sidebarCollapsed && (
@@ -204,7 +204,7 @@ export function AdminSidebar() {
               <X className="h-5 w-5" />
             </Button>
           </div>
-          <ScrollArea className="flex-1 py-4">
+          <ScrollArea dir="rtl" className="flex-1 py-4">
             <SidebarNavContent
               sidebarCollapsed={false}
               onLinkClick={() => setSidebarOpen(false)}

@@ -54,6 +54,7 @@ export const ENDPOINTS = {
   // Content (Articles)
   CONTENT: {
     ARTICLES: '/content/articles',
+    ARTICLES_ALL: '/content/articles/all',
     ARTICLE_BY_ID: (id: string) => `/content/articles/${id}`,
     ARTICLE_BY_SLUG: (slug: string) => `/content/articles/${slug}`,
     CATEGORIES: '/content/categories',

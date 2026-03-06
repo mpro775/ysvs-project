@@ -25,8 +25,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useArticles, useDeleteArticle } from "@/api/hooks/useContent";
+import {
+  useAdminArticles,
+  useCategories,
+  useDeleteArticle,
+} from "@/api/hooks/useContent";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { format } from "date-fns";
@@ -38,12 +49,25 @@ export default function AdminArticlesPage() {
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [deleteArticle, setDeleteArticle] = useState<Article | null>(null);
   const page = parseInt(searchParams.get("page") || "1");
+  const status = searchParams.get("status") || "all";
+  const featured = searchParams.get("featured") || "all";
+  const category = searchParams.get("category") || "all";
 
-  const { data, isLoading } = useArticles({
+  const { data, isLoading } = useAdminArticles({
     search: searchParams.get("search") || undefined,
+    status: status !== "all" ? (status as "draft" | "published") : undefined,
+    featured:
+      featured === "true"
+        ? true
+        : featured === "false"
+          ? false
+          : undefined,
+    category: category !== "all" ? category : undefined,
     page,
     limit: 10,
   });
+
+  const { data: categories } = useCategories();
 
   const { mutate: deleteArticleMutation, isPending: isDeleting } =
     useDeleteArticle();
@@ -56,6 +80,19 @@ export default function AdminArticlesPage() {
       prev.delete("page");
       return prev;
     });
+  };
+
+  const getCategoryName = (value: unknown) => {
+    if (!value) return "-";
+    if (typeof value === "string") return "-";
+    if (
+      typeof value === "object" &&
+      "nameAr" in value &&
+      typeof value.nameAr === "string"
+    ) {
+      return value.nameAr;
+    }
+    return "-";
   };
 
   const handleDelete = () => {
@@ -97,13 +134,92 @@ export default function AdminArticlesPage() {
           />
         </div>
         <Button type="submit">بحث</Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            setSearch("");
+            setSearchParams({ page: "1" });
+          }}
+        >
+          إعادة تعيين
+        </Button>
       </form>
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Select
+          value={status}
+          onValueChange={(value) => {
+            setSearchParams((prev) => {
+              if (value === "all") prev.delete("status");
+              else prev.set("status", value);
+              prev.delete("page");
+              return prev;
+            });
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="الحالة" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل الحالات</SelectItem>
+            <SelectItem value="published">منشور</SelectItem>
+            <SelectItem value="draft">مسودة</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={featured}
+          onValueChange={(value) => {
+            setSearchParams((prev) => {
+              if (value === "all") prev.delete("featured");
+              else prev.set("featured", value);
+              prev.delete("page");
+              return prev;
+            });
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="التمييز" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل الأخبار</SelectItem>
+            <SelectItem value="true">المميزة فقط</SelectItem>
+            <SelectItem value="false">غير المميزة فقط</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={category}
+          onValueChange={(value) => {
+            setSearchParams((prev) => {
+              if (value === "all") prev.delete("category");
+              else prev.set("category", value);
+              prev.delete("page");
+              return prev;
+            });
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="التصنيف" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل التصنيفات</SelectItem>
+            {categories?.map((item) => (
+              <SelectItem key={item._id} value={item._id}>
+                {item.nameAr}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <div className="overflow-x-auto rounded-lg border bg-white -mx-4 sm:mx-0">
         <Table className="min-w-[480px]">
           <TableHeader>
             <TableRow>
               <TableHead>العنوان</TableHead>
+              <TableHead>التصنيف</TableHead>
               <TableHead>الحالة</TableHead>
               <TableHead>تاريخ النشر</TableHead>
               <TableHead className="w-12"></TableHead>
@@ -115,6 +231,9 @@ export default function AdminArticlesPage() {
                 <TableRow key={i}>
                   <TableCell>
                     <Skeleton className="h-5 w-48" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-5 w-24" />
                   </TableCell>
                   <TableCell>
                     <Skeleton className="h-5 w-16" />
@@ -136,8 +255,14 @@ export default function AdminArticlesPage() {
                       <p className="text-sm text-muted-foreground">
                         {article.titleEn}
                       </p>
+                      {article.isFeatured && (
+                        <Badge className="mt-1" variant="outline">
+                          مميز
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
+                  <TableCell>{getCategoryName(article.category)}</TableCell>
                   <TableCell>
                     <Badge
                       variant={
@@ -195,7 +320,7 @@ export default function AdminArticlesPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4}>
+                <TableCell colSpan={5}>
                   <EmptyState
                     title="لا توجد أخبار"
                     description="لم يتم العثور على أخبار"
@@ -206,6 +331,26 @@ export default function AdminArticlesPage() {
           </TableBody>
         </Table>
       </div>
+
+      {data?.meta && data.meta.totalPages > 1 && (
+        <div className="flex flex-wrap justify-center gap-2">
+          {Array.from({ length: data.meta.totalPages }).map((_, i) => (
+            <Button
+              key={i}
+              variant={page === i + 1 ? "default" : "outline"}
+              size="sm"
+              onClick={() =>
+                setSearchParams((prev) => {
+                  prev.set("page", String(i + 1));
+                  return prev;
+                })
+              }
+            >
+              {i + 1}
+            </Button>
+          ))}
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!deleteArticle}

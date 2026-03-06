@@ -10,20 +10,29 @@ interface ArticleFilters {
   status?: 'draft' | 'published';
   category?: string;
   search?: string;
+  featured?: boolean;
+}
+
+export interface ArticleCategory {
+  _id: string;
+  nameAr: string;
+  nameEn: string;
+  slug: string;
 }
 
 interface CreateArticleData {
   titleAr: string;
   titleEn: string;
   slug: string;
-  summaryAr?: string;
-  summaryEn?: string;
+  excerptAr?: string;
+  excerptEn?: string;
   contentAr: string;
   contentEn: string;
   coverImage?: string;
   category?: string;
   tags?: string[];
   status?: 'draft' | 'published';
+  isFeatured?: boolean;
 }
 
 // ===== Articles =====
@@ -35,6 +44,20 @@ export const useArticles = (filters?: ArticleFilters) => {
     queryFn: async () => {
       const response = await api.get<unknown, PaginatedResponse<Article>>(
         ENDPOINTS.CONTENT.ARTICLES,
+        { params: filters }
+      );
+      return response;
+    },
+  });
+};
+
+// Get all articles for admin (includes drafts)
+export const useAdminArticles = (filters?: ArticleFilters) => {
+  return useQuery({
+    queryKey: ['articles', 'admin', filters],
+    queryFn: async () => {
+      const response = await api.get<unknown, PaginatedResponse<Article>>(
+        ENDPOINTS.CONTENT.ARTICLES_ALL,
         { params: filters }
       );
       return response;
@@ -158,7 +181,7 @@ export const useCategories = () => {
   return useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
-      const response = await api.get<unknown, ApiResponse<string[]>>(
+      const response = await api.get<unknown, ApiResponse<ArticleCategory[]>>(
         ENDPOINTS.CONTENT.CATEGORIES
       );
       return response.data;
