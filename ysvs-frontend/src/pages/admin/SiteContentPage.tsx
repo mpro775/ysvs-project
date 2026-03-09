@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
-  Loader2,
   Plus,
   Save,
   Trash2,
@@ -16,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
+import { InlineLoader } from '@/components/shared/LoadingSpinner';
 import {
   useAdminSiteContent,
   usePublishPrivacyPolicy,
@@ -331,7 +331,7 @@ export default function AdminSiteContentPage() {
               <CardTitle>بيانات الفوتر</CardTitle>
               <Button onClick={handleSaveFooter} disabled={!canSaveFooter || isFooterSaving}>
                 {isFooterSaving ? (
-                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  <InlineLoader className="ml-2" />
                 ) : (
                   <Save className="ml-2 h-4 w-4" />
                 )}
@@ -604,7 +604,7 @@ export default function AdminSiteContentPage() {
               <div className="flex flex-wrap gap-2">
                 <Button onClick={handleSavePrivacy} disabled={!canSavePrivacy || isPrivacySaving}>
                   {isPrivacySaving ? (
-                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    <InlineLoader className="ml-2" />
                   ) : (
                     <Save className="ml-2 h-4 w-4" />
                   )}
@@ -616,7 +616,7 @@ export default function AdminSiteContentPage() {
                   disabled={isPublishingPrivacy}
                 >
                   {isPublishingPrivacy ? (
-                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    <InlineLoader className="ml-2" />
                   ) : (
                     <Upload className="ml-2 h-4 w-4" />
                   )}
@@ -680,7 +680,7 @@ export default function AdminSiteContentPage() {
               <div className="flex flex-wrap gap-2">
                 <Button onClick={handleSaveTerms} disabled={!canSaveTerms || isTermsSaving}>
                   {isTermsSaving ? (
-                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    <InlineLoader className="ml-2" />
                   ) : (
                     <Save className="ml-2 h-4 w-4" />
                   )}
@@ -692,7 +692,7 @@ export default function AdminSiteContentPage() {
                   disabled={isPublishingTerms}
                 >
                   {isPublishingTerms ? (
-                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    <InlineLoader className="ml-2" />
                   ) : (
                     <Upload className="ml-2 h-4 w-4" />
                   )}

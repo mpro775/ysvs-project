@@ -230,4 +230,157 @@
     padding-right: 1.25rem;
     padding-left: 0;
   }
+
+  .ysvs-loader {
+    --loader-orbit-size: 3rem;
+    --loader-pulse-width: 3.5rem;
+  }
+
+  .ysvs-loader-orbit {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: var(--loader-orbit-size);
+    height: var(--loader-orbit-size);
+    filter: drop-shadow(0 8px 18px rgba(139, 0, 0, 0.16));
+  }
+
+  .ysvs-loader-ring {
+    position: absolute;
+    border-radius: 9999px;
+    inset: 0;
+    mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  }
+
+  .ysvs-loader-ring--outer {
+    background: conic-gradient(from 120deg, rgba(183, 28, 28, 0.25), rgba(183, 28, 28, 0.95), rgba(241, 154, 52, 0.6), rgba(183, 28, 28, 0.25));
+    animation: ysvs-ring-breathe 2.15s ease-in-out infinite;
+  }
+
+  .ysvs-loader-ring--inner {
+    inset: 18%;
+    background: conic-gradient(from 200deg, rgba(248, 128, 128, 0.22), rgba(139, 0, 0, 0.9), rgba(248, 180, 180, 0.35), rgba(248, 128, 128, 0.22));
+    animation: ysvs-ring-breathe 1.8s ease-in-out infinite reverse;
+  }
+
+  .ysvs-loader-core {
+    width: 36%;
+    height: 36%;
+    border-radius: 9999px;
+    background: radial-gradient(circle at 35% 35%, #fef2f2 0%, #f98080 45%, #b71c1c 100%);
+    box-shadow: 0 0 0 6px rgba(183, 28, 28, 0.08);
+    animation: ysvs-core-pulse 1.8s ease-in-out infinite;
+  }
+
+  .ysvs-loader-pulse {
+    width: var(--loader-pulse-width);
+    display: flex;
+    align-items: end;
+    justify-content: center;
+    gap: 0.2rem;
+    height: 0.95rem;
+  }
+
+  .ysvs-loader-pulse-bar {
+    width: 0.19rem;
+    height: 0.45rem;
+    border-radius: 9999px;
+    background: linear-gradient(to top, #b71c1c, #f19a34);
+    transform-origin: bottom;
+    animation: ysvs-pulse-bars 0.95s ease-in-out infinite;
+  }
+
+  .ysvs-loader-pulse-bar:nth-child(2) {
+    animation-delay: 0.12s;
+  }
+
+  .ysvs-loader-pulse-bar:nth-child(3) {
+    animation-delay: 0.24s;
+  }
+
+  .ysvs-loader-pulse-bar:nth-child(4) {
+    animation-delay: 0.36s;
+  }
+
+  .ysvs-loader-pulse-bar:nth-child(5) {
+    animation-delay: 0.48s;
+  }
+
+  .ysvs-inline-loader {
+    --loader-orbit-size: 1rem;
+    gap: 0;
+    line-height: 0;
+  }
+
+  .ysvs-inline-loader .ysvs-loader-orbit {
+    filter: none;
+  }
+
+  .ysvs-inline-loader .ysvs-loader-ring {
+    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+  }
+
+  .ysvs-inline-loader .ysvs-loader-ring--outer {
+    animation-duration: 1.1s;
+  }
+
+  .ysvs-inline-loader .ysvs-loader-ring--inner {
+    animation-duration: 0.95s;
+  }
+
+  .ysvs-inline-loader .ysvs-loader-core {
+    width: 42%;
+    height: 42%;
+    box-shadow: 0 0 0 3px rgba(183, 28, 28, 0.08);
+    animation-duration: 1.1s;
+  }
+
+  @keyframes ysvs-ring-breathe {
+    0%,
+    100% {
+      transform: scale(0.96);
+      opacity: 0.78;
+    }
+    50% {
+      transform: scale(1.02);
+      opacity: 1;
+    }
+  }
+
+  @keyframes ysvs-core-pulse {
+    0%,
+    100% {
+      transform: scale(0.92);
+    }
+    50% {
+      transform: scale(1.06);
+    }
+  }
+
+  @keyframes ysvs-pulse-bars {
+    0%,
+    100% {
+      transform: scaleY(0.55);
+      opacity: 0.5;
+    }
+    50% {
+      transform: scaleY(1.35);
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ysvs-loader-ring--outer,
+    .ysvs-loader-ring--inner,
+    .ysvs-loader-core,
+    .ysvs-loader-pulse-bar {
+      animation: none;
+    }
+
+    .ysvs-loader-ring--outer,
+    .ysvs-loader-ring--inner {
+      opacity: 0.85;
+      transform: none;
+    }
+  }
 }

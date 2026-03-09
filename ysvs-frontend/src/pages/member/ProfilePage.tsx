@@ -1,13 +1,13 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { InlineLoader } from '@/components/shared/LoadingSpinner';
 import { useAuthStore } from '@/stores/authStore';
 import { useChangePassword } from '@/api/hooks/useAuth';
 
@@ -150,7 +150,7 @@ export default function MemberProfilePage() {
                 </div>
 
                 <Button type="submit" disabled={isPending}>
-                  {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                  {isPending && <InlineLoader className="ml-2" />}
                   تغيير كلمة المرور
                 </Button>
               </form>

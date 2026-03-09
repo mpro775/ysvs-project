@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Award, Loader2 } from "lucide-react";
+import { ArrowRight, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
@@ -24,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useEvents, useEventRegistrations } from "@/api/hooks/useEvents";
 import { useBulkGenerateCertificates } from "@/api/hooks/useCertificates";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { InlineLoader } from "@/components/shared/LoadingSpinner";
 import type { User } from "@/types";
 
 export default function AdminIssueCertificatesPage() {
@@ -157,7 +158,7 @@ export default function AdminIssueCertificatesPage() {
                 disabled={selectedRegistrations.length === 0 || isGenerating}
               >
                 {isGenerating ? (
-                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  <InlineLoader className="ml-2" />
                 ) : (
                   <Award className="ml-2 h-4 w-4" />
                 )}

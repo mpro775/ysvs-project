@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InlineLoader } from "@/components/shared/LoadingSpinner";
 import { ArticleCoverImageField } from "@/components/articles/ArticleCoverImageField";
 import {
   useArticle,
@@ -308,7 +309,7 @@ export default function AdminArticleEditorPage() {
           </Button>
           <Button type="submit" disabled={isPending}>
             {isPending && (
-              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+              <InlineLoader className="ml-2" />
             )}
             {isEdit ? "حفظ التغييرات" : "إنشاء الخبر"}
           </Button>

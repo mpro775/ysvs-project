@@ -2,7 +2,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, ArrowRight, AlertCircle, Plus, Trash2 } from "lucide-react";
+import { ArrowRight, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +24,7 @@ import { FormBuilder } from "@/components/form-builder/FormBuilder";
 import { EventCoverImageField } from "@/components/events/EventCoverImageField";
 import { LocationMapPicker } from "@/components/events/LocationMapPicker";
 import { SpeakerImageField } from "@/components/events/SpeakerImageField";
+import { InlineLoader } from "@/components/shared/LoadingSpinner";
 import type { FormField } from "@/types";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
@@ -1450,7 +1451,7 @@ export default function AdminEventEditPage() {
             <Link to="/admin/events">إلغاء</Link>
           </Button>
           <Button type="submit" disabled={isPending || slugStatus === "taken"}>
-            {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+            {isPending && <InlineLoader className="ml-2" />}
             حفظ التغييرات
           </Button>
         </div>

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Loader2, Download, CircleX } from 'lucide-react';
+import { Download, CircleX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { InlineLoader } from '@/components/shared/LoadingSpinner';
 
 const API_URL =
   import.meta.env.VITE_API_URL || 'https://api.ysvs.smartagency-ye.com/api/v1';
@@ -99,7 +100,7 @@ export default function GuestCertificateDownloadPage() {
           <CardContent className="space-y-4">
             {isLoading ? (
               <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <InlineLoader />
                 <span>جاري تجهيز التحميل...</span>
               </div>
             ) : error ? (

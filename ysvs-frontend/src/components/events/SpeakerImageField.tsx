@@ -1,5 +1,5 @@
 import { type ChangeEvent, useMemo, useRef, useState } from 'react';
-import { Image as ImageIcon, Images, Loader2, Upload, X } from 'lucide-react';
+import { Image as ImageIcon, Images, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { useMedia, useUploadMedia } from '@/api/hooks/useMedia';
+import { InlineLoader } from '@/components/shared/LoadingSpinner';
 
 interface SpeakerImageFieldProps {
   value?: {
@@ -73,7 +74,7 @@ export function SpeakerImageField({ value, onChange, disabled }: SpeakerImageFie
           disabled={disabled || isUploading}
         >
           {isUploading ? (
-            <Loader2 className="ml-1 h-3.5 w-3.5 animate-spin" />
+            <InlineLoader className="ml-1" />
           ) : (
             <Upload className="ml-1 h-3.5 w-3.5" />
           )}

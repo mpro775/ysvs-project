@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
-  Loader2,
   Plus,
   Save,
   Trash2,
@@ -15,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InlineLoader } from "@/components/shared/LoadingSpinner";
 import {
   useAdminAboutContent,
   useUpdateAboutContent,
@@ -198,7 +198,7 @@ export default function AdminAboutContentPage() {
         </div>
         <Button onClick={handleSave} disabled={!canSave || isSaving}>
           {isSaving ? (
-            <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+            <InlineLoader className="ml-2" />
           ) : (
             <Save className="ml-2 h-4 w-4" />
           )}

@@ -1,7 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useRegisterEvent, useUploadRegistrationFile } from '@/api/hooks/useEvents';
+import { InlineLoader } from '@/components/shared/LoadingSpinner';
 import type { FormField, UploadedFormFile } from '@/types';
 import { useNavigate } from 'react-router-dom';
 
@@ -577,7 +577,7 @@ export function DynamicForm({
         className="w-full"
         disabled={isPending || uploadingFieldId !== null}
       >
-        {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+        {isPending && <InlineLoader className="ml-2" />}
         إرسال التسجيل
       </Button>
     </form>

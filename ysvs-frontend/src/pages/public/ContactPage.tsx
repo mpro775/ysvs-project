@@ -1,12 +1,13 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Mail, Phone, MapPin, Send, Loader2 } from 'lucide-react';
+import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { InlineLoader } from '@/components/shared/LoadingSpinner';
 import { useSubmitContactMessage } from '@/api/hooks/useContact';
 
 const contactSchema = z.object({
@@ -172,7 +173,7 @@ export default function ContactPage() {
                 disabled={submitContactMessage.isPending}
               >
                 {submitContactMessage.isPending ? (
-                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  <InlineLoader className="ml-2" />
                 ) : (
                   <Send className="ml-2 h-4 w-4" />
                 )}

@@ -2,11 +2,12 @@ import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowRight, Loader2, Mail } from 'lucide-react';
+import { ArrowRight, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { InlineLoader } from '@/components/shared/LoadingSpinner';
 import { useForgotPassword } from '@/api/hooks/useAuth';
 
 const forgotPasswordSchema = z.object({
@@ -78,7 +79,7 @@ export default function ForgotPasswordPage() {
             </div>
 
             <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+              {isPending && <InlineLoader className="ml-2" />}
               إرسال رابط إعادة التعيين
             </Button>
           </form>

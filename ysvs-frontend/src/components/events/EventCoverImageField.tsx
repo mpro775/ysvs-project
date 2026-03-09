@@ -1,5 +1,5 @@
 import { type ChangeEvent, useMemo, useRef, useState } from 'react';
-import { Image as ImageIcon, Upload, Images, X, Loader2 } from 'lucide-react';
+import { Image as ImageIcon, Upload, Images, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { useMedia, useUploadMedia } from '@/api/hooks/useMedia';
+import { InlineLoader } from '@/components/shared/LoadingSpinner';
 
 interface EventCoverImageFieldProps {
   value?: string;
@@ -90,7 +91,7 @@ export function EventCoverImageField({
             disabled={disabled || isUploading}
           >
             {isUploading ? (
-              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+              <InlineLoader className="ml-2" />
             ) : (
               <Upload className="ml-2 h-4 w-4" />
             )}
