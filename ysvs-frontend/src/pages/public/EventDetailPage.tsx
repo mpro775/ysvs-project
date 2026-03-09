@@ -129,13 +129,14 @@ export default function EventDetailPage() {
     closing: "ختام",
   };
   const sessionTypeBadgeClasses: Record<string, string> = {
-    talk: "border-red-200 bg-red-50 text-red-800",
-    panel: "border-rose-200 bg-rose-50 text-rose-800",
-    workshop: "border-red-200 bg-red-50 text-red-800",
-    break: "border-amber-200 bg-amber-50 text-amber-800",
-    networking: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    opening: "border-red-200 bg-red-50 text-red-800",
-    closing: "border-rose-200 bg-rose-50 text-rose-800",
+    talk: "border-red-200 bg-red-50 text-red-800 dark:border-red-900/60 dark:bg-red-950/35 dark:text-red-200",
+    panel: "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/35 dark:text-rose-200",
+    workshop: "border-red-200 bg-red-50 text-red-800 dark:border-red-900/60 dark:bg-red-950/35 dark:text-red-200",
+    break: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-200",
+    networking:
+      "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/35 dark:text-emerald-200",
+    opening: "border-red-200 bg-red-50 text-red-800 dark:border-red-900/60 dark:bg-red-950/35 dark:text-red-200",
+    closing: "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/35 dark:text-rose-200",
   };
   const locationCoordinates = event.location?.coordinates;
   const hasLocationCoordinates =
@@ -330,7 +331,7 @@ export default function EventDetailPage() {
 
               <TabsContent value="about" className="mt-6">
                 <div className="event-surface-card rounded-2xl p-6">
-                  <div className="event-rich-content prose prose-lg max-w-none">
+                  <div className="event-rich-content prose prose-lg max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground prose-a:text-primary-700 hover:prose-a:text-primary-600 dark:prose-invert dark:prose-a:text-primary-300 dark:hover:prose-a:text-primary-200">
                     {event.descriptionAr ? (
                       <div
                         dangerouslySetInnerHTML={{ __html: event.descriptionAr }}
@@ -415,8 +416,8 @@ export default function EventDetailPage() {
                                   className="h-14 w-14 rounded-full object-cover"
                                 />
                               ) : (
-                                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-100">
-                                  <UserRound className="h-6 w-6 text-primary-700" />
+                                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-950/40">
+                                  <UserRound className="h-6 w-6 text-primary-700 dark:text-primary-300" />
                                 </div>
                               )}
                               <div className="text-right">
@@ -471,9 +472,9 @@ export default function EventDetailPage() {
                                   className={cn(
                                     "font-medium",
                                     sessionTypeBadgeClasses[item.sessionType] ||
-                                      "border-primary-300 text-primary-700"
-                                  )}
-                                >
+                                       "border-primary-300 text-primary-700 dark:border-primary-800 dark:text-primary-200"
+                                   )}
+                                 >
                                   {sessionTypeLabels[item.sessionType] || item.sessionType}
                                 </Badge>
                               </div>
@@ -501,7 +502,7 @@ export default function EventDetailPage() {
                                       <button
                                         key={speaker!.id}
                                         type="button"
-                                        className="inline-flex items-center rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-medium text-primary-700 transition hover:bg-primary-100"
+                                        className="inline-flex items-center rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-medium text-primary-700 transition hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-950/40 dark:text-primary-200 dark:hover:bg-primary-900/40"
                                         onClick={() => goToSpeakerCard(speaker!.id)}
                                       >
                                         {speaker!.nameAr}
@@ -517,8 +518,8 @@ export default function EventDetailPage() {
                     ) : (
                       <div className="space-y-4">
                         <div className="flex items-center gap-4">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100">
-                            <Clock className="h-6 w-6 text-primary-600" />
+                          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-950/40">
+                            <Clock className="h-6 w-6 text-primary-600 dark:text-primary-300" />
                           </div>
                           <div>
                             <p className="font-medium">بداية المؤتمر</p>
@@ -534,8 +535,8 @@ export default function EventDetailPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100">
-                            <Clock className="h-6 w-6 text-primary-600" />
+                          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-950/40">
+                            <Clock className="h-6 w-6 text-primary-600 dark:text-primary-300" />
                           </div>
                           <div>
                             <p className="font-medium">نهاية المؤتمر</p>
@@ -627,7 +628,7 @@ export default function EventDetailPage() {
                           {event.maxAttendees - event.currentAttendees} متبقي
                         </span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-neutral-200">
+                      <div className="h-2 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
                         <div
                           className="h-full bg-primary-600"
                           style={{
@@ -683,12 +684,12 @@ export default function EventDetailPage() {
               <Card className="event-surface-card">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Award className="h-5 w-5 text-amber-500" />
+                    <Award className="h-5 w-5 text-amber-500 dark:text-amber-300" />
                     ساعات التعليم الطبي المستمر
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold text-primary-600">
+                  <p className="text-3xl font-bold text-primary-600 dark:text-primary-300">
                     {event.cmeHours} ساعة
                   </p>
                   <p className="mt-2 text-sm text-muted-foreground">
@@ -702,12 +703,12 @@ export default function EventDetailPage() {
               <Card className="event-surface-card">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <MonitorPlay className="h-5 w-5 text-rose-600" />
+                    <MonitorPlay className="h-5 w-5 text-rose-600 dark:text-rose-300" />
                     البث المباشر
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                  <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
                     هذا المؤتمر يدعم المتابعة عبر البث المباشر.
                   </div>
 
@@ -766,7 +767,7 @@ export default function EventDetailPage() {
               <Card className="event-surface-card">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Wifi className="h-5 w-5 text-primary-600" />
+                    <Wifi className="h-5 w-5 text-primary-600 dark:text-primary-300" />
                     حضور أونلاين
                   </CardTitle>
                 </CardHeader>

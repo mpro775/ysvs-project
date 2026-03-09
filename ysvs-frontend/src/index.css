@@ -187,6 +187,16 @@
     background: var(--event-page-bg);
   }
 
+  .dark .event-detail-theme {
+    --event-page-bg: radial-gradient(circle at top, #3b1010 0%, #1f0d0d 32%, #0f0f11 100%);
+    --event-hero-gradient: linear-gradient(120deg, #3c0909 0%, #5a0f0f 56%, #7a1616 100%);
+    --event-hero-shadow: 0 20px 44px rgba(0, 0, 0, 0.48);
+    --event-surface: #191a1d;
+    --event-surface-muted: #24181a;
+    --event-border: #3a2326;
+    --event-accent: #f2b36a;
+  }
+
   .event-detail-hero {
     background: var(--event-hero-gradient);
   }
@@ -196,6 +206,10 @@
     border: 1px solid var(--event-border);
     border-radius: 1rem;
     box-shadow: 0 8px 24px rgba(80, 18, 18, 0.1);
+  }
+
+  .dark .event-surface-card {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
   }
 
   .event-hero-stat-card {
