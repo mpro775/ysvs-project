@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowRight, Download, Check, X } from "lucide-react";
+import { ArrowRight, Download, Check, X, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,6 +13,13 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   useEvent,
   useEventRegistrations,
   useMarkAttendance,
@@ -20,7 +28,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import * as XLSX from "xlsx";
-import type { User } from "@/types";
+import type { FormField, Registration, UploadedFormFile, User } from "@/types";
 
 const OTHER_OPTION_VALUE = "__other__";
 const getOtherFieldId = (fieldId: string) => `${fieldId}__other`;
@@ -31,6 +39,76 @@ export default function AdminEventRegistrantsPage() {
   const { data: registrations, isLoading: loadingRegistrations } =
     useEventRegistrations(id || "");
   const { mutate: markAttendance, isPending } = useMarkAttendance();
+  const [detailsRegistration, setDetailsRegistration] = useState<Registration | null>(null);
+
+  const formatPrimitiveValue = (value: unknown): string => {
+    if (value === null || value === undefined || value === "") {
+      return "-";
+    }
+
+    if (typeof value === "boolean") {
+      return value ? "نعم" : "لا";
+    }
+
+    if (Array.isArray(value)) {
+      return value.length ? value.map((item) => String(item).replace(/_/g, " ")).join("، ") : "-";
+    }
+
+    if (typeof value === "string") {
+      return value.replace(/_/g, " ");
+    }
+
+    return String(value);
+  };
+
+  const getUploadedFile = (value: unknown): UploadedFormFile | null => {
+    if (typeof value !== "object" || value === null) {
+      return null;
+    }
+
+    const maybeFile = value as Partial<UploadedFormFile>;
+    if (typeof maybeFile.url === "string" && typeof maybeFile.originalName === "string") {
+      return maybeFile as UploadedFormFile;
+    }
+
+    return null;
+  };
+
+  const resolveOptionLabel = (field: FormField, value: unknown): string => {
+    const stringValue = String(value || "");
+    const matchedOption = field.options?.find((option) => option.value === stringValue);
+    return matchedOption?.label || stringValue.replace(/_/g, " ");
+  };
+
+  const getFieldDisplay = (field: FormField, formData: Record<string, unknown>) => {
+    const rawValue = formData[field.id];
+
+    if ((field.type === "select" || field.type === "radio") && field.allowOther) {
+      if (rawValue === OTHER_OPTION_VALUE) {
+        return {
+          text: formatPrimitiveValue(formData[getOtherFieldId(field.id)]),
+          file: null,
+        };
+      }
+
+      return { text: resolveOptionLabel(field, rawValue), file: null };
+    }
+
+    if (field.type === "multiselect" && Array.isArray(rawValue)) {
+      const labels = rawValue.map((item) => resolveOptionLabel(field, item));
+      return {
+        text: labels.length ? labels.join("، ") : "-",
+        file: null,
+      };
+    }
+
+    const file = getUploadedFile(rawValue);
+    if (file) {
+      return { text: file.originalName, file };
+    }
+
+    return { text: formatPrimitiveValue(rawValue), file: null };
+  };
 
   const extractUploadedFile = (formData: Record<string, unknown>) => {
     for (const value of Object.values(formData)) {
@@ -170,10 +248,11 @@ export default function AdminEventRegistrantsPage() {
               <TableHead>الاسم</TableHead>
               <TableHead>البريد</TableHead>
               <TableHead>الحالة</TableHead>
-              <TableHead>الملفات</TableHead>
-              <TableHead>تاريخ التسجيل</TableHead>
-              <TableHead>الحضور</TableHead>
-            </TableRow>
+                      <TableHead>الملفات</TableHead>
+                      <TableHead>بيانات النموذج</TableHead>
+                      <TableHead>تاريخ التسجيل</TableHead>
+                      <TableHead>الحضور</TableHead>
+                    </TableRow>
           </TableHeader>
           <TableBody>
             {loadingRegistrations ? (
@@ -191,12 +270,15 @@ export default function AdminEventRegistrantsPage() {
                   <TableCell>
                     <Skeleton className="h-5 w-16" />
                   </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-5 w-24" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-5 w-24" />
-                  </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-20" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-24" />
+                    </TableCell>
                   <TableCell>
                     <Skeleton className="h-5 w-20" />
                   </TableCell>
@@ -252,6 +334,17 @@ export default function AdminEventRegistrantsPage() {
                       )}
                     </TableCell>
                     <TableCell>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDetailsRegistration(reg)}
+                      >
+                        <FileText className="ml-2 h-4 w-4" />
+                        عرض
+                      </Button>
+                    </TableCell>
+                    <TableCell>
                       {format(new Date(reg.createdAt), "d MMM yyyy", {
                         locale: ar,
                       })}
@@ -287,7 +380,7 @@ export default function AdminEventRegistrantsPage() {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={8}>
                   <EmptyState
                     title="لا يوجد مسجلين"
                     description="لم يسجل أحد في هذا المؤتمر بعد"
@@ -298,6 +391,56 @@ export default function AdminEventRegistrantsPage() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog
+        open={Boolean(detailsRegistration)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDetailsRegistration(null);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader className="text-right">
+            <DialogTitle>بيانات نموذج التسجيل</DialogTitle>
+            <DialogDescription>
+              {detailsRegistration
+                ? `رقم التسجيل: ${detailsRegistration.registrationNumber}`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          {detailsRegistration && (
+            <div className="space-y-3">
+              {event.formSchema
+                ?.filter((field) => field.type !== "section")
+                .map((field) => {
+                  const display = getFieldDisplay(field, detailsRegistration.formData);
+                  return (
+                    <div
+                      key={field.id}
+                      className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]"
+                    >
+                      <p className="text-sm font-semibold text-foreground">{field.label}</p>
+                      {display.file ? (
+                        <a
+                          href={display.file.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-fit text-sm text-primary-700 underline"
+                        >
+                          {display.file.originalName}
+                        </a>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">{display.text}</p>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
