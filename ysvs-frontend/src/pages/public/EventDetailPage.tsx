@@ -416,7 +416,7 @@ export default function EventDetailPage() {
                                   className="h-14 w-14 rounded-full object-cover"
                                 />
                               ) : (
-                                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-950/40">
+                                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
                                   <UserRound className="h-6 w-6 text-primary-700 dark:text-primary-300" />
                                 </div>
                               )}
@@ -502,7 +502,7 @@ export default function EventDetailPage() {
                                       <button
                                         key={speaker!.id}
                                         type="button"
-                                        className="inline-flex items-center rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-medium text-primary-700 transition hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-950/40 dark:text-primary-200 dark:hover:bg-primary-900/40"
+                                        className="inline-flex items-center rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-medium text-primary-700 transition hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-900/30 dark:text-primary-200 dark:hover:bg-primary-900/45"
                                         onClick={() => goToSpeakerCard(speaker!.id)}
                                       >
                                         {speaker!.nameAr}
@@ -518,7 +518,7 @@ export default function EventDetailPage() {
                     ) : (
                       <div className="space-y-4">
                         <div className="flex items-center gap-4">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-950/40">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-900/30">
                             <Clock className="h-6 w-6 text-primary-600 dark:text-primary-300" />
                           </div>
                           <div>
@@ -535,7 +535,7 @@ export default function EventDetailPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-950/40">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-900/30">
                             <Clock className="h-6 w-6 text-primary-600 dark:text-primary-300" />
                           </div>
                           <div>
