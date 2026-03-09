@@ -104,9 +104,31 @@ function buildValidationSchema(fields: FormField[]) {
     }
 
     shape[field.id] = validator;
+
+    if ((field.type === 'select' || field.type === 'radio') && field.allowOther) {
+      shape[getOtherFieldId(field.id)] = z.string().optional();
+    }
   });
 
-  return z.object(shape);
+  return z.object(shape).superRefine((values, ctx) => {
+    fields.forEach((field) => {
+      if ((field.type === 'select' || field.type === 'radio') && field.allowOther) {
+        const selectedValue = values[field.id];
+        if (selectedValue === OTHER_OPTION_VALUE) {
+          const otherFieldId = getOtherFieldId(field.id);
+          const otherValue = String(values[otherFieldId] || '').trim();
+
+          if (!otherValue) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: [otherFieldId],
+              message: `يرجى كتابة قيمة "أخرى" لحقل ${field.label}`,
+            });
+          }
+        }
+      }
+    });
+  });
 }
 
 // Render field based on type
@@ -432,16 +454,7 @@ export function DynamicForm({
         const selectedValue = data[field.id];
         if (selectedValue === OTHER_OPTION_VALUE) {
           const otherFieldId = getOtherFieldId(field.id);
-          const otherValue = String(data[otherFieldId] || '').trim();
-          if (!otherValue) {
-            setError(otherFieldId, {
-              type: 'manual',
-              message: `يرجى كتابة قيمة "أخرى" لحقل ${field.label}`,
-            });
-            return;
-          }
-          clearErrors(otherFieldId);
-          data[otherFieldId] = otherValue;
+          data[otherFieldId] = String(data[otherFieldId] || '').trim();
         }
       }
     }
