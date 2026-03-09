@@ -22,6 +22,9 @@ import { ar } from "date-fns/locale";
 import * as XLSX from "xlsx";
 import type { User } from "@/types";
 
+const OTHER_OPTION_VALUE = "__other__";
+const getOtherFieldId = (fieldId: string) => `${fieldId}__other`;
+
 export default function AdminEventRegistrantsPage() {
   const { id } = useParams<{ id: string }>();
   const { data: event, isLoading: loadingEvent } = useEvent(id || "");
@@ -87,7 +90,21 @@ export default function AdminEventRegistrantsPage() {
       // Add dynamic form data
       if (event.formSchema) {
         event.formSchema.forEach((field) => {
-          baseData[field.label] = formatDynamicValue(reg.formData[field.id]);
+          if (field.type === "section") {
+            return;
+          }
+
+          const currentValue = reg.formData[field.id];
+          if (
+            (field.type === "select" || field.type === "radio") &&
+            field.allowOther &&
+            currentValue === OTHER_OPTION_VALUE
+          ) {
+            baseData[field.label] = formatDynamicValue(reg.formData[getOtherFieldId(field.id)]);
+            return;
+          }
+
+          baseData[field.label] = formatDynamicValue(currentValue);
         });
       }
 

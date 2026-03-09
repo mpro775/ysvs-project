@@ -21,6 +21,7 @@ interface FieldPaletteProps {
 }
 
 const fieldTypes: { type: FormFieldType; label: string; icon: React.ReactNode }[] = [
+  { type: FormFieldType.SECTION, label: 'عنوان قسم', icon: <Type className="h-5 w-5" /> },
   { type: FormFieldType.TEXT, label: 'نص قصير', icon: <Type className="h-5 w-5" /> },
   { type: FormFieldType.TEXTAREA, label: 'نص طويل', icon: <AlignLeft className="h-5 w-5" /> },
   { type: FormFieldType.SELECT, label: 'قائمة منسدلة', icon: <List className="h-5 w-5" /> },

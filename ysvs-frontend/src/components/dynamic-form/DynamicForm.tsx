@@ -20,6 +20,9 @@ import { useRegisterEvent, useUploadRegistrationFile } from '@/api/hooks/useEven
 import type { FormField, UploadedFormFile } from '@/types';
 import { useNavigate } from 'react-router-dom';
 
+const OTHER_OPTION_VALUE = '__other__';
+const getOtherFieldId = (fieldId: string) => `${fieldId}__other`;
+
 interface DynamicFormProps {
   eventId: string;
   schema: FormField[];
@@ -39,6 +42,9 @@ function buildValidationSchema(fields: FormField[]) {
       case 'email':
         validator = z.string().email('البريد الإلكتروني غير صالح');
         break;
+      case 'section':
+        validator = z.any().optional();
+        break;
       case 'number':
         validator = z.coerce.number();
         if (field.validation?.min !== undefined) {
@@ -55,7 +61,9 @@ function buildValidationSchema(fields: FormField[]) {
         }
         break;
       case 'checkbox':
-        validator = z.boolean();
+        validator = z.boolean().refine((checked) => (field.required ? checked : true), {
+          message: 'يجب الموافقة على هذا الإقرار',
+        });
         break;
       case 'multiselect':
         validator = z.array(z.string());
@@ -106,7 +114,10 @@ function renderField(
   field: FormField,
   value: unknown,
   onChange: (value: unknown) => void,
-  error?: string
+  error?: string,
+  otherValue?: string,
+  onOtherChange?: (value: string) => void,
+  otherError?: string
 ) {
   const isLtrField = field.type === 'email' || field.type === 'phone';
   const commonProps = {
@@ -129,18 +140,34 @@ function renderField(
 
     case 'select':
       return (
-        <Select value={(value as string) || ''} onValueChange={onChange}>
-          <SelectTrigger className={`${error ? 'border-destructive ' : ''}text-right`} dir="rtl">
-            <SelectValue placeholder={field.placeholder || 'اختر...'} />
-          </SelectTrigger>
-          <SelectContent dir="rtl">
-            {field.options?.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="space-y-2">
+          <Select value={(value as string) || ''} onValueChange={onChange}>
+            <SelectTrigger className={`${error ? 'border-destructive ' : ''}text-right`} dir="rtl">
+              <SelectValue placeholder={field.placeholder || 'اختر...'} />
+            </SelectTrigger>
+            <SelectContent dir="rtl">
+              {field.options?.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+              {field.allowOther && <SelectItem value={OTHER_OPTION_VALUE}>أخرى</SelectItem>}
+            </SelectContent>
+          </Select>
+          {field.allowOther && value === OTHER_OPTION_VALUE && (
+            <>
+              <Input
+                id={getOtherFieldId(field.id)}
+                value={otherValue || ''}
+                onChange={(event) => onOtherChange?.(event.target.value)}
+                placeholder="اكتب قيمة أخرى"
+                dir="rtl"
+                className={`${otherError ? 'border-destructive ' : ''}text-right`}
+              />
+              {otherError && <p className="text-sm text-destructive">{otherError}</p>}
+            </>
+          )}
+        </div>
       );
 
     case 'multiselect':
@@ -180,14 +207,35 @@ function renderField(
 
     case 'radio':
       return (
-        <RadioGroup value={(value as string) || ''} onValueChange={onChange} dir="rtl">
-          {field.options?.map((option) => (
-            <div key={option.value} className="flex flex-row-reverse items-center justify-end gap-2 text-right">
-              <RadioGroupItem value={option.value} id={`${field.id}-${option.value}`} />
-              <Label htmlFor={`${field.id}-${option.value}`}>{option.label}</Label>
-            </div>
-          ))}
-        </RadioGroup>
+        <div className="space-y-2">
+          <RadioGroup value={(value as string) || ''} onValueChange={onChange} dir="rtl">
+            {field.options?.map((option) => (
+              <div key={option.value} className="flex flex-row-reverse items-center justify-end gap-2 text-right">
+                <RadioGroupItem value={option.value} id={`${field.id}-${option.value}`} />
+                <Label htmlFor={`${field.id}-${option.value}`}>{option.label}</Label>
+              </div>
+            ))}
+            {field.allowOther && (
+              <div className="flex flex-row-reverse items-center justify-end gap-2 text-right">
+                <RadioGroupItem value={OTHER_OPTION_VALUE} id={`${field.id}-${OTHER_OPTION_VALUE}`} />
+                <Label htmlFor={`${field.id}-${OTHER_OPTION_VALUE}`}>أخرى</Label>
+              </div>
+            )}
+          </RadioGroup>
+          {field.allowOther && value === OTHER_OPTION_VALUE && (
+            <>
+              <Input
+                id={getOtherFieldId(field.id)}
+                value={otherValue || ''}
+                onChange={(event) => onOtherChange?.(event.target.value)}
+                placeholder="اكتب قيمة أخرى"
+                dir="rtl"
+                className={`${otherError ? 'border-destructive ' : ''}text-right`}
+              />
+              {otherError && <p className="text-sm text-destructive">{otherError}</p>}
+            </>
+          )}
+        </div>
       );
 
     case 'file':
@@ -270,6 +318,18 @@ export function DynamicForm({
 
   const sortedSchema = [...schema].sort((a, b) => a.order - b.order);
   const validationSchema = buildValidationSchema(sortedSchema);
+  const sectionOrdinals = [
+    'أولاً',
+    'ثانياً',
+    'ثالثاً',
+    'رابعاً',
+    'خامساً',
+    'سادساً',
+    'سابعاً',
+    'ثامناً',
+    'تاسعاً',
+    'عاشراً',
+  ];
 
   const {
     handleSubmit,
@@ -367,6 +427,25 @@ export function DynamicForm({
       }
     }
 
+    for (const field of sortedSchema) {
+      if ((field.type === 'select' || field.type === 'radio') && field.allowOther) {
+        const selectedValue = data[field.id];
+        if (selectedValue === OTHER_OPTION_VALUE) {
+          const otherFieldId = getOtherFieldId(field.id);
+          const otherValue = String(data[otherFieldId] || '').trim();
+          if (!otherValue) {
+            setError(otherFieldId, {
+              type: 'manual',
+              message: `يرجى كتابة قيمة "أخرى" لحقل ${field.label}`,
+            });
+            return;
+          }
+          clearErrors(otherFieldId);
+          data[otherFieldId] = otherValue;
+        }
+      }
+    }
+
     setGuestEmailError(null);
     registerEvent(
       {
@@ -415,9 +494,28 @@ export function DynamicForm({
         </div>
       )}
 
-      {sortedSchema.map((field) => {
+      {sortedSchema.map((field, index) => {
         const value = watch(field.id);
         const error = errors[field.id]?.message as string | undefined;
+        const otherFieldId = getOtherFieldId(field.id);
+        const otherValue = watch(otherFieldId) as string | undefined;
+        const otherError = errors[otherFieldId]?.message as string | undefined;
+
+        if (field.type === 'section') {
+          const sectionNumber =
+            sortedSchema.slice(0, index + 1).filter((item) => item.type === 'section').length;
+          const prefix =
+            sectionOrdinals[sectionNumber - 1] || `${sectionNumber}.`;
+
+          return (
+            <div key={field.id} className="rounded-lg border bg-muted/30 p-4 text-right">
+              <h3 className="font-semibold">{`${prefix}: ${field.label}`}</h3>
+              {field.placeholder && (
+                <p className="mt-1 text-sm text-muted-foreground">{field.placeholder}</p>
+              )}
+            </div>
+          );
+        }
 
         // Skip rendering label for checkbox (it's inline)
         if (field.type === 'checkbox') {
@@ -445,8 +543,16 @@ export function DynamicForm({
                 }
 
                 setValue(field.id, v, { shouldValidate: true, shouldDirty: true });
+
+                if ((field.type === 'select' || field.type === 'radio') && v !== OTHER_OPTION_VALUE) {
+                  setValue(otherFieldId, '', { shouldValidate: true, shouldDirty: true });
+                  clearErrors(otherFieldId);
+                }
               },
               error,
+              otherValue,
+              (v) => setValue(otherFieldId, v, { shouldValidate: true, shouldDirty: true }),
+              otherError,
             )}
             {field.type === 'file' && uploadingFieldId === field.id && (
               <p className="text-sm text-muted-foreground">جاري رفع الملف...</p>

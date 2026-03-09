@@ -209,6 +209,7 @@ export function FormBuilder({ initialSchema = [], onChange }: FormBuilderProps) 
 
 function getDefaultLabel(type: FormFieldType): string {
   const labels: Record<FormFieldType, string> = {
+    section: 'عنوان قسم',
     text: 'حقل نصي',
     textarea: 'نص طويل',
     select: 'قائمة منسدلة',
@@ -226,6 +227,7 @@ function getDefaultLabel(type: FormFieldType): string {
 
 function getDefaultLabelEn(type: FormFieldType): string {
   const labels: Record<FormFieldType, string> = {
+    section: 'Section Header',
     text: 'Text Field',
     textarea: 'Long Text',
     select: 'Dropdown',

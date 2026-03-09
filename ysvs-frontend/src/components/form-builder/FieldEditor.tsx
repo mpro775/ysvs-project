@@ -16,6 +16,7 @@ interface FieldEditorProps {
 export function FieldEditor({ field, onChange, onClose }: FieldEditorProps) {
   const hasOptions = ['select', 'multiselect', 'radio'].includes(field.type);
   const hasValidation = ['text', 'textarea', 'number', 'file'].includes(field.type);
+  const supportsAllowOther = ['select', 'radio'].includes(field.type);
 
   const updateField = (updates: Partial<FormField>) => {
     onChange({ ...field, ...updates });
@@ -79,14 +80,31 @@ export function FieldEditor({ field, onChange, onClose }: FieldEditorProps) {
           />
         </div>
 
-        <div className="flex items-center justify-between">
-          <Label htmlFor="required">حقل إجباري</Label>
-          <Switch
-            id="required"
-            checked={field.required}
-            onCheckedChange={(checked) => updateField({ required: checked })}
-          />
-        </div>
+        {field.type !== 'section' ? (
+          <div className="flex items-center justify-between">
+            <Label htmlFor="required">حقل إجباري</Label>
+            <Switch
+              id="required"
+              checked={field.required}
+              onCheckedChange={(checked) => updateField({ required: checked })}
+            />
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            عنوان القسم يستخدم للتقسيم البصري فقط ولا يُرسل كإجابة.
+          </p>
+        )}
+
+        {supportsAllowOther && (
+          <div className="flex items-center justify-between">
+            <Label htmlFor="allowOther">السماح بخيار "أخرى"</Label>
+            <Switch
+              id="allowOther"
+              checked={Boolean(field.allowOther)}
+              onCheckedChange={(checked) => updateField({ allowOther: checked })}
+            />
+          </div>
+        )}
 
         {/* Options (for select, multiselect, radio) */}
         {hasOptions && (

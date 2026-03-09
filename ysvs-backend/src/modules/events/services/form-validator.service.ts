@@ -1,6 +1,9 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { FormField, FormFieldType } from '../schemas/event.schema';
 
+const OTHER_OPTION_VALUE = '__other__';
+const getOtherFieldId = (fieldId: string) => `${fieldId}__other`;
+
 export interface ValidationError {
   field: string;
   message: string;
@@ -20,8 +23,12 @@ export class FormValidatorService {
     const errors: ValidationError[] = [];
 
     for (const field of formSchema) {
+      if (field.type === FormFieldType.SECTION) {
+        continue;
+      }
+
       const value = formData[field.id];
-      const fieldErrors = this.validateField(field, value);
+      const fieldErrors = this.validateField(field, value, formData);
       errors.push(...fieldErrors);
     }
 
@@ -31,9 +38,17 @@ export class FormValidatorService {
     };
   }
 
-  private validateField(field: FormField, value: unknown): ValidationError[] {
+  private validateField(
+    field: FormField,
+    value: unknown,
+    formData: Record<string, unknown>,
+  ): ValidationError[] {
     const errors: ValidationError[] = [];
     const fieldLabel = field.label;
+
+    if (field.type === FormFieldType.SECTION) {
+      return errors;
+    }
 
     // Check required
     if (field.required && this.isEmpty(value)) {
@@ -70,12 +85,15 @@ export class FormValidatorService {
 
       case FormFieldType.SELECT:
       case FormFieldType.RADIO:
-        errors.push(...this.validateSelect(field, value));
+        errors.push(...this.validateSelect(field, value, formData));
         break;
 
       case FormFieldType.MULTISELECT:
-      case FormFieldType.CHECKBOX:
         errors.push(...this.validateMultiSelect(field, value));
+        break;
+
+      case FormFieldType.CHECKBOX:
+        errors.push(...this.validateCheckbox(field, value));
         break;
 
       case FormFieldType.DATE:
@@ -180,8 +198,33 @@ export class FormValidatorService {
     return errors;
   }
 
-  private validateSelect(field: FormField, value: unknown): ValidationError[] {
+  private validateSelect(
+    field: FormField,
+    value: unknown,
+    formData: Record<string, unknown>,
+  ): ValidationError[] {
     const errors: ValidationError[] = [];
+
+    if (String(value) === OTHER_OPTION_VALUE) {
+      if (!field.allowOther) {
+        errors.push({
+          field: field.id,
+          message: `${field.label} قيمة غير صالحة`,
+        });
+        return errors;
+      }
+
+      const otherFieldId = getOtherFieldId(field.id);
+      const otherValue = String(formData[otherFieldId] || '').trim();
+      if (!otherValue) {
+        errors.push({
+          field: otherFieldId,
+          message: `يرجى كتابة قيمة "أخرى" لحقل ${field.label}`,
+        });
+      }
+
+      return errors;
+    }
 
     if (field.options && field.options.length > 0) {
       const validValues = field.options.map((opt) => opt.value);
@@ -191,6 +234,27 @@ export class FormValidatorService {
           message: `${field.label} قيمة غير صالحة`,
         });
       }
+    }
+
+    return errors;
+  }
+
+  private validateCheckbox(field: FormField, value: unknown): ValidationError[] {
+    const errors: ValidationError[] = [];
+
+    if (typeof value !== 'boolean') {
+      errors.push({
+        field: field.id,
+        message: `${field.label} قيمة غير صالحة`,
+      });
+      return errors;
+    }
+
+    if (field.required && value !== true) {
+      errors.push({
+        field: field.id,
+        message: `يجب الموافقة على ${field.label}`,
+      });
     }
 
     return errors;

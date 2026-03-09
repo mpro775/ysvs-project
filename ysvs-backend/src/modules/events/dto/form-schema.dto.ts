@@ -8,6 +8,7 @@ import {
   IsArray,
   ValidateNested,
   Min,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -111,6 +112,14 @@ export class FormFieldDto {
   @ValidateNested({ each: true })
   @Type(() => FormFieldOptionDto)
   options?: FormFieldOptionDto[];
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Allow custom "other" value for select/radio fields',
+  })
+  @IsOptional()
+  @IsBoolean()
+  allowOther?: boolean;
 
   @ApiPropertyOptional({ type: FormFieldValidationDto })
   @IsOptional()

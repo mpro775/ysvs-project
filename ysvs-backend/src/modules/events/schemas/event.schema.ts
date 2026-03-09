@@ -43,6 +43,7 @@ export enum EventStreamProvider {
 }
 
 export enum FormFieldType {
+  SECTION = 'section',
   TEXT = 'text',
   TEXTAREA = 'textarea',
   SELECT = 'select',
@@ -81,6 +82,7 @@ export interface FormField {
   placeholderEn?: string;
   required: boolean;
   options?: FormFieldOption[];
+  allowOther?: boolean;
   validation?: FormFieldValidation;
   order: number;
 }

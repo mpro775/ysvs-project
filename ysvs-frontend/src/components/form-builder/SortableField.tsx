@@ -15,6 +15,7 @@ interface SortableFieldProps {
 }
 
 const typeLabels: Record<string, string> = {
+  section: 'قسم',
   text: 'نص',
   textarea: 'نص طويل',
   select: 'قائمة',
