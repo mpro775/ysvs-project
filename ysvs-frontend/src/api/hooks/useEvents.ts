@@ -147,10 +147,10 @@ export const useCreateEvent = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast.success('تم إنشاء المؤتمر بنجاح');
+      toast.success('تم إنشاء المؤتمر بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل إنشاء المؤتمر');
+      toast.error(error.message || 'تعذر إنشاء المؤتمر حالياً.');
     },
   });
 };
@@ -170,10 +170,10 @@ export const useUpdateEvent = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['events', variables.id] });
-      toast.success('تم تحديث المؤتمر بنجاح');
+      toast.success('تم تحديث المؤتمر بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل تحديث المؤتمر');
+      toast.error(error.message || 'تعذر تحديث المؤتمر حالياً.');
     },
   });
 };
@@ -188,10 +188,10 @@ export const useDeleteEvent = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast.success('تم حذف المؤتمر بنجاح');
+      toast.success('تم حذف المؤتمر بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل حذف المؤتمر');
+      toast.error(error.message || 'تعذر حذف المؤتمر حالياً.');
     },
   });
 };
@@ -219,10 +219,10 @@ export const useRegisterEvent = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['my-registrations'] });
-      toast.success('تم التسجيل بنجاح');
+      toast.success('تم التسجيل في المؤتمر بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل التسجيل');
+      toast.error(error.message || 'تعذر إكمال التسجيل حالياً.');
     },
   });
 };
@@ -267,10 +267,10 @@ export const useUploadRegistrationFile = () => {
         }
       }
 
-      throw lastError ?? new Error('فشل رفع الملف');
+      throw lastError ?? new Error('تعذر رفع الملف حالياً.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل رفع الملف');
+      toast.error(error.message || 'تعذر رفع الملف حالياً.');
     },
   });
 };
@@ -341,10 +341,10 @@ export const useMarkAttendance = () => {
       queryClient.invalidateQueries({
         queryKey: ['events', variables.eventId, 'registrations'],
       });
-      toast.success('تم تحديث الحضور');
+      toast.success('تم تحديث حالة الحضور بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل تحديث الحضور');
+      toast.error(error.message || 'تعذر تحديث حالة الحضور حالياً.');
     },
   });
 };

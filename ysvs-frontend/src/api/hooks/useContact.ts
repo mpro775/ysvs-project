@@ -37,10 +37,10 @@ export const useSubmitContactMessage = () => {
       return response;
     },
     onSuccess: (response) => {
-      toast.success(response.data.message || 'تم استلام رسالتك بنجاح');
+      toast.success(response.data.message || 'تم استلام رسالتك بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'تعذر إرسال الرسالة حالياً');
+      toast.error(error.message || 'تعذر إرسال الرسالة حالياً.');
     },
   });
 };
@@ -92,10 +92,10 @@ export const useUpdateContactMessageStatus = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contact', 'messages'] });
-      toast.success('تم تحديث حالة الرسالة');
+      toast.success('تم تحديث حالة الرسالة بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'تعذر تحديث الحالة');
+      toast.error(error.message || 'تعذر تحديث الحالة حالياً.');
     },
   });
 };
@@ -114,10 +114,10 @@ export const useUpdateContactMessageRead = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['contact', 'messages'] });
       queryClient.invalidateQueries({ queryKey: ['contact', 'message', variables.id] });
-      toast.success('تم تحديث حالة القراءة');
+      toast.success('تم تحديث حالة القراءة بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'تعذر تحديث حالة القراءة');
+      toast.error(error.message || 'تعذر تحديث حالة القراءة حالياً.');
     },
   });
 };
@@ -144,10 +144,10 @@ export const useReplyContactMessage = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['contact', 'messages'] });
       queryClient.invalidateQueries({ queryKey: ['contact', 'message', variables.id] });
-      toast.success('تم إرسال الرد بنجاح');
+      toast.success('تم إرسال الرد بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'تعذر إرسال الرد');
+      toast.error(error.message || 'تعذر إرسال الرد حالياً.');
     },
   });
 };

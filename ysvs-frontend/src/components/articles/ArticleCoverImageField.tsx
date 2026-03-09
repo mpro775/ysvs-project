@@ -84,11 +84,16 @@ export function ArticleCoverImageField({
             disabled={disabled || isUploading}
           >
             {isUploading ? (
-              <InlineLoader className="ml-2" />
+              <>
+                <InlineLoader className="ml-2" />
+                جاري الرفع...
+              </>
             ) : (
-              <Upload className="ml-2 h-4 w-4" />
+              <>
+                <Upload className="ml-2 h-4 w-4" />
+                رفع مباشر
+              </>
             )}
-            رفع مباشر
           </Button>
 
           <Button
@@ -127,7 +132,7 @@ export function ArticleCoverImageField({
 
           <div className="max-h-[65vh] overflow-y-auto p-1">
             {isLoadingLibrary ? (
-              <div className="py-8 text-center text-muted-foreground">جاري تحميل الصور...</div>
+              <div className="py-8 text-center text-muted-foreground">جاري تحميل مكتبة الصور...</div>
             ) : imageItems.length ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {imageItems.map((item) => {

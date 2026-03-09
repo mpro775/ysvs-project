@@ -1564,7 +1564,7 @@ export default function AdminEventCreatePage() {
           ) : (
             <Button type="submit" disabled={isPending || slugStatus === "taken"}>
               {isPending && <InlineLoader className="ml-2" />}
-              إنشاء المؤتمر
+              {isPending ? 'جاري إنشاء المؤتمر...' : 'إنشاء المؤتمر'}
             </Button>
           )}
         </div>

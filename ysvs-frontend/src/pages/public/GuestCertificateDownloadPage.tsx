@@ -101,7 +101,7 @@ export default function GuestCertificateDownloadPage() {
             {isLoading ? (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <InlineLoader />
-                <span>جاري تجهيز التحميل...</span>
+                <span>جاري تجهيز رابط الشهادة...</span>
               </div>
             ) : error ? (
               <div className="space-y-3">

@@ -120,7 +120,7 @@ export default function LoginPage() {
 
             <Button type="submit" className="w-full" disabled={isPending}>
               {isPending && <InlineLoader className="ml-2" />}
-              تسجيل الدخول
+              {isPending ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
             </Button>
           </form>
 

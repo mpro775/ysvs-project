@@ -156,9 +156,16 @@ export class FormValidatorService {
 
   private validatePhone(field: FormField, value: unknown): ValidationError[] {
     const errors: ValidationError[] = [];
-    const phoneRegex = /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/;
+    const normalizedValue = String(value ?? '')
+      .trim()
+      .replace(/[\s\-().]/g, '');
 
-    if (!phoneRegex.test(String(value))) {
+    // Yemen phone format support:
+    // - Country code prefix: +967 or 967 (with 0-9 digits after it)
+    // - Local numbers starting with 7 and length 3-9 digits
+    const phoneRegex = /^(?:\+?967\d{0,9}|7\d{2,8})$/;
+
+    if (!phoneRegex.test(normalizedValue)) {
       errors.push({
         field: field.id,
         message: `${field.label} غير صالح`,

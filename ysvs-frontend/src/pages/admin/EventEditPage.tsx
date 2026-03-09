@@ -1452,7 +1452,7 @@ export default function AdminEventEditPage() {
           </Button>
           <Button type="submit" disabled={isPending || slugStatus === "taken"}>
             {isPending && <InlineLoader className="ml-2" />}
-            حفظ التغييرات
+            {isPending ? 'جاري حفظ التغييرات...' : 'حفظ التغييرات'}
           </Button>
         </div>
       </form>

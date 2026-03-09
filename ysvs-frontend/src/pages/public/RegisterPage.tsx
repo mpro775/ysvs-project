@@ -218,7 +218,7 @@ export default function RegisterPage() {
 
             <Button type="submit" className="w-full" disabled={isPending}>
               {isPending && <InlineLoader className="ml-2" />}
-              إنشاء الحساب
+              {isPending ? 'جاري إنشاء الحساب...' : 'إنشاء الحساب'}
             </Button>
           </form>
 

@@ -62,10 +62,10 @@ export const useUploadMedia = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['media'] });
-      toast.success('تم رفع الملف بنجاح');
+      toast.success('تم رفع الملف بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل رفع الملف');
+      toast.error(error.message || 'تعذر رفع الملف حالياً.');
     },
   });
 };
@@ -94,10 +94,10 @@ export const useUploadMultipleMedia = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['media'] });
-      toast.success('تم رفع الملفات بنجاح');
+      toast.success('تم رفع الملفات بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل رفع الملفات');
+      toast.error(error.message || 'تعذر رفع الملفات حالياً.');
     },
   });
 };
@@ -112,10 +112,10 @@ export const useDeleteMedia = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['media'] });
-      toast.success('تم حذف الملف بنجاح');
+      toast.success('تم حذف الملف بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل حذف الملف');
+      toast.error(error.message || 'تعذر حذف الملف حالياً.');
     },
   });
 };

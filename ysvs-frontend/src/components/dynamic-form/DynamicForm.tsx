@@ -578,7 +578,7 @@ export function DynamicForm({
         disabled={isPending || uploadingFieldId !== null}
       >
         {isPending && <InlineLoader className="ml-2" />}
-        إرسال التسجيل
+        {isPending ? 'جاري إرسال التسجيل...' : 'إرسال التسجيل'}
       </Button>
     </form>
   );

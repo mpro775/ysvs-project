@@ -15,6 +15,7 @@ interface ConfirmDialogProps {
   title: string;
   description?: string;
   confirmText?: string;
+  loadingText?: string;
   cancelText?: string;
   variant?: 'default' | 'destructive';
   onConfirm: () => void;
@@ -27,6 +28,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmText = 'تأكيد',
+  loadingText = 'جاري التنفيذ...',
   cancelText = 'إلغاء',
   variant = 'default',
   onConfirm,
@@ -51,7 +53,7 @@ export function ConfirmDialog({
                 : ''
             }
           >
-            {isLoading ? 'جاري التنفيذ...' : confirmText}
+            {isLoading ? loadingText : confirmText}
           </AlertDialogAction>
           <AlertDialogCancel disabled={isLoading}>{cancelText}</AlertDialogCancel>
         </AlertDialogFooter>

@@ -27,7 +27,7 @@ export const useLogin = () => {
     onSuccess: (data) => {
       login(data.user, data.accessToken, data.refreshToken);
       queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-      toast.success('تم تسجيل الدخول بنجاح');
+      toast.success('تم تسجيل الدخول بنجاح.');
 
       const linkedRegistrations = data.guestLinkResult?.registrationsLinked || 0;
       const linkedCertificates = data.guestLinkResult?.certificatesLinked || 0;
@@ -35,18 +35,18 @@ export const useLogin = () => {
 
       if (linkedRegistrations > 0 || linkedCertificates > 0) {
         toast.success(
-          `تم استيراد سجلاتك السابقة: ${linkedRegistrations} تسجيل و ${linkedCertificates} شهادة`
+          `تم استيراد سجلاتك السابقة بنجاح: ${linkedRegistrations} تسجيل و ${linkedCertificates} شهادة.`
         );
       }
 
       if (skippedConflicts > 0) {
         toast.warning(
-          `تعذر ربط ${skippedConflicts} تسجيل بسبب وجود تسجيلات لنفس المؤتمر في حسابك`
+          `تعذر ربط ${skippedConflicts} تسجيل بسبب وجود تسجيلات لنفس المؤتمر في حسابك.`
         );
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل تسجيل الدخول');
+      toast.error(error.message || 'تعذر تسجيل الدخول حالياً.');
     },
   });
 };
@@ -62,19 +62,19 @@ export const useRegister = () => {
       return response.data;
     },
     onSuccess: (data) => {
-      toast.success('تم إنشاء الحساب بنجاح');
+      toast.success('تم إنشاء الحساب بنجاح.');
 
       const linkedRegistrations = data.guestLinkResult?.registrationsLinked || 0;
       const linkedCertificates = data.guestLinkResult?.certificatesLinked || 0;
 
       if (linkedRegistrations > 0 || linkedCertificates > 0) {
         toast.success(
-          `تم ربط سجل الضيف تلقائياً: ${linkedRegistrations} تسجيل و ${linkedCertificates} شهادة`
+          `تم ربط سجل الضيف تلقائياً بنجاح: ${linkedRegistrations} تسجيل و ${linkedCertificates} شهادة.`
         );
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل إنشاء الحساب');
+      toast.error(error.message || 'تعذر إنشاء الحساب حالياً.');
     },
   });
 };
@@ -91,7 +91,7 @@ export const useLogout = () => {
     onSuccess: () => {
       logout();
       queryClient.clear();
-      toast.success('تم تسجيل الخروج بنجاح');
+      toast.success('تم تسجيل الخروج بنجاح.');
     },
     onError: () => {
       // Even if the API call fails, log out locally
@@ -127,10 +127,10 @@ export const useForgotPassword = () => {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني');
+      toast.success('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل إرسال رابط إعادة التعيين');
+      toast.error(error.message || 'تعذر إرسال رابط إعادة التعيين حالياً.');
     },
   });
 };
@@ -146,10 +146,10 @@ export const useResetPassword = () => {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('تم إعادة تعيين كلمة المرور بنجاح');
+      toast.success('تمت إعادة تعيين كلمة المرور بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل إعادة تعيين كلمة المرور');
+      toast.error(error.message || 'تعذر إعادة تعيين كلمة المرور حالياً.');
     },
   });
 };
@@ -165,10 +165,10 @@ export const useChangePassword = () => {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('تم تغيير كلمة المرور بنجاح');
+      toast.success('تم تغيير كلمة المرور بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل تغيير كلمة المرور');
+      toast.error(error.message || 'تعذر تغيير كلمة المرور حالياً.');
     },
   });
 };

@@ -185,10 +185,10 @@ export const useCreateArticle = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['articles'] });
-      toast.success('تم إنشاء المقال بنجاح');
+      toast.success('تم إنشاء المقال بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل إنشاء المقال');
+      toast.error(error.message || 'تعذر إنشاء المقال حالياً.');
     },
   });
 };
@@ -214,10 +214,10 @@ export const useUpdateArticle = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['articles'] });
       queryClient.invalidateQueries({ queryKey: ['articles', variables.id] });
-      toast.success('تم تحديث المقال بنجاح');
+      toast.success('تم تحديث المقال بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل تحديث المقال');
+      toast.error(error.message || 'تعذر تحديث المقال حالياً.');
     },
   });
 };
@@ -232,10 +232,10 @@ export const useDeleteArticle = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['articles'] });
-      toast.success('تم حذف المقال بنجاح');
+      toast.success('تم حذف المقال بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل حذف المقال');
+      toast.error(error.message || 'تعذر حذف المقال حالياً.');
     },
   });
 };
@@ -296,10 +296,10 @@ export const useUpdateAboutContent = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['about'] });
       queryClient.invalidateQueries({ queryKey: ['about', 'admin'] });
-      toast.success('تم تحديث محتوى صفحة عن الجمعية بنجاح');
+      toast.success('تم تحديث محتوى صفحة عن الجمعية بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل تحديث محتوى صفحة عن الجمعية');
+      toast.error(error.message || 'تعذر تحديث محتوى صفحة عن الجمعية حالياً.');
     },
   });
 };
@@ -367,10 +367,10 @@ export const useUpdateSiteFooter = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site-content'] });
-      toast.success('تم تحديث الفوتر بنجاح');
+      toast.success('تم تحديث الفوتر بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل تحديث الفوتر');
+      toast.error(error.message || 'تعذر تحديث الفوتر حالياً.');
     },
   });
 };
@@ -388,10 +388,10 @@ export const useUpdatePrivacyPolicy = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site-content'] });
-      toast.success('تم تحديث سياسة الخصوصية بنجاح');
+      toast.success('تم تحديث سياسة الخصوصية بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل تحديث سياسة الخصوصية');
+      toast.error(error.message || 'تعذر تحديث سياسة الخصوصية حالياً.');
     },
   });
 };
@@ -409,10 +409,10 @@ export const useUpdateTermsAndConditions = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site-content'] });
-      toast.success('تم تحديث الشروط والأحكام بنجاح');
+      toast.success('تم تحديث الشروط والأحكام بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل تحديث الشروط والأحكام');
+      toast.error(error.message || 'تعذر تحديث الشروط والأحكام حالياً.');
     },
   });
 };
@@ -429,10 +429,10 @@ export const usePublishPrivacyPolicy = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site-content'] });
-      toast.success('تم نشر سياسة الخصوصية');
+      toast.success('تم نشر سياسة الخصوصية بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل نشر سياسة الخصوصية');
+      toast.error(error.message || 'تعذر نشر سياسة الخصوصية حالياً.');
     },
   });
 };
@@ -449,10 +449,10 @@ export const usePublishTermsAndConditions = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site-content'] });
-      toast.success('تم نشر الشروط والأحكام');
+      toast.success('تم نشر الشروط والأحكام بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل نشر الشروط والأحكام');
+      toast.error(error.message || 'تعذر نشر الشروط والأحكام حالياً.');
     },
   });
 };
@@ -500,10 +500,10 @@ export const useCreateBoardMember = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['board'] });
-      toast.success('تم إضافة عضو المجلس بنجاح');
+      toast.success('تمت إضافة عضو المجلس بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل إضافة عضو المجلس');
+      toast.error(error.message || 'تعذر إضافة عضو المجلس حالياً.');
     },
   });
 };
@@ -529,10 +529,10 @@ export const useUpdateBoardMember = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['board'] });
       queryClient.invalidateQueries({ queryKey: ['board', variables.id] });
-      toast.success('تم تحديث عضو المجلس بنجاح');
+      toast.success('تم تحديث عضو المجلس بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل تحديث عضو المجلس');
+      toast.error(error.message || 'تعذر تحديث عضو المجلس حالياً.');
     },
   });
 };
@@ -547,10 +547,10 @@ export const useDeleteBoardMember = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['board'] });
-      toast.success('تم حذف عضو المجلس بنجاح');
+      toast.success('تم حذف عضو المجلس بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل حذف عضو المجلس');
+      toast.error(error.message || 'تعذر حذف عضو المجلس حالياً.');
     },
   });
 };
@@ -569,10 +569,10 @@ export const useReorderBoardMembers = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['board'] });
-      toast.success('تم إعادة ترتيب الأعضاء');
+      toast.success('تمت إعادة ترتيب الأعضاء بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل إعادة الترتيب');
+      toast.error(error.message || 'تعذر إعادة ترتيب الأعضاء حالياً.');
     },
   });
 };
@@ -589,10 +589,10 @@ export const useNewsletterSubscribe = () => {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('شكراً لاشتراكك في النشرة البريدية');
+      toast.success('شكراً لاشتراكك في النشرة البريدية.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'تعذر تنفيذ الاشتراك حالياً');
+      toast.error(error.message || 'تعذر تنفيذ الاشتراك حالياً.');
     },
   });
 };
@@ -630,10 +630,10 @@ export const useUpdateNewsletterSubscriberStatus = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['newsletter', 'subscribers'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard', 'stats'] });
-      toast.success('تم تحديث حالة المشترك');
+      toast.success('تم تحديث حالة المشترك بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'تعذر تحديث الحالة');
+      toast.error(error.message || 'تعذر تحديث الحالة حالياً.');
     },
   });
 };

@@ -157,7 +157,7 @@ export default function AdminSettingsPage() {
                   {isPending && (
                     <InlineLoader className="ml-2" />
                   )}
-                  تغيير كلمة المرور
+                  {isPending ? 'جاري تغيير كلمة المرور...' : 'تغيير كلمة المرور'}
                 </Button>
               </form>
             </CardContent>

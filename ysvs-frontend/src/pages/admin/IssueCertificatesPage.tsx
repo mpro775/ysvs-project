@@ -158,11 +158,16 @@ export default function AdminIssueCertificatesPage() {
                 disabled={selectedRegistrations.length === 0 || isGenerating}
               >
                 {isGenerating ? (
-                  <InlineLoader className="ml-2" />
+                  <>
+                    <InlineLoader className="ml-2" />
+                    جاري إصدار الشهادات...
+                  </>
                 ) : (
-                  <Award className="ml-2 h-4 w-4" />
+                  <>
+                    <Award className="ml-2 h-4 w-4" />
+                    إصدار {selectedRegistrations.length} شهادة
+                  </>
                 )}
-                إصدار {selectedRegistrations.length} شهادة
               </Button>
             )}
           </CardHeader>

@@ -80,7 +80,7 @@ export default function ForgotPasswordPage() {
 
             <Button type="submit" className="w-full" disabled={isPending}>
               {isPending && <InlineLoader className="ml-2" />}
-              إرسال رابط إعادة التعيين
+              {isPending ? 'جاري إرسال الرابط...' : 'إرسال رابط إعادة التعيين'}
             </Button>
           </form>
 

@@ -74,11 +74,16 @@ export function SpeakerImageField({ value, onChange, disabled }: SpeakerImageFie
           disabled={disabled || isUploading}
         >
           {isUploading ? (
-            <InlineLoader className="ml-1" />
+            <>
+              <InlineLoader className="ml-1" />
+              جاري رفع الصورة...
+            </>
           ) : (
-            <Upload className="ml-1 h-3.5 w-3.5" />
+            <>
+              <Upload className="ml-1 h-3.5 w-3.5" />
+              رفع صورة
+            </>
           )}
-          رفع صورة
         </Button>
 
         <Button
@@ -116,7 +121,7 @@ export function SpeakerImageField({ value, onChange, disabled }: SpeakerImageFie
 
           <div className="max-h-[65vh] overflow-y-auto p-1">
             {isLoadingLibrary ? (
-              <div className="py-8 text-center text-muted-foreground">جاري تحميل الصور...</div>
+              <div className="py-8 text-center text-muted-foreground">جاري تحميل مكتبة الصور...</div>
             ) : imageItems.length ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {imageItems.map((item) => {

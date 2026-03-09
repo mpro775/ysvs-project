@@ -311,7 +311,13 @@ export default function AdminArticleEditorPage() {
             {isPending && (
               <InlineLoader className="ml-2" />
             )}
-            {isEdit ? "حفظ التغييرات" : "إنشاء الخبر"}
+            {isPending
+              ? isEdit
+                ? 'جاري حفظ التغييرات...'
+                : 'جاري إنشاء الخبر...'
+              : isEdit
+                ? 'حفظ التغييرات'
+                : 'إنشاء الخبر'}
           </Button>
         </div>
       </form>

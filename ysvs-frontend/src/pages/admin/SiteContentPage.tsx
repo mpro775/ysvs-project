@@ -331,11 +331,16 @@ export default function AdminSiteContentPage() {
               <CardTitle>بيانات الفوتر</CardTitle>
               <Button onClick={handleSaveFooter} disabled={!canSaveFooter || isFooterSaving}>
                 {isFooterSaving ? (
-                  <InlineLoader className="ml-2" />
+                  <>
+                    <InlineLoader className="ml-2" />
+                    جاري حفظ الفوتر...
+                  </>
                 ) : (
-                  <Save className="ml-2 h-4 w-4" />
+                  <>
+                    <Save className="ml-2 h-4 w-4" />
+                    حفظ الفوتر
+                  </>
                 )}
-                حفظ الفوتر
               </Button>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -604,11 +609,16 @@ export default function AdminSiteContentPage() {
               <div className="flex flex-wrap gap-2">
                 <Button onClick={handleSavePrivacy} disabled={!canSavePrivacy || isPrivacySaving}>
                   {isPrivacySaving ? (
-                    <InlineLoader className="ml-2" />
+                    <>
+                      <InlineLoader className="ml-2" />
+                      جاري حفظ المسودة...
+                    </>
                   ) : (
-                    <Save className="ml-2 h-4 w-4" />
+                    <>
+                      <Save className="ml-2 h-4 w-4" />
+                      حفظ المسودة
+                    </>
                   )}
-                  حفظ المسودة
                 </Button>
                 <Button
                   variant="outline"
@@ -616,11 +626,16 @@ export default function AdminSiteContentPage() {
                   disabled={isPublishingPrivacy}
                 >
                   {isPublishingPrivacy ? (
-                    <InlineLoader className="ml-2" />
+                    <>
+                      <InlineLoader className="ml-2" />
+                      جاري نشر سياسة الخصوصية...
+                    </>
                   ) : (
-                    <Upload className="ml-2 h-4 w-4" />
+                    <>
+                      <Upload className="ml-2 h-4 w-4" />
+                      نشر
+                    </>
                   )}
-                  نشر
                 </Button>
               </div>
             </CardHeader>
@@ -680,11 +695,16 @@ export default function AdminSiteContentPage() {
               <div className="flex flex-wrap gap-2">
                 <Button onClick={handleSaveTerms} disabled={!canSaveTerms || isTermsSaving}>
                   {isTermsSaving ? (
-                    <InlineLoader className="ml-2" />
+                    <>
+                      <InlineLoader className="ml-2" />
+                      جاري حفظ المسودة...
+                    </>
                   ) : (
-                    <Save className="ml-2 h-4 w-4" />
+                    <>
+                      <Save className="ml-2 h-4 w-4" />
+                      حفظ المسودة
+                    </>
                   )}
-                  حفظ المسودة
                 </Button>
                 <Button
                   variant="outline"
@@ -692,11 +712,16 @@ export default function AdminSiteContentPage() {
                   disabled={isPublishingTerms}
                 >
                   {isPublishingTerms ? (
-                    <InlineLoader className="ml-2" />
+                    <>
+                      <InlineLoader className="ml-2" />
+                      جاري نشر الشروط والأحكام...
+                    </>
                   ) : (
-                    <Upload className="ml-2 h-4 w-4" />
+                    <>
+                      <Upload className="ml-2 h-4 w-4" />
+                      نشر
+                    </>
                   )}
-                  نشر
                 </Button>
               </div>
             </CardHeader>

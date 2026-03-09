@@ -198,11 +198,16 @@ export default function AdminAboutContentPage() {
         </div>
         <Button onClick={handleSave} disabled={!canSave || isSaving}>
           {isSaving ? (
-            <InlineLoader className="ml-2" />
+            <>
+              <InlineLoader className="ml-2" />
+              جاري حفظ التغييرات...
+            </>
           ) : (
-            <Save className="ml-2 h-4 w-4" />
+            <>
+              <Save className="ml-2 h-4 w-4" />
+              حفظ التغييرات
+            </>
           )}
-          حفظ التغييرات
         </Button>
       </div>
 

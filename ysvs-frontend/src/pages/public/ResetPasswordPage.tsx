@@ -123,7 +123,7 @@ export default function ResetPasswordPage() {
 
             <Button type="submit" className="w-full" disabled={isPending}>
               {isPending && <InlineLoader className="ml-2" />}
-              تعيين كلمة المرور
+              {isPending ? 'جاري تحديث كلمة المرور...' : 'تعيين كلمة المرور'}
             </Button>
           </form>
         </CardContent>

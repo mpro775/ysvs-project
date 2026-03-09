@@ -37,7 +37,7 @@ export function LoadingSpinner({
     <div
       role="status"
       aria-live="polite"
-      aria-label={text || 'جاري التحميل'}
+      aria-label={text || 'نحضّر المحتوى'}
       style={
         {
           '--loader-orbit-size': activeSize.orbit,
@@ -68,7 +68,7 @@ export function LoadingSpinner({
 export function PageLoader() {
   return (
     <div className="flex min-h-[400px] items-center justify-center rounded-2xl bg-gradient-to-b from-primary-50/60 via-background to-background p-8 dark:from-primary-950/30 dark:via-background dark:to-background">
-      <LoadingSpinner size="lg" text="جاري التحميل..." />
+      <LoadingSpinner size="lg" text="نحضّر الصفحة..." />
     </div>
   );
 }
@@ -76,7 +76,7 @@ export function PageLoader() {
 export function FullPageLoader() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <LoadingSpinner size="lg" text="جاري التحميل..." />
+      <LoadingSpinner size="lg" text="نحضّر البيانات..." />
     </div>
   );
 }

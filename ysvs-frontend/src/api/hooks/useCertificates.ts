@@ -77,7 +77,7 @@ export const useDownloadCertificate = () => {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(errorText || 'فشل تحميل الشهادة');
+        throw new Error(errorText || 'تعذر تحميل الشهادة حالياً.');
       }
 
       const contentType = response.headers.get('content-type') || '';
@@ -116,7 +116,7 @@ export const useDownloadCertificate = () => {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        toast.success('تم فتح رابط الشهادة');
+         toast.success('تم فتح رابط الشهادة بنجاح.');
         return;
       }
 
@@ -128,10 +128,10 @@ export const useDownloadCertificate = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success('تم تحميل الشهادة');
+      toast.success('تم تحميل الشهادة بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل تحميل الشهادة');
+      toast.error(error.message || 'تعذر تحميل الشهادة حالياً.');
     },
   });
 };
@@ -150,10 +150,10 @@ export const useGenerateCertificate = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['certificates'] });
-      toast.success('تم إصدار الشهادة بنجاح');
+      toast.success('تم إصدار الشهادة بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل إصدار الشهادة');
+      toast.error(error.message || 'تعذر إصدار الشهادة حالياً.');
     },
   });
 };
@@ -183,16 +183,16 @@ export const useBulkGenerateCertificates = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['certificates'] });
-      toast.success(`تم إصدار ${data.generated} شهادة بنجاح`);
+      toast.success(`تم إصدار ${data.generated} شهادة بنجاح.`);
       if (data.skipped > 0) {
-        toast.warning(`تم تخطي ${data.skipped} تسجيل (قد تكون الشهادة موجودة مسبقاً)`);
+        toast.warning(`تم تخطي ${data.skipped} تسجيل (قد تكون الشهادة موجودة مسبقاً).`);
       }
       if (data.errors.length > 0) {
-        toast.error(`حدثت ${data.errors.length} أخطاء أثناء الإصدار`);
+        toast.error(`حدثت ${data.errors.length} أخطاء أثناء الإصدار.`);
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل إصدار الشهادات');
+      toast.error(error.message || 'تعذر إصدار الشهادات حالياً.');
     },
   });
 };
@@ -211,10 +211,10 @@ export const useRevokeCertificate = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['certificates'] });
-      toast.success('تم إلغاء الشهادة');
+      toast.success('تم إلغاء الشهادة بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل إلغاء الشهادة');
+      toast.error(error.message || 'تعذر إلغاء الشهادة حالياً.');
     },
   });
 };
@@ -231,10 +231,10 @@ export const useSendGuestCertificateEmail = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['certificates'] });
-      toast.success('تم إرسال رابط الشهادة للضيف بنجاح');
+      toast.success('تم إرسال رابط الشهادة للضيف بنجاح.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'فشل إرسال بريد الشهادة');
+      toast.error(error.message || 'تعذر إرسال بريد الشهادة حالياً.');
     },
   });
 };

@@ -173,11 +173,16 @@ export default function ContactPage() {
                 disabled={submitContactMessage.isPending}
               >
                 {submitContactMessage.isPending ? (
-                  <InlineLoader className="ml-2" />
+                  <>
+                    <InlineLoader className="ml-2" />
+                    جاري إرسال الرسالة...
+                  </>
                 ) : (
-                  <Send className="ml-2 h-4 w-4" />
+                  <>
+                    <Send className="ml-2 h-4 w-4" />
+                    إرسال الرسالة
+                  </>
                 )}
-                إرسال الرسالة
               </Button>
             </form>
           </CardContent>
