@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Calendar, Award, User, ArrowLeft } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -8,12 +9,25 @@ import { useMyRegistrations } from '@/api/hooks/useEvents';
 import { useMyCertificates } from '@/api/hooks/useCertificates';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
-import type { Event } from '@/types';
+import {
+  ProfessionalVerificationStatus,
+  type Event,
+  type ProfessionalVerificationStatus as ProfessionalVerificationStatusType,
+} from '@/types';
 
 export default function MemberDashboardPage() {
   const { user } = useAuthStore();
   const { data: registrations, isLoading: loadingRegistrations } = useMyRegistrations();
   const { data: certificates, isLoading: loadingCertificates } = useMyCertificates();
+  const verificationStatus =
+    user?.professionalVerification?.status || ProfessionalVerificationStatus.NOT_SUBMITTED;
+
+  const verificationStatusText: Record<ProfessionalVerificationStatusType, string> = {
+    [ProfessionalVerificationStatus.NOT_SUBMITTED]: 'لم يتم رفع بطاقة مزاولة',
+    [ProfessionalVerificationStatus.PENDING]: 'توثيق العضوية قيد المعالجة',
+    [ProfessionalVerificationStatus.APPROVED]: 'العضوية موثقة',
+    [ProfessionalVerificationStatus.REJECTED]: 'تم رفض التوثيق - يرجى إعادة الرفع',
+  };
 
   return (
     <div className="space-y-6">
@@ -22,6 +36,16 @@ export default function MemberDashboardPage() {
         <CardContent className="py-6">
           <h1 className="text-2xl font-bold">مرحباً، {user?.fullNameAr}</h1>
           <p className="mt-1 text-primary-100">مرحباً بك في حسابك الشخصي</p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Badge variant="secondary" className="bg-white/15 text-white">
+              {verificationStatusText[verificationStatus]}
+            </Badge>
+            {verificationStatus !== ProfessionalVerificationStatus.APPROVED && (
+              <Button size="sm" variant="secondary" asChild>
+                <Link to="/member/profile">رفع بطاقة المزاولة</Link>
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 

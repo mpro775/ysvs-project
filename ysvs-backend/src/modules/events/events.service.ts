@@ -15,6 +15,8 @@ import {
   SessionType,
   EventMode,
   EventStreamProvider,
+  FormField,
+  EventDay,
 } from './schemas/event.schema';
 import { TicketType, TicketTypeDocument } from './schemas/ticket-type.schema';
 import {
@@ -28,6 +30,16 @@ import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto'
 
 @Injectable()
 export class EventsService {
+  private readonly protectedProfileFieldIds = new Set([
+    'fullNameAr',
+    'fullNameEn',
+    'email',
+    'phone',
+    'specialty',
+    'gender',
+    'workplace',
+  ]);
+
   constructor(
     @InjectModel(Event.name) private eventModel: Model<EventDocument>,
     @InjectModel(TicketType.name) private ticketTypeModel: Model<TicketTypeDocument>,
@@ -37,10 +49,11 @@ export class EventsService {
   // ============= EVENTS =============
 
   async create(createEventDto: CreateEventDto, userId: string): Promise<Event> {
-    this.validateEventPhaseOneFields(createEventDto, true);
+    const normalizedPayload = this.normalizeEventTimeline(createEventDto);
+    this.validateEventPhaseOneFields(normalizedPayload, true);
 
     const event = new this.eventModel({
-      ...createEventDto,
+      ...normalizedPayload,
       createdBy: userId,
     });
 
@@ -169,14 +182,18 @@ export class EventsService {
       throw new NotFoundException('المؤتمر غير موجود');
     }
 
+    const existingEventObject = existingEvent.toObject();
     const mergedEvent = {
-      ...existingEvent.toObject(),
+      ...existingEventObject,
       ...updateEventDto,
     } as UpdateEventDto;
-    this.validateEventPhaseOneFields(mergedEvent, false);
+    const normalizedMergedEvent = this.normalizeEventTimeline(mergedEvent);
+    this.validateEventPhaseOneFields(normalizedMergedEvent, false);
+
+    const normalizedUpdatePayload = this.normalizeEventTimeline(updateEventDto);
 
     const event = await this.eventModel
-      .findByIdAndUpdate(id, updateEventDto, { new: true })
+      .findByIdAndUpdate(id, normalizedUpdatePayload, { new: true })
       .populate('ticketTypes')
       .exec();
 
@@ -343,6 +360,9 @@ export class EventsService {
       | 'location'
       | 'speakers'
       | 'schedule'
+      | 'eventDays'
+      | 'cmeHours'
+      | 'formSchema'
     >,
     enforceFutureStartDate: boolean,
   ): void {
@@ -362,8 +382,126 @@ export class EventsService {
       payload.hasLiveStream,
       payload.liveStream,
     );
+    this.validateEventDays(payload.eventDays);
     this.validateScheduleTimeBounds(payload.startDate, payload.endDate, payload.schedule);
     this.validateScheduleSpeakers(payload.speakers, payload.schedule);
+    this.validateProtectedProfileFields(payload.formSchema);
+  }
+
+  private normalizeEventTimeline<T extends Partial<UpdateEventDto>>(payload: T): T {
+    const eventDays = this.normalizeEventDays(payload.eventDays);
+
+    if (!eventDays.length) {
+      return payload;
+    }
+
+    const sortedDays = [...eventDays].sort(
+      (a, b) => a.startTime.getTime() - b.startTime.getTime(),
+    );
+    const totalCmeHours = sortedDays.reduce((sum, day) => sum + day.cmeHours, 0);
+
+    return {
+      ...payload,
+      eventDays: sortedDays,
+      startDate: sortedDays[0].startTime,
+      endDate: sortedDays[sortedDays.length - 1].endTime,
+      cmeHours: Number(totalCmeHours.toFixed(2)),
+    };
+  }
+
+  private normalizeEventDays(eventDays?: EventDay[]): EventDay[] {
+    if (!eventDays) {
+      return [];
+    }
+
+    if (!Array.isArray(eventDays)) {
+      throw new BadRequestException('أيام المؤتمر يجب أن تكون قائمة');
+    }
+
+    if (eventDays.length === 0) {
+      throw new BadRequestException('يجب إضافة يوم واحد على الأقل للمؤتمر');
+    }
+
+    return eventDays.map((day) => {
+      const date = new Date(day.date);
+      if (Number.isNaN(date.getTime())) {
+        throw new BadRequestException('تاريخ يوم المؤتمر غير صالح');
+      }
+
+      const dayDate = new Date(date);
+      dayDate.setHours(0, 0, 0, 0);
+
+      const startTime = this.resolveDayTime(day.startTime, dayDate);
+      const endTime = this.resolveDayTime(day.endTime, dayDate);
+
+      if (startTime.getTime() >= endTime.getTime()) {
+        throw new BadRequestException('وقت نهاية اليوم يجب أن يكون بعد وقت البداية');
+      }
+
+      if (typeof day.cmeHours !== 'number' || Number.isNaN(day.cmeHours) || day.cmeHours < 0) {
+        throw new BadRequestException('ساعات CME اليومية غير صالحة');
+      }
+
+      return {
+        date: dayDate,
+        startTime,
+        endTime,
+        cmeHours: day.cmeHours,
+      };
+    });
+  }
+
+  private resolveDayTime(timeInput: Date, dayDate: Date): Date {
+    const parsed = new Date(timeInput);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BadRequestException('توقيت اليوم غير صالح');
+    }
+
+    return new Date(
+      dayDate.getFullYear(),
+      dayDate.getMonth(),
+      dayDate.getDate(),
+      parsed.getHours(),
+      parsed.getMinutes(),
+      0,
+      0,
+    );
+  }
+
+  private validateEventDays(eventDays?: EventDay[]): void {
+    if (!eventDays?.length) {
+      return;
+    }
+
+    const seenDates = new Set<string>();
+
+    for (const day of eventDays) {
+      const key = `${day.date.getFullYear()}-${day.date.getMonth()}-${day.date.getDate()}`;
+
+      if (seenDates.has(key)) {
+        throw new BadRequestException('لا يمكن تكرار نفس اليوم في جدول أيام المؤتمر');
+      }
+
+      seenDates.add(key);
+    }
+  }
+
+  private validateProtectedProfileFields(formSchema?: FormField[]): void {
+    if (!formSchema?.length) {
+      return;
+    }
+
+    for (const field of formSchema) {
+      if (!field?.id) {
+        continue;
+      }
+
+      if (this.protectedProfileFieldIds.has(field.id)) {
+        throw new BadRequestException(
+          `الحقل ${field.id} من الحقول الأساسية ويُدار تلقائياً، أضف فقط الحقول الإضافية الخاصة بالمؤتمر`,
+        );
+      }
+    }
   }
 
   private validateEventDates(

@@ -5,6 +5,7 @@ import { ENDPOINTS } from '../endpoints';
 import type {
   ApiResponse,
   Event,
+  EventDay,
   EventLiveStream,
   EventMode,
   EventScheduleItem,
@@ -60,6 +61,7 @@ interface CreateEventData {
   targetAudience?: string[];
   speakers?: EventSpeaker[];
   schedule?: EventScheduleItem[];
+  eventDays?: EventDay[];
   formSchema?: FormField[];
 }
 

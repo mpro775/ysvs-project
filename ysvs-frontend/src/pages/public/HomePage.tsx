@@ -1,7 +1,11 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useUpcomingEvent, useEvents } from "@/api/hooks/useEvents";
-import { useLatestArticles } from "@/api/hooks/useContent";
+import { useEvents } from "@/api/hooks/useEvents";
+import {
+  useHomepageCountdownEvent,
+  useLatestArticles,
+  useSitePublicContent,
+} from "@/api/hooks/useContent";
 import { HeroSection } from "@/components/home/HeroSection";
 import { StatsSection } from "@/components/home/StatsSection";
 import { UpcomingEventsSection } from "@/components/home/UpcomingEventsSection";
@@ -13,7 +17,8 @@ import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 
 export default function HomePage() {
-  const { data: upcomingEvent } = useUpcomingEvent();
+  const { data: upcomingEvent } = useHomepageCountdownEvent();
+  const { data: sitePublicContent } = useSitePublicContent();
   const { data: eventsData, isLoading: loadingEvents } = useEvents({
     limit: 3,
     status: "upcoming",
@@ -47,7 +52,11 @@ export default function HomePage() {
         </section>
       )}
 
-      <StatsSection />
+      <StatsSection
+        conferencesCount={sitePublicContent?.homepage?.conferencesCount}
+        registeredMembersCount={sitePublicContent?.homepage?.registeredMembersCount}
+        annualActivitiesCount={sitePublicContent?.homepage?.annualActivitiesCount}
+      />
 
       <UpcomingEventsSection events={eventsData?.data} isLoading={loadingEvents} />
 

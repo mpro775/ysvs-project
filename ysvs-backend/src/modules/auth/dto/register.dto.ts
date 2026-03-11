@@ -5,8 +5,10 @@ import {
   MinLength,
   IsOptional,
   Matches,
+  IsEnum,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Gender } from '../../users/schemas/user.schema';
 
 export class RegisterDto {
   @ApiProperty({ example: 'doctor@example.com', description: 'User email address' })
@@ -46,4 +48,8 @@ export class RegisterDto {
   @IsOptional()
   @IsString({ message: 'مكان العمل يجب أن يكون نصاً' })
   workplace?: string;
+
+  @ApiProperty({ enum: Gender, example: Gender.MALE, description: 'Gender' })
+  @IsEnum(Gender, { message: 'النوع غير صالح' })
+  gender: Gender;
 }

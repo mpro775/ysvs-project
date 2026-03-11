@@ -52,6 +52,14 @@ const requiresSpeakers = (sessionType: string) =>
 
 const createClientId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
+const toDateInputValue = (dateValue?: Date | string) => {
+  if (!dateValue) return "";
+  return new Date(dateValue).toISOString().slice(0, 10);
+};
+
+const toDateTimeFromDayAndTime = (dateValue: string, timeValue: string) =>
+  new Date(`${dateValue}T${timeValue}`);
+
 const speakerSchema = z.object({
   id: z.string().min(1),
   nameAr: z.string().trim().min(2, "اسم المتحدث مطلوب"),
@@ -102,6 +110,24 @@ const liveStreamSchema = z.object({
   recordingUrl: z.string().url("رابط إعادة البث غير صالح").optional().or(z.literal("")),
 });
 
+const eventDaySchema = z
+  .object({
+    id: z.string().min(1),
+    date: z.string().min(1, "تاريخ اليوم مطلوب"),
+    startTime: z.string().min(1, "وقت بداية اليوم مطلوب"),
+    endTime: z.string().min(1, "وقت نهاية اليوم مطلوب"),
+    cmeHours: z.number().min(0, "ساعات CME اليومية لا يمكن أن تكون سالبة"),
+  })
+  .refine(
+    (value) =>
+      toDateTimeFromDayAndTime(value.date, value.endTime) >
+      toDateTimeFromDayAndTime(value.date, value.startTime),
+    {
+      path: ["endTime"],
+      message: "وقت نهاية اليوم يجب أن يكون بعد وقت البداية",
+    }
+  );
+
 const eventSchema = z
   .object({
     titleAr: z.string().min(3, "العنوان بالعربي يجب أن يكون 3 أحرف على الأقل"),
@@ -138,6 +164,7 @@ const eventSchema = z
     targetAudience: z
       .array(z.string().trim().min(1, "لا يمكن حفظ فئة فارغة"))
       .min(1, "أضف فئة مستهدفة واحدة على الأقل"),
+    eventDays: z.array(eventDaySchema).min(1, "أضف يوماً واحداً على الأقل"),
     speakers: z.array(speakerSchema),
     schedule: z.array(scheduleItemSchema),
   })
@@ -156,6 +183,18 @@ const eventSchema = z
     }
   )
   .superRefine((values, ctx) => {
+    const uniqueDays = new Set<string>();
+    values.eventDays.forEach((day, index) => {
+      if (uniqueDays.has(day.date)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["eventDays", index, "date"],
+          message: "لا يمكن تكرار نفس اليوم",
+        });
+      }
+      uniqueDays.add(day.date);
+    });
+
     const eventStart = new Date(values.startDate);
     const eventEnd = new Date(values.endDate);
     const speakerIds = new Set(values.speakers.map((speaker) => speaker.id));
@@ -306,6 +345,15 @@ export default function AdminEventEditPage() {
       outcomes: [""],
       objectives: [""],
       targetAudience: [""],
+      eventDays: [
+        {
+          id: createClientId("day"),
+          date: toDateInputValue(new Date()),
+          startTime: "09:00",
+          endTime: "15:00",
+          cmeHours: 0,
+        },
+      ],
       speakers: [],
       schedule: [],
     },
@@ -350,6 +398,24 @@ export default function AdminEventEditPage() {
         outcomes: event.outcomes?.length ? event.outcomes : [""],
         objectives: event.objectives?.length ? event.objectives : [""],
         targetAudience: event.targetAudience?.length ? event.targetAudience : [""],
+        eventDays:
+          event.eventDays?.length
+            ? event.eventDays.map((day, index) => ({
+                id: `${index}-${toDateInputValue(day.date)}`,
+                date: toDateInputValue(day.date),
+                startTime: toDateTimeLocal(day.startTime).slice(11, 16),
+                endTime: toDateTimeLocal(day.endTime).slice(11, 16),
+                cmeHours: day.cmeHours || 0,
+              }))
+            : [
+                {
+                  id: createClientId("day"),
+                  date: toDateInputValue(event.startDate),
+                  startTime: toDateTimeLocal(event.startDate).slice(11, 16),
+                  endTime: toDateTimeLocal(event.endDate).slice(11, 16),
+                  cmeHours: event.cmeHours || 0,
+                },
+              ],
         speakers:
           event.speakers?.map((speaker) => ({
             ...speaker,
@@ -373,9 +439,58 @@ export default function AdminEventEditPage() {
   const outcomes = watchedValues.outcomes || [];
   const objectives = watchedValues.objectives || [];
   const targetAudience = watchedValues.targetAudience || [];
+  const eventDays = watchedValues.eventDays || [];
   const speakers = watchedValues.speakers || [];
   const schedule = watchedValues.schedule || [];
   const liveStream = watchedValues.liveStream;
+
+  const sortedEventDays = useMemo(
+    () =>
+      [...eventDays].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      ),
+    [eventDays]
+  );
+
+  const derivedStartDate = useMemo(() => {
+    const firstDay = sortedEventDays[0];
+    if (!firstDay?.date || !firstDay?.startTime) return "";
+    return toDateTimeLocal(toDateTimeFromDayAndTime(firstDay.date, firstDay.startTime));
+  }, [sortedEventDays]);
+
+  const derivedEndDate = useMemo(() => {
+    const lastDay = sortedEventDays[sortedEventDays.length - 1];
+    if (!lastDay?.date || !lastDay?.endTime) return "";
+    return toDateTimeLocal(toDateTimeFromDayAndTime(lastDay.date, lastDay.endTime));
+  }, [sortedEventDays]);
+
+  const totalCmeHours = useMemo(
+    () =>
+      Number(
+        sortedEventDays.reduce((sum, day) => sum + (Number(day.cmeHours) || 0), 0).toFixed(2)
+      ),
+    [sortedEventDays]
+  );
+
+  useEffect(() => {
+    if (derivedStartDate && watchedValues.startDate !== derivedStartDate) {
+      setValue("startDate", derivedStartDate, { shouldDirty: true, shouldValidate: true });
+    }
+    if (derivedEndDate && watchedValues.endDate !== derivedEndDate) {
+      setValue("endDate", derivedEndDate, { shouldDirty: true, shouldValidate: true });
+    }
+    if ((watchedValues.cmeHours || 0) !== totalCmeHours) {
+      setValue("cmeHours", totalCmeHours, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [
+    derivedStartDate,
+    derivedEndDate,
+    totalCmeHours,
+    watchedValues.startDate,
+    watchedValues.endDate,
+    watchedValues.cmeHours,
+    setValue,
+  ]);
 
   const addOutcome = () => {
     setValue("outcomes", [...outcomes, ""], { shouldDirty: true, shouldValidate: true });
@@ -420,6 +535,41 @@ export default function AdminEventEditPage() {
   const removeTargetAudience = (index: number) => {
     const next = targetAudience.filter((_, currentIndex) => currentIndex !== index);
     setValue("targetAudience", next.length ? next : [""], { shouldDirty: true, shouldValidate: true });
+  };
+
+  const addEventDay = () => {
+    setValue(
+      "eventDays",
+      [
+        ...eventDays,
+        {
+          id: createClientId("day"),
+          date: toDateInputValue(new Date()),
+          startTime: "09:00",
+          endTime: "15:00",
+          cmeHours: 0,
+        },
+      ],
+      { shouldDirty: true, shouldValidate: true }
+    );
+  };
+
+  const updateEventDayField = (
+    index: number,
+    key: keyof EventForm["eventDays"][number],
+    value: string | number
+  ) => {
+    const next = [...eventDays];
+    next[index] = { ...next[index], [key]: value };
+    setValue("eventDays", next, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const removeEventDay = (index: number) => {
+    const next = eventDays.filter((_, currentIndex) => currentIndex !== index);
+    if (!next.length) {
+      return;
+    }
+    setValue("eventDays", next, { shouldDirty: true, shouldValidate: true });
   };
 
   const addSpeaker = () => {
@@ -560,6 +710,7 @@ export default function AdminEventEditPage() {
       eventMode,
       hasLiveStream,
       liveStream,
+      eventDays,
       ...rest
     } = data;
 
@@ -585,8 +736,8 @@ export default function AdminEventEditPage() {
         data: {
           ...rest,
           coverImage: rest.coverImage || undefined,
-          startDate: new Date(rest.startDate),
-          endDate: new Date(rest.endDate),
+          startDate: new Date(derivedStartDate || rest.startDate),
+          endDate: new Date(derivedEndDate || rest.endDate),
           registrationDeadline: rest.registrationDeadline
             ? new Date(rest.registrationDeadline)
             : undefined,
@@ -635,6 +786,15 @@ export default function AdminEventEditPage() {
               endTime: new Date(session.endTime),
             }))
             .sort((a, b) => a.startTime.getTime() - b.startTime.getTime()),
+          eventDays: eventDays
+            .map((day) => ({
+              date: new Date(day.date),
+              startTime: toDateTimeFromDayAndTime(day.date, day.startTime),
+              endTime: toDateTimeFromDayAndTime(day.date, day.endTime),
+              cmeHours: Number(day.cmeHours) || 0,
+            }))
+            .sort((a, b) => a.startTime.getTime() - b.startTime.getTime()),
+          cmeHours: totalCmeHours,
           formSchema,
           registrationAccess: rest.registrationAccess,
           guestEmailMode: rest.guestEmailMode,
@@ -771,8 +931,11 @@ export default function AdminEventEditPage() {
                       id="startDate"
                       type="datetime-local"
                       {...register("startDate")}
+                      readOnly
+                      disabled
                       className={errors.startDate ? "border-destructive" : ""}
                     />
+                    <p className="text-xs text-muted-foreground">يُحتسب تلقائياً من أول يوم في جدول الأيام</p>
                   </div>
 
                   <div className="space-y-2">
@@ -780,10 +943,12 @@ export default function AdminEventEditPage() {
                     <Input
                       id="endDate"
                       type="datetime-local"
-                      min={watchedValues.startDate || undefined}
                       {...register("endDate")}
+                      readOnly
+                      disabled
                       className={errors.endDate ? "border-destructive" : ""}
                     />
+                    <p className="text-xs text-muted-foreground">يُحتسب تلقائياً من آخر يوم في جدول الأيام</p>
                     {errors.endDate && <p className="text-sm text-destructive">{errors.endDate.message}</p>}
                   </div>
                 </div>
@@ -800,6 +965,117 @@ export default function AdminEventEditPage() {
                   {errors.registrationDeadline && (
                     <p className="text-sm text-destructive">{errors.registrationDeadline.message}</p>
                   )}
+                </div>
+
+                <div className="space-y-4 rounded-xl border p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold">أيام المؤتمر والساعات اليومية</h3>
+                      <p className="text-xs text-muted-foreground">
+                        حدّد كل يوم مع وقت البداية والنهاية وساعات CME الخاصة به
+                      </p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={addEventDay}>
+                      <Plus className="ml-1 h-4 w-4" />
+                      إضافة يوم
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {eventDays.map((day, index) => (
+                      <div key={day.id} className="rounded-lg border p-3">
+                        <div className="mb-2 flex items-center justify-between">
+                          <p className="text-sm font-medium">اليوم {index + 1}</p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeEventDay(index)}
+                            disabled={eventDays.length === 1}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-4">
+                          <div className="space-y-1">
+                            <Label>التاريخ *</Label>
+                            <Input
+                              type="date"
+                              value={day.date}
+                              onChange={(event) => updateEventDayField(index, "date", event.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>من *</Label>
+                            <Input
+                              type="time"
+                              value={day.startTime}
+                              onChange={(event) =>
+                                updateEventDayField(index, "startTime", event.target.value)
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>إلى *</Label>
+                            <Input
+                              type="time"
+                              value={day.endTime}
+                              onChange={(event) =>
+                                updateEventDayField(index, "endTime", event.target.value)
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>ساعات CME</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              step="0.5"
+                              value={day.cmeHours}
+                              onChange={(event) =>
+                                updateEventDayField(
+                                  index,
+                                  "cmeHours",
+                                  event.target.value === "" ? 0 : Number(event.target.value)
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        {(errors.eventDays?.[index]?.date?.message ||
+                          errors.eventDays?.[index]?.startTime?.message ||
+                          errors.eventDays?.[index]?.endTime?.message ||
+                          errors.eventDays?.[index]?.cmeHours?.message) && (
+                          <p className="mt-2 text-sm text-destructive">
+                            {errors.eventDays?.[index]?.date?.message ||
+                              errors.eventDays?.[index]?.startTime?.message ||
+                              errors.eventDays?.[index]?.endTime?.message ||
+                              errors.eventDays?.[index]?.cmeHours?.message}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {errors.eventDays?.message && (
+                    <p className="text-sm text-destructive">{errors.eventDays.message}</p>
+                  )}
+
+                  <div className="grid gap-3 rounded-lg bg-muted/40 p-3 text-sm md:grid-cols-3">
+                    <div>
+                      <p className="text-muted-foreground">إجمالي الأيام</p>
+                      <p className="font-semibold">{eventDays.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">بداية المؤتمر</p>
+                      <p className="font-semibold">{derivedStartDate || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">إجمالي CME</p>
+                      <p className="font-semibold">{totalCmeHours} ساعة</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
@@ -893,10 +1169,11 @@ export default function AdminEventEditPage() {
                       id="cmeHours"
                       type="number"
                       min={0}
-                      {...register("cmeHours", {
-                        setValueAs: (value) => (value === "" ? undefined : Number(value)),
-                      })}
+                      value={totalCmeHours}
+                      readOnly
+                      disabled
                     />
+                    <p className="text-xs text-muted-foreground">مجموع الساعات اليومية يُحسب تلقائياً</p>
                   </div>
                 </div>
 
@@ -1440,6 +1717,11 @@ export default function AdminEventEditPage() {
                 <CardTitle>نموذج التسجيل</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  عدّل هنا الحقول الإضافية الخاصة بهذا المؤتمر فقط. الحقول الأساسية
+                  (الاسم عربي/إنجليزي، البريد، الهاتف، الوصف الوظيفي، النوع، مكان العمل)
+                  تُدار تلقائياً من الحساب للعضو وتظهر للضيف بدون إضافتها هنا.
+                </div>
                 <FormBuilder initialSchema={formSchema} onChange={setFormSchema} />
               </CardContent>
             </Card>

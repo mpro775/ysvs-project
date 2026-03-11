@@ -32,6 +32,21 @@ import type { FormField, Registration, UploadedFormFile, User } from "@/types";
 
 const OTHER_OPTION_VALUE = "__other__";
 const getOtherFieldId = (fieldId: string) => `${fieldId}__other`;
+const defaultProfileFieldIds = new Set([
+  'fullNameAr',
+  'fullNameEn',
+  'email',
+  'phone',
+  'specialty',
+  'gender',
+  'workplace',
+]);
+
+const getGenderLabel = (value?: unknown) => {
+  if (value === 'male') return 'ذكر';
+  if (value === 'female') return 'أنثى';
+  return '-';
+};
 
 export default function AdminEventRegistrantsPage() {
   const { id } = useParams<{ id: string }>();
@@ -150,12 +165,16 @@ export default function AdminEventRegistrantsPage() {
 
     const data = registrations.data.map((reg) => {
       const user = reg.user as User | undefined;
+      const formData = reg.formData || {};
       const baseData: Record<string, unknown> = {
         "رقم التسجيل": reg.registrationNumber,
-        "الاسم (عربي)": user?.fullNameAr || "ضيف",
-        "الاسم (إنجليزي)": user?.fullNameEn || "Guest",
-        "البريد الإلكتروني": user?.email || reg.guestEmail || "-",
-        الهاتف: user?.phone || "-",
+        "الاسم (عربي)": user?.fullNameAr || formData.fullNameAr || "ضيف",
+        "الاسم (إنجليزي)": user?.fullNameEn || formData.fullNameEn || "Guest",
+        "البريد الإلكتروني": user?.email || formData.email || reg.guestEmail || "-",
+        الهاتف: user?.phone || formData.phone || "-",
+        "الوصف الوظيفي": user?.specialty || formData.specialty || "-",
+        النوع: user?.gender ? getGenderLabel(user.gender) : getGenderLabel(formData.gender),
+        "مكان العمل": user?.workplace || formData.workplace || "-",
         الحالة:
           reg.status === "attended"
             ? "حضر"
@@ -167,18 +186,20 @@ export default function AdminEventRegistrantsPage() {
 
       // Add dynamic form data
       if (event.formSchema) {
-        event.formSchema.forEach((field) => {
+        event.formSchema
+          .filter((field) => !defaultProfileFieldIds.has(field.id))
+          .forEach((field) => {
           if (field.type === "section") {
             return;
           }
 
-          const currentValue = reg.formData[field.id];
+          const currentValue = formData[field.id];
           if (
             (field.type === "select" || field.type === "radio") &&
             field.allowOther &&
             currentValue === OTHER_OPTION_VALUE
           ) {
-            baseData[field.label] = formatDynamicValue(reg.formData[getOtherFieldId(field.id)]);
+            baseData[field.label] = formatDynamicValue(formData[getOtherFieldId(field.id)]);
             return;
           }
 
@@ -288,6 +309,7 @@ export default function AdminEventRegistrantsPage() {
               registrations.data.map((reg) => {
                 const user = reg.user as User | undefined;
                 const uploadedFile = extractUploadedFile(reg.formData);
+                const guestFormData = reg.formData || {};
                 return (
                   <TableRow key={reg._id}>
                     <TableCell className="font-mono">
@@ -295,13 +317,13 @@ export default function AdminEventRegistrantsPage() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{user?.fullNameAr || "ضيف"}</p>
+                        <p className="font-medium">{user?.fullNameAr || String(guestFormData.fullNameAr || "ضيف")}</p>
                         <p className="text-sm text-muted-foreground">
-                          {user?.fullNameEn || "Guest"}
+                          {user?.fullNameEn || String(guestFormData.fullNameEn || "Guest")}
                         </p>
                       </div>
                     </TableCell>
-                    <TableCell>{user?.email || reg.guestEmail || "-"}</TableCell>
+                    <TableCell>{user?.email || String(guestFormData.email || reg.guestEmail || "-")}</TableCell>
                     <TableCell>
                       <Badge
                         variant={
@@ -412,7 +434,59 @@ export default function AdminEventRegistrantsPage() {
 
           {detailsRegistration && (
             <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                <p className="text-sm font-semibold text-foreground">الاسم (عربي)</p>
+                <p className="text-sm text-muted-foreground">
+                  {(detailsRegistration.user as User | undefined)?.fullNameAr ||
+                    String(detailsRegistration.formData.fullNameAr || '-')}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                <p className="text-sm font-semibold text-foreground">الاسم (إنجليزي)</p>
+                <p className="text-sm text-muted-foreground">
+                  {(detailsRegistration.user as User | undefined)?.fullNameEn ||
+                    String(detailsRegistration.formData.fullNameEn || '-')}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                <p className="text-sm font-semibold text-foreground">البريد الإلكتروني</p>
+                <p className="text-sm text-muted-foreground">
+                  {(detailsRegistration.user as User | undefined)?.email ||
+                    String(detailsRegistration.formData.email || detailsRegistration.guestEmail || '-')}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                <p className="text-sm font-semibold text-foreground">رقم الهاتف</p>
+                <p className="text-sm text-muted-foreground">
+                  {(detailsRegistration.user as User | undefined)?.phone ||
+                    String(detailsRegistration.formData.phone || '-')}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                <p className="text-sm font-semibold text-foreground">الوصف الوظيفي</p>
+                <p className="text-sm text-muted-foreground">
+                  {(detailsRegistration.user as User | undefined)?.specialty ||
+                    String(detailsRegistration.formData.specialty || '-')}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                <p className="text-sm font-semibold text-foreground">النوع</p>
+                <p className="text-sm text-muted-foreground">
+                  {(detailsRegistration.user as User | undefined)?.gender
+                    ? getGenderLabel((detailsRegistration.user as User).gender)
+                    : getGenderLabel(detailsRegistration.formData.gender)}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                <p className="text-sm font-semibold text-foreground">مكان العمل</p>
+                <p className="text-sm text-muted-foreground">
+                  {(detailsRegistration.user as User | undefined)?.workplace ||
+                    String(detailsRegistration.formData.workplace || '-')}
+                </p>
+              </div>
+
               {event.formSchema
+                ?.filter((field) => !defaultProfileFieldIds.has(field.id))
                 ?.filter((field) => field.type !== "section")
                 .map((field) => {
                   const display = getFieldDisplay(field, detailsRegistration.formData);

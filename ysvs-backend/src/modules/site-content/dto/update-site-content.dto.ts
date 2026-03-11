@@ -4,6 +4,7 @@ import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import {
   CreateFooterContentDto,
   CreateFooterQuickLinkDto,
+  CreateHomepageContentDto,
   CreateFooterSocialLinkDto,
   CreateLegalPageDto,
 } from './create-site-content.dto';
@@ -15,6 +16,8 @@ export class UpdateFooterSocialLinkDto extends PartialType(CreateFooterSocialLin
 export class UpdateFooterContentDto extends PartialType(CreateFooterContentDto) {}
 
 export class UpdateLegalPageDto extends PartialType(CreateLegalPageDto) {}
+
+export class UpdateHomepageContentDto extends PartialType(CreateHomepageContentDto) {}
 
 export class UpdateLegalPagesDto {
   @ApiPropertyOptional({ type: UpdateLegalPageDto })
@@ -42,4 +45,10 @@ export class UpdateSiteContentDto {
   @ValidateNested()
   @Type(() => UpdateLegalPagesDto)
   legalPages?: UpdateLegalPagesDto;
+
+  @ApiPropertyOptional({ type: UpdateHomepageContentDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UpdateHomepageContentDto)
+  homepage?: UpdateHomepageContentDto;
 }

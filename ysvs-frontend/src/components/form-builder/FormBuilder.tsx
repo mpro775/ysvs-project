@@ -248,44 +248,37 @@ function buildTemplateFields(template: 'doctor' | 'nurse' | 'student'): FormFiel
     return [
       {
         id: generateId(),
-        type: 'text',
-        label: 'الاسم الكامل',
-        labelEn: 'Full Name',
+        type: 'select',
+        label: 'المجال الطبي الدقيق',
+        labelEn: 'Sub-specialty',
         required: true,
         order: 0,
-      },
-      {
-        id: generateId(),
-        type: 'phone',
-        label: 'رقم الهاتف',
-        labelEn: 'Phone Number',
-        required: true,
-        order: 1,
-      },
-      {
-        id: generateId(),
-        type: 'select',
-        label: 'الصفة الوظيفية',
-        labelEn: 'Position',
-        required: true,
-        order: 2,
         options: [
-          { value: 'consultant', label: 'استشاري' },
-          { value: 'specialist', label: 'أخصائي' },
-          { value: 'resident', label: 'مقيم' },
+          { value: 'vascular_surgery', label: 'جراحة الأوعية' },
+          { value: 'interventional_radiology', label: 'الأشعة التداخلية' },
+          { value: 'cardiology', label: 'القلب والأوعية' },
         ],
       },
       {
         id: generateId(),
-        type: 'file',
-        label: 'بطاقة مزاولة المهنة',
-        labelEn: 'Practice License',
+        type: 'radio',
+        label: 'سنوات الخبرة',
+        labelEn: 'Years of Experience',
         required: true,
-        order: 3,
-        validation: {
-          fileTypes: ['.pdf', '.jpg', '.jpeg', '.png'],
-          maxFileSize: 5,
-        },
+        order: 1,
+        options: [
+          { value: 'lt3', label: 'أقل من 3 سنوات' },
+          { value: '3to7', label: '3-7 سنوات' },
+          { value: 'gt7', label: 'أكثر من 7 سنوات' },
+        ],
+      },
+      {
+        id: generateId(),
+        type: 'checkbox',
+        label: 'أوافق على الالتزام بالحضور الكامل للجلسات',
+        labelEn: 'I commit to full attendance',
+        required: true,
+        order: 2,
       },
     ];
   }
@@ -294,11 +287,16 @@ function buildTemplateFields(template: 'doctor' | 'nurse' | 'student'): FormFiel
     return [
       {
         id: generateId(),
-        type: 'text',
-        label: 'الاسم الكامل',
-        labelEn: 'Full Name',
+        type: 'select',
+        label: 'قسم التمريض',
+        labelEn: 'Nursing Department',
         required: true,
         order: 0,
+        options: [
+          { value: 'icu', label: 'العناية المركزة' },
+          { value: 'or', label: 'غرفة العمليات' },
+          { value: 'ward', label: 'الأقسام الداخلية' },
+        ],
       },
       {
         id: generateId(),
@@ -327,11 +325,16 @@ function buildTemplateFields(template: 'doctor' | 'nurse' | 'student'): FormFiel
   return [
     {
       id: generateId(),
-      type: 'text',
-      label: 'الاسم الكامل',
-      labelEn: 'Full Name',
+      type: 'select',
+      label: 'التخصص الدراسي',
+      labelEn: 'Academic Program',
       required: true,
       order: 0,
+      options: [
+        { value: 'medicine', label: 'طب بشري' },
+        { value: 'nursing', label: 'تمريض' },
+        { value: 'allied_health', label: 'علوم صحية' },
+      ],
     },
     {
       id: generateId(),

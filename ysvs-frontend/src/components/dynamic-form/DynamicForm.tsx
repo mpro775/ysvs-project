@@ -19,21 +19,88 @@ import { useRegisterEvent, useUploadRegistrationFile } from '@/api/hooks/useEven
 import { InlineLoader } from '@/components/shared/LoadingSpinner';
 import type { FormField, UploadedFormFile } from '@/types';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/stores/authStore';
 
 const OTHER_OPTION_VALUE = '__other__';
 const getOtherFieldId = (fieldId: string) => `${fieldId}__other`;
+
+const guestProfileFields = [
+  {
+    id: 'fullNameAr',
+    label: 'الاسم الكامل (عربي)',
+    type: 'text' as const,
+    placeholder: 'د. أحمد محمد',
+    required: true,
+  },
+  {
+    id: 'fullNameEn',
+    label: 'الاسم الكامل (إنجليزي)',
+    type: 'text' as const,
+    placeholder: 'Dr. Ahmed Mohammed',
+    required: true,
+  },
+  {
+    id: 'email',
+    label: 'البريد الإلكتروني',
+    type: 'email' as const,
+    placeholder: 'you@example.com',
+    required: true,
+  },
+  {
+    id: 'phone',
+    label: 'رقم الهاتف',
+    type: 'phone' as const,
+    placeholder: '+967 xxx xxx xxx',
+    required: true,
+  },
+  {
+    id: 'specialty',
+    label: 'الوصف الوظيفي',
+    type: 'text' as const,
+    placeholder: 'جراح أوعية، أخصائي، طبيب مقيم...',
+    required: true,
+  },
+  {
+    id: 'gender',
+    label: 'النوع',
+    type: 'select' as const,
+    required: true,
+  },
+  {
+    id: 'workplace',
+    label: 'مكان العمل',
+    type: 'text' as const,
+    placeholder: 'مستشفى الثورة العام',
+    required: true,
+  },
+];
 
 interface DynamicFormProps {
   eventId: string;
   schema: FormField[];
   isAuthenticated: boolean;
   guestRegistrationEnabled: boolean;
-  guestEmailMode: 'required' | 'optional';
 }
 
 // Build Zod schema dynamically
-function buildValidationSchema(fields: FormField[]) {
+function buildValidationSchema(fields: FormField[], includeGuestProfile: boolean) {
   const shape: Record<string, z.ZodTypeAny> = {};
+
+  if (includeGuestProfile) {
+    shape.fullNameAr = z.string().trim().min(3, 'الاسم بالعربي مطلوب');
+    shape.fullNameEn = z.string().trim().min(3, 'الاسم بالإنجليزي مطلوب');
+    shape.email = z.string().trim().email('البريد الإلكتروني غير صالح');
+    shape.phone = z
+      .string()
+      .trim()
+      .min(1, 'رقم الهاتف مطلوب')
+      .refine((value) => /^(?:\+?967\d{0,9}|7\d{2,8})$/.test(value.replace(/[\s\-().]/g, '')), {
+        message: 'رقم الهاتف غير صالح',
+      });
+    shape.specialty = z.string().trim().min(2, 'الوصف الوظيفي مطلوب');
+    shape.gender = z.enum(['male', 'female']);
+    shape.workplace = z.string().trim().min(2, 'مكان العمل مطلوب');
+  }
 
   fields.forEach((field) => {
     let validator: z.ZodTypeAny;
@@ -329,17 +396,16 @@ export function DynamicForm({
   schema,
   isAuthenticated,
   guestRegistrationEnabled,
-  guestEmailMode,
 }: DynamicFormProps) {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
   const [uploadingFieldId, setUploadingFieldId] = useState<string | null>(null);
-  const [guestEmail, setGuestEmail] = useState('');
-  const [guestEmailError, setGuestEmailError] = useState<string | null>(null);
   const { mutate: registerEvent, isPending } = useRegisterEvent();
   const { mutateAsync: uploadRegistrationFile } = useUploadRegistrationFile();
 
+  const isGuest = guestRegistrationEnabled && !isAuthenticated;
   const sortedSchema = [...schema].sort((a, b) => a.order - b.order);
-  const validationSchema = buildValidationSchema(sortedSchema);
+  const validationSchema = buildValidationSchema(sortedSchema, isGuest);
   const sectionOrdinals = [
     'أولاً',
     'ثانياً',
@@ -430,24 +496,10 @@ export function DynamicForm({
   };
 
   const onSubmit = (data: Record<string, unknown>) => {
-    const isGuest = guestRegistrationEnabled && !isAuthenticated;
-    const normalizedGuestEmail = guestEmail.trim().toLowerCase();
-
-    if (isGuest) {
-      const isRequired = guestEmailMode === 'required';
-      if (isRequired && !normalizedGuestEmail) {
-        setGuestEmailError('البريد الإلكتروني مطلوب للتسجيل كضيف');
-        return;
-      }
-
-      if (normalizedGuestEmail) {
-        const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedGuestEmail);
-        if (!isValidEmail) {
-          setGuestEmailError('يرجى إدخال بريد إلكتروني صالح');
-          return;
-        }
-      }
-    }
+    const normalizedGuestEmail =
+      isGuest && typeof data.email === 'string'
+        ? data.email.trim().toLowerCase()
+        : undefined;
 
     for (const field of sortedSchema) {
       if ((field.type === 'select' || field.type === 'radio') && field.allowOther) {
@@ -459,15 +511,11 @@ export function DynamicForm({
       }
     }
 
-    setGuestEmailError(null);
     registerEvent(
       {
         eventId,
         data,
-        guestEmail:
-          isGuest && normalizedGuestEmail.length > 0
-            ? normalizedGuestEmail
-            : undefined,
+        guestEmail: normalizedGuestEmail,
       },
       {
         onSuccess: () => {
@@ -479,31 +527,73 @@ export function DynamicForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 text-right" dir="rtl">
-      {guestRegistrationEnabled && !isAuthenticated && (
-        <div className="space-y-2 text-right">
-          <Label htmlFor="guest-email">
-            البريد الإلكتروني
-            {guestEmailMode === 'required' && (
-              <span className="ml-1 text-destructive">*</span>
-            )}
-          </Label>
-          <Input
-            id="guest-email"
-            type="email"
-            dir="ltr"
-            value={guestEmail}
-            onChange={(event) => {
-              setGuestEmail(event.target.value);
-              if (guestEmailError) {
-                setGuestEmailError(null);
+      {!isGuest && (
+        <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+          سيتم اعتماد البيانات الأساسية من حسابك تلقائياً
+          {user?.fullNameAr ? ` (${user.fullNameAr})` : ''}
+          ، ويظهر هنا فقط ما هو خاص بهذا المؤتمر.
+        </div>
+      )}
+
+      {isGuest && (
+        <div className="space-y-4 rounded-lg border p-4">
+          <p className="text-sm font-semibold">البيانات الأساسية للضيف</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            {guestProfileFields.map((field) => {
+              const value = watch(field.id);
+              const error = errors[field.id]?.message as string | undefined;
+
+              if (field.id === 'gender') {
+                return (
+                  <div key={field.id} className="space-y-2 text-right">
+                    <Label htmlFor={field.id}>
+                      {field.label}
+                      {field.required && <span className="ml-1 text-destructive">*</span>}
+                    </Label>
+                    <Select
+                      value={(value as string) || ''}
+                      onValueChange={(nextValue) =>
+                        setValue(field.id, nextValue, { shouldValidate: true, shouldDirty: true })
+                      }
+                    >
+                      <SelectTrigger id={field.id} className={error ? 'border-destructive' : ''}>
+                        <SelectValue placeholder="اختر النوع" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">ذكر</SelectItem>
+                        <SelectItem value="female">أنثى</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {error && <p className="text-sm text-destructive">{error}</p>}
+                  </div>
+                );
               }
-            }}
-            className={guestEmailError ? 'border-destructive' : ''}
-            placeholder="you@example.com"
-          />
-          {guestEmailError && (
-            <p className="text-sm text-destructive">{guestEmailError}</p>
-          )}
+
+              return (
+                <div key={field.id} className="space-y-2 text-right">
+                  <Label htmlFor={field.id}>
+                    {field.label}
+                    {field.required && <span className="ml-1 text-destructive">*</span>}
+                  </Label>
+                  <Input
+                    id={field.id}
+                    type={field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'}
+                    dir={field.type === 'email' || field.type === 'phone' ? 'ltr' : 'rtl'}
+                    className={error ? 'border-destructive' : ''}
+                    placeholder={field.placeholder}
+                    value={(value as string) || ''}
+                    onChange={(event) =>
+                      setValue(field.id, event.target.value, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      })
+                    }
+                  />
+                  {error && <p className="text-sm text-destructive">{error}</p>}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

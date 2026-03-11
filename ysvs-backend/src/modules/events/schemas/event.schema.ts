@@ -126,6 +126,13 @@ export interface EventScheduleItem {
   speakerIds?: string[];
 }
 
+export interface EventDay {
+  date: Date;
+  startTime: Date;
+  endTime: Date;
+  cmeHours: number;
+}
+
 export interface EventLiveStream {
   provider: EventStreamProvider;
   embedUrl?: string;
@@ -228,6 +235,9 @@ export class Event extends Document {
 
   @Prop({ type: [Object], default: [] })
   schedule: EventScheduleItem[];
+
+  @Prop({ type: [Object], default: [] })
+  eventDays: EventDay[];
 
   @Prop({ type: [Object], default: [] })
   formSchema: FormField[];

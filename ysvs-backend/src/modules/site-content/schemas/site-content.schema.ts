@@ -115,6 +115,23 @@ export class LegalPages {
 
 export const LegalPagesSchema = SchemaFactory.createForClass(LegalPages);
 
+@Schema({ _id: false })
+export class HomepageContent {
+  @Prop({ trim: true, default: null })
+  countdownEventId?: string | null;
+
+  @Prop({ default: 25, min: 0 })
+  conferencesCount: number;
+
+  @Prop({ default: 500, min: 0 })
+  registeredMembersCount: number;
+
+  @Prop({ default: 25, min: 0 })
+  annualActivitiesCount: number;
+}
+
+export const HomepageContentSchema = SchemaFactory.createForClass(HomepageContent);
+
 @Schema({ timestamps: true })
 export class SiteContent extends Document {
   @Prop({
@@ -132,6 +149,17 @@ export class SiteContent extends Document {
 
   @Prop({ type: LegalPagesSchema, required: true })
   legalPages: LegalPages;
+
+  @Prop({
+    type: HomepageContentSchema,
+    default: {
+      countdownEventId: null,
+      conferencesCount: 25,
+      registeredMembersCount: 500,
+      annualActivitiesCount: 25,
+    },
+  })
+  homepage: HomepageContent;
 
   createdAt: Date;
   updatedAt: Date;

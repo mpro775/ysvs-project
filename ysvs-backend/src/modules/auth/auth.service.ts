@@ -14,6 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { RegistrationService } from '../events/registration.service';
 import { CertificatesService } from '../certificates/certificates.service';
 import { NotificationsPublisherService } from '../notifications/notifications.publisher.service';
+import { ProfessionalVerificationStatus } from '../users/schemas/user.schema';
 
 export interface TokenPayload {
   sub: string;
@@ -115,7 +116,17 @@ export class AuthService {
           email: user.email,
           fullNameAr: user.fullNameAr,
           fullNameEn: user.fullNameEn,
+          phone: user.phone,
+          specialty: user.specialty,
+          workplace: user.workplace,
+          gender: user.gender,
           role: user.role,
+          isVerified: user.isVerified,
+          professionalVerification: {
+            status:
+              user.professionalVerification?.status ||
+              ProfessionalVerificationStatus.NOT_SUBMITTED,
+          },
         },
         guestLinkResult,
         ...tokens,
@@ -145,8 +156,23 @@ export class AuthService {
           email: fullUser.email,
           fullNameAr: fullUser.fullNameAr,
           fullNameEn: fullUser.fullNameEn,
+          phone: fullUser.phone,
+          specialty: fullUser.specialty,
+          workplace: fullUser.workplace,
+          gender: fullUser.gender,
           role: fullUser.role,
           avatar: fullUser.avatar,
+          isVerified: fullUser.isVerified,
+          professionalVerification: {
+            status:
+              fullUser.professionalVerification?.status ||
+              ProfessionalVerificationStatus.NOT_SUBMITTED,
+            document: fullUser.professionalVerification?.document,
+            rejectionReason: fullUser.professionalVerification?.rejectionReason,
+            reviewedAt: fullUser.professionalVerification?.reviewedAt,
+            reviewedBy: fullUser.professionalVerification?.reviewedBy,
+            lastSubmittedAt: fullUser.professionalVerification?.lastSubmittedAt,
+          },
         },
         guestLinkResult,
         ...tokens,

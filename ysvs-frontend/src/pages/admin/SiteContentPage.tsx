@@ -13,6 +13,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { InlineLoader } from '@/components/shared/LoadingSpinner';
@@ -20,11 +27,15 @@ import {
   useAdminSiteContent,
   usePublishPrivacyPolicy,
   usePublishTermsAndConditions,
+  useUpdateHomepageContent,
   useUpdatePrivacyPolicy,
   useUpdateSiteFooter,
   useUpdateTermsAndConditions,
 } from '@/api/hooks/useContent';
+import { useEvents } from '@/api/hooks/useEvents';
 import type { FooterQuickLink, FooterSocialLink, LegalPage } from '@/types';
+
+const NO_COUNTDOWN_EVENT = '__none__';
 
 interface FooterFormState {
   descriptionAr: string;
@@ -70,9 +81,22 @@ function legalToForm(legal?: LegalPage): LegalFormState {
   };
 }
 
+const normalizeCountInput = (value: string): number => {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed < 0) {
+    return 0;
+  }
+  return parsed;
+};
+
 export default function AdminSiteContentPage() {
   const { data, isLoading, isError } = useAdminSiteContent();
+  const { data: upcomingEventsResponse, isLoading: isLoadingUpcomingEvents } = useEvents({
+    status: 'upcoming',
+    limit: 100,
+  });
   const { mutate: updateFooter, isPending: isFooterSaving } = useUpdateSiteFooter();
+  const { mutate: updateHomepageContent, isPending: isHomepageSaving } = useUpdateHomepageContent();
   const { mutate: updatePrivacy, isPending: isPrivacySaving } = useUpdatePrivacyPolicy();
   const { mutate: updateTerms, isPending: isTermsSaving } = useUpdateTermsAndConditions();
   const { mutate: publishPrivacy, isPending: isPublishingPrivacy } = usePublishPrivacyPolicy();
@@ -93,6 +117,10 @@ export default function AdminSiteContentPage() {
   });
   const [privacyForm, setPrivacyForm] = useState<LegalFormState>(legalToForm());
   const [termsForm, setTermsForm] = useState<LegalFormState>(legalToForm());
+  const [homepageCountdownEventId, setHomepageCountdownEventId] = useState<string | null>(null);
+  const [homepageConferencesCount, setHomepageConferencesCount] = useState('25');
+  const [homepageRegisteredMembersCount, setHomepageRegisteredMembersCount] = useState('500');
+  const [homepageAnnualActivitiesCount, setHomepageAnnualActivitiesCount] = useState('25');
 
   useEffect(() => {
     if (!data || initialized) return;
@@ -119,8 +147,20 @@ export default function AdminSiteContentPage() {
 
     setPrivacyForm(legalToForm(data.legalPages.privacy));
     setTermsForm(legalToForm(data.legalPages.terms));
+    setHomepageCountdownEventId(data.homepage?.countdownEventId || null);
+    setHomepageConferencesCount(String(data.homepage?.conferencesCount ?? 25));
+    setHomepageRegisteredMembersCount(String(data.homepage?.registeredMembersCount ?? 500));
+    setHomepageAnnualActivitiesCount(String(data.homepage?.annualActivitiesCount ?? 25));
     setInitialized(true);
   }, [data, initialized]);
+
+  const upcomingEvents = useMemo(
+    () =>
+      [...(upcomingEventsResponse?.data || [])].sort(
+        (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+      ),
+    [upcomingEventsResponse?.data],
+  );
 
   const canSaveFooter = useMemo(() => {
     if (!initialized) return false;
@@ -144,6 +184,41 @@ export default function AdminSiteContentPage() {
       ),
     [privacyForm],
   );
+
+  const canSaveHomepage = useMemo(() => {
+    if (!initialized) return false;
+
+    const initialCountdownEventId = data?.homepage?.countdownEventId || null;
+    const initialConferencesCount = data?.homepage?.conferencesCount ?? 25;
+    const initialRegisteredMembersCount = data?.homepage?.registeredMembersCount ?? 500;
+    const initialAnnualActivitiesCount = data?.homepage?.annualActivitiesCount ?? 25;
+
+    const currentConferencesCount = normalizeCountInput(homepageConferencesCount);
+    const currentRegisteredMembersCount = normalizeCountInput(homepageRegisteredMembersCount);
+    const currentAnnualActivitiesCount = normalizeCountInput(homepageAnnualActivitiesCount);
+
+    return (
+      initialCountdownEventId !== homepageCountdownEventId ||
+      initialConferencesCount !== currentConferencesCount ||
+      initialRegisteredMembersCount !== currentRegisteredMembersCount ||
+      initialAnnualActivitiesCount !== currentAnnualActivitiesCount
+    );
+  }, [
+    data?.homepage?.annualActivitiesCount,
+    data?.homepage?.conferencesCount,
+    data?.homepage?.countdownEventId,
+    data?.homepage?.registeredMembersCount,
+    homepageAnnualActivitiesCount,
+    homepageConferencesCount,
+    homepageCountdownEventId,
+    homepageRegisteredMembersCount,
+    initialized,
+  ]);
+
+  const hasStaleCountdownSelection = useMemo(() => {
+    if (!homepageCountdownEventId) return false;
+    return !upcomingEvents.some((event) => event._id === homepageCountdownEventId);
+  }, [homepageCountdownEventId, upcomingEvents]);
 
   const canSaveTerms = useMemo(
     () =>
@@ -273,6 +348,20 @@ export default function AdminSiteContentPage() {
     });
   };
 
+  const handleSaveHomepage = () => {
+    updateHomepageContent({
+      countdownEventId: homepageCountdownEventId || null,
+      conferencesCount: normalizeCountInput(homepageConferencesCount),
+      registeredMembersCount: normalizeCountInput(homepageRegisteredMembersCount),
+      annualActivitiesCount: normalizeCountInput(homepageAnnualActivitiesCount),
+    });
+  };
+
+  const handleDisableHomepageCountdown = () => {
+    setHomepageCountdownEventId(null);
+    updateHomepageContent({ countdownEventId: null });
+  };
+
   const handleSavePrivacy = () => {
     updatePrivacy({
       titleAr: privacyForm.titleAr.trim(),
@@ -321,6 +410,7 @@ export default function AdminSiteContentPage() {
       <Tabs defaultValue="footer" className="space-y-6">
         <TabsList className="flex w-full flex-wrap sm:inline-flex">
           <TabsTrigger value="footer">الفوتر</TabsTrigger>
+          <TabsTrigger value="homepage">الصفحة الرئيسية</TabsTrigger>
           <TabsTrigger value="privacy">سياسة الخصوصية</TabsTrigger>
           <TabsTrigger value="terms">الشروط والأحكام</TabsTrigger>
         </TabsList>
@@ -598,6 +688,111 @@ export default function AdminSiteContentPage() {
                   </div>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="homepage">
+          <Card>
+            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle>عداد المؤتمر القادم</CardTitle>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={handleSaveHomepage} disabled={!canSaveHomepage || isHomepageSaving}>
+                  {isHomepageSaving ? (
+                    <>
+                      <InlineLoader className="ml-2" />
+                      جاري حفظ الإعداد...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="ml-2 h-4 w-4" />
+                      حفظ الاختيار
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleDisableHomepageCountdown}
+                  disabled={isHomepageSaving || homepageCountdownEventId === null}
+                >
+                  تعطيل العداد
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert>
+                <AlertTitle>مهم</AlertTitle>
+                <AlertDescription>
+                  إذا انتهى المؤتمر المختار أو تغيّرت حالته، سيختفي العداد تلقائياً من الصفحة الرئيسية
+                  حتى تقوم بتفعيله عبر اختيار مؤتمر قادم جديد.
+                </AlertDescription>
+              </Alert>
+
+              <div className="space-y-2">
+                <Label>المؤتمر المعروض في العداد</Label>
+                <Select
+                  value={homepageCountdownEventId || NO_COUNTDOWN_EVENT}
+                  onValueChange={(value) => {
+                    setHomepageCountdownEventId(value === NO_COUNTDOWN_EVENT ? null : value);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر مؤتمراً قادماً" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_COUNTDOWN_EVENT}>بدون عداد</SelectItem>
+                    {hasStaleCountdownSelection && homepageCountdownEventId && (
+                      <SelectItem value={homepageCountdownEventId}>
+                        اختيار سابق غير صالح (انتهى أو غير متاح)
+                      </SelectItem>
+                    )}
+                    {upcomingEvents.map((event) => (
+                      <SelectItem key={event._id} value={event._id}>
+                        {event.titleAr}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>عدد المؤتمرات العلمية</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={homepageConferencesCount}
+                    onChange={(event) => setHomepageConferencesCount(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>عدد الأعضاء المسجلين</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={homepageRegisteredMembersCount}
+                    onChange={(event) => setHomepageRegisteredMembersCount(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>عدد الفعاليات السنوية</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={homepageAnnualActivitiesCount}
+                    onChange={(event) => setHomepageAnnualActivitiesCount(event.target.value)}
+                  />
+                </div>
+              </div>
+
+              {isLoadingUpcomingEvents ? (
+                <p className="text-sm text-muted-foreground">جاري تحميل قائمة المؤتمرات القادمة...</p>
+              ) : upcomingEvents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  لا توجد مؤتمرات قادمة حالياً. يمكنك تعطيل العداد أو إنشاء مؤتمر جديد.
+                </p>
+              ) : null}
             </CardContent>
           </Card>
         </TabsContent>

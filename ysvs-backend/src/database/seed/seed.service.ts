@@ -213,6 +213,12 @@ export class SeedService {
           isPublished: true,
         },
       },
+      homepage: {
+        countdownEventId: null,
+        conferencesCount: 25,
+        registeredMembersCount: 500,
+        annualActivitiesCount: 25,
+      },
     };
 
     await this.siteContentModel.create(siteContent);

@@ -8,6 +8,41 @@ export const UserRole = {
 
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
+export const ProfessionalVerificationStatus = {
+  NOT_SUBMITTED: 'not_submitted',
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+} as const;
+
+export type ProfessionalVerificationStatus =
+  (typeof ProfessionalVerificationStatus)[keyof typeof ProfessionalVerificationStatus];
+
+export const Gender = {
+  MALE: 'male',
+  FEMALE: 'female',
+} as const;
+
+export type Gender = (typeof Gender)[keyof typeof Gender];
+
+export interface VerificationDocument {
+  key: string;
+  url: string;
+  originalName: string;
+  mimetype: string;
+  size: number;
+  uploadedAt: Date;
+}
+
+export interface ProfessionalVerification {
+  status: ProfessionalVerificationStatus;
+  document?: VerificationDocument;
+  rejectionReason?: string;
+  reviewedBy?: string;
+  reviewedAt?: Date;
+  lastSubmittedAt?: Date;
+}
+
 export interface User {
   _id: string;
   email: string;
@@ -17,10 +52,12 @@ export interface User {
   role: UserRole;
   specialty?: string;
   workplace?: string;
+  gender?: Gender;
   membershipDate?: Date;
   isActive: boolean;
   isVerified: boolean;
   avatar?: string;
+  professionalVerification?: ProfessionalVerification;
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -174,6 +211,13 @@ export interface EventScheduleItem {
   speakerIds?: string[];
 }
 
+export interface EventDay {
+  date: Date;
+  startTime: Date;
+  endTime: Date;
+  cmeHours: number;
+}
+
 export interface EventLiveStream {
   provider: EventStreamProvider;
   embedUrl?: string;
@@ -213,6 +257,7 @@ export interface Event {
   targetAudience?: string[];
   speakers?: EventSpeaker[];
   schedule?: EventScheduleItem[];
+  eventDays?: EventDay[];
   formSchema: FormField[];
   ticketTypes?: string[];
   cmeHours: number;
@@ -386,8 +431,27 @@ export interface LegalPageMetadata {
   slug: 'privacy' | 'terms';
 }
 
+export interface HomepageContent {
+  countdownEventId?: string | null;
+  conferencesCount?: number;
+  registeredMembersCount?: number;
+  annualActivitiesCount?: number;
+}
+
+export interface HomepageCountdownEvent {
+  _id: string;
+  titleAr: string;
+  titleEn: string;
+  slug: string;
+  startDate: Date;
+  endDate: Date;
+  location?: Location;
+  coverImage?: string;
+}
+
 export interface SitePublicContent {
   footer: FooterContent;
+  homepage: HomepageContent;
   legal: LegalPageMetadata[];
 }
 
@@ -395,6 +459,7 @@ export interface SiteContent {
   _id: string;
   singletonKey: string;
   footer: FooterContent;
+  homepage: HomepageContent;
   legalPages: {
     privacy: LegalPage;
     terms: LegalPage;
@@ -460,6 +525,12 @@ export interface RegisterData {
   phone?: string;
   specialty?: string;
   workplace?: string;
+  gender: Gender;
+}
+
+export interface ProfessionalVerificationReviewData {
+  decision: 'approved' | 'rejected';
+  rejectionReason?: string;
 }
 
 export interface AuthResponse {

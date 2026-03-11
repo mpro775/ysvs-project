@@ -11,6 +11,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles, UserRole } from '../../common/decorators/roles.decorator';
 import {
+  UpdateHomepageContentDto,
   UpdateFooterContentDto,
   UpdateLegalPageDto,
   UpdateSiteContentDto,
@@ -27,6 +28,14 @@ export class SiteContentController {
   @ApiResponse({ status: 200, description: 'Public site content loaded successfully' })
   findPublic() {
     return this.siteContentService.findPublic();
+  }
+
+  @Public()
+  @Get('homepage/countdown-event')
+  @ApiOperation({ summary: 'Get configured homepage countdown event' })
+  @ApiResponse({ status: 200, description: 'Homepage countdown event loaded successfully' })
+  findHomepageCountdownEvent() {
+    return this.siteContentService.findHomepageCountdownEvent();
   }
 
   @Public()
@@ -75,6 +84,16 @@ export class SiteContentController {
   @ApiResponse({ status: 200, description: 'Footer content updated successfully' })
   updateFooter(@Body() updateDto: UpdateFooterContentDto) {
     return this.siteContentService.updateFooter(updateDto);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @Patch('homepage')
+  @ApiOperation({ summary: 'Update homepage content (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Homepage content updated successfully' })
+  updateHomepage(@Body() updateDto: UpdateHomepageContentDto) {
+    return this.siteContentService.updateHomepage(updateDto);
   }
 
   @ApiBearerAuth('JWT-auth')

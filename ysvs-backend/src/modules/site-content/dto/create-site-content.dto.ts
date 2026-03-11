@@ -4,6 +4,7 @@ import {
   IsDateString,
   IsEmail,
   IsInt,
+  IsMongoId,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -11,6 +12,7 @@ import {
   Matches,
   MaxLength,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -196,6 +198,36 @@ export class CreateLegalPagesDto {
   terms: CreateLegalPageDto;
 }
 
+export class CreateHomepageContentDto {
+  @ApiPropertyOptional({ example: '66f7e2a6aee7f8b68f5f1a34', nullable: true })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString({ message: 'معرف مؤتمر العداد يجب أن يكون نصاً' })
+  @IsMongoId({ message: 'معرف مؤتمر العداد غير صالح' })
+  countdownEventId?: string | null;
+
+  @ApiPropertyOptional({ example: 25, default: 25 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'عدد المؤتمرات يجب أن يكون رقماً صحيحاً' })
+  @Min(0, { message: 'عدد المؤتمرات يجب أن يكون أكبر من أو يساوي صفر' })
+  conferencesCount?: number;
+
+  @ApiPropertyOptional({ example: 500, default: 500 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'عدد الأعضاء المسجلين يجب أن يكون رقماً صحيحاً' })
+  @Min(0, { message: 'عدد الأعضاء المسجلين يجب أن يكون أكبر من أو يساوي صفر' })
+  registeredMembersCount?: number;
+
+  @ApiPropertyOptional({ example: 25, default: 25 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'عدد الفعاليات السنوية يجب أن يكون رقماً صحيحاً' })
+  @Min(0, { message: 'عدد الفعاليات السنوية يجب أن يكون أكبر من أو يساوي صفر' })
+  annualActivitiesCount?: number;
+}
+
 export class CreateSiteContentDto {
   @ApiPropertyOptional({ default: 'site-content' })
   @IsOptional()
@@ -212,4 +244,10 @@ export class CreateSiteContentDto {
   @ValidateNested()
   @Type(() => CreateLegalPagesDto)
   legalPages: CreateLegalPagesDto;
+
+  @ApiPropertyOptional({ type: CreateHomepageContentDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreateHomepageContentDto)
+  homepage?: CreateHomepageContentDto;
 }

@@ -4,13 +4,23 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { InlineLoader } from '@/components/shared/LoadingSpinner';
 import { useRegister } from '@/api/hooks/useAuth';
+import api from '@/api/axios';
+import { ENDPOINTS } from '@/api/endpoints';
 
 const registerSchema = z
   .object({
@@ -20,6 +30,7 @@ const registerSchema = z
     phone: z.string().optional(),
     specialty: z.string().optional(),
     workplace: z.string().optional(),
+    gender: z.enum(['male', 'female']),
     password: z.string().min(8, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'),
     confirmPassword: z.string(),
     terms: z.boolean().refine((val) => val === true, {
@@ -35,6 +46,7 @@ type RegisterForm = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [professionalCardFile, setProfessionalCardFile] = useState<File | null>(null);
   const navigate = useNavigate();
   const { mutate: registerUser, isPending } = useRegister();
 
@@ -56,7 +68,27 @@ export default function RegisterPage() {
   const onSubmit = (data: RegisterForm) => {
     const { confirmPassword: _, terms: __, ...registerData } = data;
     registerUser(registerData, {
-      onSuccess: () => {
+      onSuccess: async (registerResponse) => {
+        if (professionalCardFile && registerResponse?.accessToken) {
+          const formData = new FormData();
+          formData.append('file', professionalCardFile);
+
+          try {
+            await api.post(
+              ENDPOINTS.USERS.UPLOAD_PROFESSIONAL_VERIFICATION,
+              formData,
+              {
+                headers: {
+                  'Content-Type': 'multipart/form-data',
+                  Authorization: `Bearer ${registerResponse.accessToken}`,
+                },
+              },
+            );
+          } catch {
+            toast.warning('تم إنشاء الحساب ولكن تعذر رفع بطاقة المزاولة، يمكنك رفعها لاحقا من الملف الشخصي.');
+          }
+        }
+
         navigate('/login');
       },
     });
@@ -139,13 +171,50 @@ export default function RegisterPage() {
               </div>
             </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="workplace">مكان العمل</Label>
+                <Input
+                  id="workplace"
+                  placeholder="مستشفى الثورة العام"
+                  {...register('workplace')}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="gender">النوع *</Label>
+                <Select
+                  value={watch('gender') || ''}
+                  onValueChange={(value: 'male' | 'female') =>
+                    setValue('gender', value, { shouldDirty: true, shouldValidate: true })
+                  }
+                >
+                  <SelectTrigger id="gender" className={errors.gender ? 'border-destructive' : ''}>
+                    <SelectValue placeholder="اختر النوع" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">ذكر</SelectItem>
+                    <SelectItem value="female">أنثى</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.gender && <p className="text-sm text-destructive">{errors.gender.message}</p>}
+              </div>
+
             <div className="space-y-2">
-              <Label htmlFor="workplace">مكان العمل</Label>
+              <Label htmlFor="professionalCard">
+                بطاقة مزاولة المهنة (اختياري - يفيد في توثيق العضوية)
+              </Label>
               <Input
-                id="workplace"
-                placeholder="مستشفى الثورة العام"
-                {...register('workplace')}
+                id="professionalCard"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  setProfessionalCardFile(file);
+                }}
               />
+              <p className="text-xs text-muted-foreground">
+                عند رفع البطاقة سيتم إرسالها للإدارة وتظهر حالتها كـ "جاري المعالجة" حتى الاعتماد.
+              </p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">

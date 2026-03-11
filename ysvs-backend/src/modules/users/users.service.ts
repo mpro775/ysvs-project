@@ -2,21 +2,34 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
-import { User, UserDocument } from './schemas/user.schema';
-import { CreateUserDto, UpdateUserDto } from './dto';
+import {
+  ProfessionalVerificationStatus,
+  User,
+  UserDocument,
+} from './schemas/user.schema';
+import {
+  CreateUserDto,
+  ProfessionalVerificationQueryDto,
+  ProfessionalVerificationReviewDto,
+  UpdateUserDto,
+} from './dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
 import { UserRole } from '../../common/decorators/roles.decorator';
 import { NotificationsPublisherService } from '../notifications/notifications.publisher.service';
+import { MediaService } from '../media/media.service';
+import { MediaType } from '../media/dto';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private readonly notificationsPublisherService: NotificationsPublisherService,
+    private readonly mediaService: MediaService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -192,7 +205,193 @@ export class UsersService {
       isVerified: true,
       verificationToken: null,
       verificationExpires: null,
+      professionalVerification: {
+        status: ProfessionalVerificationStatus.APPROVED,
+      },
     });
+  }
+
+  async uploadProfessionalVerificationDocument(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<User> {
+    const user = await this.userModel
+      .findById(userId)
+      .select('-password -refreshToken -passwordResetToken -verificationToken')
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException('المستخدم غير موجود');
+    }
+
+    const uploadedFile = await this.mediaService.uploadFile(
+      file,
+      MediaType.DOCUMENT,
+      `member-verification/${userId}`,
+    );
+
+    user.professionalVerification = {
+      status: ProfessionalVerificationStatus.PENDING,
+      document: {
+        key: uploadedFile.path,
+        url: uploadedFile.url,
+        originalName: uploadedFile.originalName,
+        mimetype: uploadedFile.mimetype,
+        size: uploadedFile.size,
+        uploadedAt: new Date(),
+      },
+      reviewedAt: undefined,
+      reviewedBy: undefined,
+      rejectionReason: undefined,
+      lastSubmittedAt: new Date(),
+    };
+    user.isVerified = false;
+
+    await user.save();
+
+    this.notificationsPublisherService.publishToAdmins({
+      type: 'member.verification_submitted',
+      title: 'طلب توثيق عضو',
+      message: `رفع العضو ${user.fullNameAr} بطاقة مزاولة جديدة`,
+      entityId: user._id.toString(),
+      entityType: 'user',
+      severity: 'warning',
+      actionUrl: '/admin/members',
+      meta: {
+        verificationStatus: ProfessionalVerificationStatus.PENDING,
+      },
+    });
+
+    return user;
+  }
+
+  async getProfessionalVerification(userId: string): Promise<{
+    status: ProfessionalVerificationStatus;
+    document?: User['professionalVerification']['document'];
+    rejectionReason?: string;
+    reviewedAt?: Date;
+    reviewedBy?: string;
+    lastSubmittedAt?: Date;
+  }> {
+    const user = await this.userModel
+      .findById(userId)
+      .select('professionalVerification')
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException('المستخدم غير موجود');
+    }
+
+    return {
+      status:
+        user.professionalVerification?.status ||
+        ProfessionalVerificationStatus.NOT_SUBMITTED,
+      document: user.professionalVerification?.document,
+      rejectionReason: user.professionalVerification?.rejectionReason,
+      reviewedAt: user.professionalVerification?.reviewedAt,
+      reviewedBy: user.professionalVerification?.reviewedBy,
+      lastSubmittedAt: user.professionalVerification?.lastSubmittedAt,
+    };
+  }
+
+  async findProfessionalVerifications(
+    queryDto: ProfessionalVerificationQueryDto,
+  ): Promise<PaginatedResult<User>> {
+    const { page = 1, limit = 10, status, search } = queryDto;
+    const skip = (page - 1) * limit;
+
+    const query: Record<string, unknown> = {
+      role: UserRole.MEMBER,
+    };
+
+    if (status) {
+      query['professionalVerification.status'] = status;
+    }
+
+    if (search?.trim()) {
+      const trimmedSearch = search.trim();
+      query.$or = [
+        { fullNameAr: { $regex: trimmedSearch, $options: 'i' } },
+        { fullNameEn: { $regex: trimmedSearch, $options: 'i' } },
+        { email: { $regex: trimmedSearch, $options: 'i' } },
+      ];
+    }
+
+    const [users, total] = await Promise.all([
+      this.userModel
+        .find(query)
+        .select(
+          '-password -refreshToken -passwordResetToken -verificationToken -verificationExpires',
+        )
+        .sort({ 'professionalVerification.lastSubmittedAt': -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.userModel.countDocuments(query),
+    ]);
+
+    return new PaginatedResult(users, total, page, limit);
+  }
+
+  async reviewProfessionalVerification(
+    targetUserId: string,
+    reviewDto: ProfessionalVerificationReviewDto,
+    reviewerUserId: string,
+  ): Promise<User> {
+    const user = await this.userModel
+      .findById(targetUserId)
+      .select('-password -refreshToken -passwordResetToken -verificationToken')
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException('المستخدم غير موجود');
+    }
+
+    if (!user.professionalVerification?.document?.url) {
+      throw new BadRequestException('لا يوجد ملف مزاولة مرفوع لهذا العضو');
+    }
+
+    if (reviewDto.decision === 'rejected') {
+      const reason = reviewDto.rejectionReason?.trim();
+      if (!reason) {
+        throw new BadRequestException('سبب الرفض مطلوب عند رفض الطلب');
+      }
+
+      user.professionalVerification = {
+        ...(user.professionalVerification || {}),
+        status: ProfessionalVerificationStatus.REJECTED,
+        rejectionReason: reason,
+        reviewedBy: reviewerUserId,
+        reviewedAt: new Date(),
+      };
+      user.isVerified = false;
+    } else {
+      user.professionalVerification = {
+        ...(user.professionalVerification || {}),
+        status: ProfessionalVerificationStatus.APPROVED,
+        rejectionReason: undefined,
+        reviewedBy: reviewerUserId,
+        reviewedAt: new Date(),
+      };
+      user.isVerified = true;
+    }
+
+    await user.save();
+
+    this.notificationsPublisherService.publishToAdmins({
+      type: 'member.verification_reviewed',
+      title: 'مراجعة توثيق عضو',
+      message:
+        reviewDto.decision === 'approved'
+          ? `تم اعتماد توثيق العضو ${user.fullNameAr}`
+          : `تم رفض توثيق العضو ${user.fullNameAr}`,
+      entityId: user._id.toString(),
+      entityType: 'user',
+      severity: reviewDto.decision === 'approved' ? 'success' : 'warning',
+      actionUrl: '/admin/members',
+    });
+
+    return user;
   }
 
   async updateLastLogin(userId: string): Promise<void> {

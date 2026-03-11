@@ -31,6 +31,26 @@ import { MediaType } from '../media/dto';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { NotificationsPublisherService } from '../notifications/notifications.publisher.service';
 
+const DEFAULT_PROFILE_FIELD_IDS = {
+  FULL_NAME_AR: 'fullNameAr',
+  FULL_NAME_EN: 'fullNameEn',
+  EMAIL: 'email',
+  PHONE: 'phone',
+  SPECIALTY: 'specialty',
+  GENDER: 'gender',
+  WORKPLACE: 'workplace',
+} as const;
+
+type GuestProfileData = {
+  fullNameAr: string;
+  fullNameEn: string;
+  email: string;
+  phone: string;
+  specialty: string;
+  gender: 'male' | 'female';
+  workplace: string;
+};
+
 @Injectable()
 export class RegistrationService {
   constructor(
@@ -122,9 +142,19 @@ export class RegistrationService {
       throw new BadRequestException('تم الوصول للحد الأقصى من المسجلين');
     }
 
-    const normalizedGuestEmail = createRegistrationDto.guestEmail
-      ?.trim()
-      .toLowerCase();
+    const guestProfile = this.extractGuestProfileData(createRegistrationDto.formData);
+    const normalizedGuestEmail =
+      createRegistrationDto.guestEmail?.trim().toLowerCase() ||
+      guestProfile.email.toLowerCase();
+
+    if (
+      createRegistrationDto.guestEmail &&
+      guestProfile.email &&
+      createRegistrationDto.guestEmail.trim().toLowerCase() !==
+        guestProfile.email.toLowerCase()
+    ) {
+      throw new BadRequestException('البريد الإلكتروني للضيف غير متطابق');
+    }
 
     const registrationAccess =
       event.registrationAccess || RegistrationAccess.AUTHENTICATED_ONLY;
@@ -148,6 +178,8 @@ export class RegistrationService {
     }
 
     if (!user) {
+      this.validateGuestProfileData(guestProfile);
+
       const guestEmailRequired =
         guestEmailMode === GuestEmailMode.REQUIRED || event.cmeHours > 0;
 
@@ -229,8 +261,8 @@ export class RegistrationService {
       guestEmailNormalized: normalizedGuestEmail,
       identityEmailNormalized:
         user?.email.toLowerCase() || normalizedGuestEmail || `guest:${uuidv4()}`,
-      participantNameArSnapshot: user?.fullNameAr,
-      participantNameEnSnapshot: user?.fullNameEn,
+      participantNameArSnapshot: user?.fullNameAr || guestProfile.fullNameAr,
+      participantNameEnSnapshot: user?.fullNameEn || guestProfile.fullNameEn,
       ticketType: ticketType?._id,
       formData: createRegistrationDto.formData,
       registrationNumber,
@@ -248,6 +280,7 @@ export class RegistrationService {
 
     const participantName =
       user?.fullNameAr ||
+      guestProfile.fullNameAr ||
       this.extractNameFromFormData(createRegistrationDto.formData) ||
       normalizedGuestEmail ||
       'مشارك جديد';
@@ -509,6 +542,66 @@ export class RegistrationService {
 
     const value = candidate[1].trim();
     return value || null;
+  }
+
+  private extractGuestProfileData(formData: unknown): GuestProfileData {
+    const safeData =
+      formData && typeof formData === 'object'
+        ? (formData as Record<string, unknown>)
+        : {};
+
+    return {
+      fullNameAr: String(safeData[DEFAULT_PROFILE_FIELD_IDS.FULL_NAME_AR] || '').trim(),
+      fullNameEn: String(safeData[DEFAULT_PROFILE_FIELD_IDS.FULL_NAME_EN] || '').trim(),
+      email: String(safeData[DEFAULT_PROFILE_FIELD_IDS.EMAIL] || '').trim(),
+      phone: String(safeData[DEFAULT_PROFILE_FIELD_IDS.PHONE] || '').trim(),
+      specialty: String(safeData[DEFAULT_PROFILE_FIELD_IDS.SPECIALTY] || '').trim(),
+      gender: String(safeData[DEFAULT_PROFILE_FIELD_IDS.GENDER] || '').trim() as
+        | 'male'
+        | 'female',
+      workplace: String(safeData[DEFAULT_PROFILE_FIELD_IDS.WORKPLACE] || '').trim(),
+    };
+  }
+
+  private validateGuestProfileData(guestProfile: GuestProfileData): void {
+    if (!guestProfile.fullNameAr) {
+      throw new BadRequestException('الاسم بالعربي مطلوب للضيف');
+    }
+
+    if (!guestProfile.fullNameEn) {
+      throw new BadRequestException('الاسم بالإنجليزي مطلوب للضيف');
+    }
+
+    if (!guestProfile.email) {
+      throw new BadRequestException('البريد الإلكتروني مطلوب للضيف');
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(guestProfile.email)) {
+      throw new BadRequestException('البريد الإلكتروني للضيف غير صالح');
+    }
+
+    if (!guestProfile.phone) {
+      throw new BadRequestException('رقم الهاتف مطلوب للضيف');
+    }
+
+    const normalizedPhone = guestProfile.phone.replace(/[\s\-().]/g, '');
+    const phoneRegex = /^(?:\+?967\d{0,9}|7\d{2,8})$/;
+    if (!phoneRegex.test(normalizedPhone)) {
+      throw new BadRequestException('رقم الهاتف للضيف غير صالح');
+    }
+
+    if (!guestProfile.specialty) {
+      throw new BadRequestException('الوصف الوظيفي مطلوب للضيف');
+    }
+
+    if (!guestProfile.workplace) {
+      throw new BadRequestException('مكان العمل مطلوب للضيف');
+    }
+
+    if (!['male', 'female'].includes(guestProfile.gender)) {
+      throw new BadRequestException('النوع مطلوب للضيف');
+    }
   }
 
   private validateUploadAgainstField(

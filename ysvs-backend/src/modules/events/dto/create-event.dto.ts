@@ -194,6 +194,28 @@ class EventScheduleItemDto {
   speakerIds?: string[];
 }
 
+class EventDayDto {
+  @ApiProperty({ example: '2026-03-15T00:00:00.000Z' })
+  @IsDate({ message: 'تاريخ اليوم غير صالح' })
+  @Type(() => Date)
+  date: Date;
+
+  @ApiProperty({ example: '2026-03-15T09:00:00.000Z' })
+  @IsDate({ message: 'وقت بداية اليوم غير صالح' })
+  @Type(() => Date)
+  startTime: Date;
+
+  @ApiProperty({ example: '2026-03-15T15:00:00.000Z' })
+  @IsDate({ message: 'وقت نهاية اليوم غير صالح' })
+  @Type(() => Date)
+  endTime: Date;
+
+  @ApiProperty({ example: 6, description: 'اعتمادات CME لهذا اليوم' })
+  @IsNumber({}, { message: 'ساعات CME اليومية يجب أن تكون رقماً' })
+  @Min(0, { message: 'ساعات CME اليومية لا يمكن أن تكون سالبة' })
+  cmeHours: number;
+}
+
 class EventLiveStreamDto {
   @ApiPropertyOptional({
     enum: EventStreamProvider,
@@ -421,6 +443,16 @@ export class CreateEventDto {
   @ValidateNested({ each: true })
   @Type(() => EventScheduleItemDto)
   schedule?: EventScheduleItemDto[];
+
+  @ApiPropertyOptional({
+    type: [EventDayDto],
+    description: 'Conference days with daily timing and CME credits',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EventDayDto)
+  eventDays?: EventDayDto[];
 
   @ApiPropertyOptional({
     type: [FormFieldDto],

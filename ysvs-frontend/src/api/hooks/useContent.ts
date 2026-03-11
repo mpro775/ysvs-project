@@ -9,6 +9,8 @@ import type {
   Article,
   BoardMember,
   FooterContent,
+  HomepageContent,
+  HomepageCountdownEvent,
   LegalPage,
   NewsletterSubscriber,
   PaginatedResponse,
@@ -97,6 +99,13 @@ interface UpdateLegalPageData {
   version?: number;
   effectiveDate?: string;
   isPublished?: boolean;
+}
+
+interface UpdateHomepageContentData {
+  countdownEventId?: string | null;
+  conferencesCount?: number;
+  registeredMembersCount?: number;
+  annualActivitiesCount?: number;
 }
 
 // ===== Articles =====
@@ -330,6 +339,19 @@ export const useAdminSiteContent = () => {
   });
 };
 
+export const useHomepageCountdownEvent = () => {
+  return useQuery({
+    queryKey: ['site-content', 'homepage', 'countdown-event'],
+    queryFn: async () => {
+      const response = await api.get<unknown, ApiResponse<HomepageCountdownEvent | null>>(
+        ENDPOINTS.SITE_CONTENT.HOMEPAGE_COUNTDOWN_EVENT,
+      );
+      return response.data;
+    },
+    staleTime: 60 * 1000,
+  });
+};
+
 export const usePrivacyPolicyPage = () => {
   return useQuery({
     queryKey: ['site-content', 'legal', 'privacy'],
@@ -371,6 +393,30 @@ export const useUpdateSiteFooter = () => {
     },
     onError: (error: Error) => {
       toast.error(error.message || 'تعذر تحديث الفوتر حالياً.');
+    },
+  });
+};
+
+export const useUpdateHomepageContent = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: UpdateHomepageContentData) => {
+      const response = await api.patch<unknown, ApiResponse<HomepageContent>>(
+        ENDPOINTS.SITE_CONTENT.HOMEPAGE,
+        data,
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['site-content'] });
+      queryClient.invalidateQueries({
+        queryKey: ['site-content', 'homepage', 'countdown-event'],
+      });
+      toast.success('تم تحديث إعدادات عداد الصفحة الرئيسية بنجاح.');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'تعذر تحديث إعدادات عداد الصفحة الرئيسية حالياً.');
     },
   });
 };

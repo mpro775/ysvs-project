@@ -1,12 +1,24 @@
 import { Award, Calendar, Users } from "lucide-react";
 
-const stats = [
-  { label: "مؤتمر علمي", value: "+25", icon: Award },
-  { label: "عضو مسجل", value: "+500", icon: Users },
-  { label: "فعالية سنوية", value: "+25", icon: Calendar },
-];
+interface StatsSectionProps {
+  conferencesCount?: number;
+  registeredMembersCount?: number;
+  annualActivitiesCount?: number;
+}
 
-export function StatsSection() {
+const formatStatValue = (value: number) => `+${Math.max(0, Math.floor(value))}`;
+
+export function StatsSection({
+  conferencesCount = 25,
+  registeredMembersCount = 500,
+  annualActivitiesCount = 25,
+}: StatsSectionProps) {
+  const stats = [
+    { label: "مؤتمر علمي", value: formatStatValue(conferencesCount), icon: Award },
+    { label: "عضو مسجل", value: formatStatValue(registeredMembersCount), icon: Users },
+    { label: "فعالية سنوية", value: formatStatValue(annualActivitiesCount), icon: Calendar },
+  ];
+
   return (
     <section className="relative overflow-hidden bg-background bg-[radial-gradient(circle_at_top,_rgba(139,0,0,0.12)_0%,_transparent_42%)] py-16 sm:py-20">
       <div className="pointer-events-none absolute -right-20 top-12 h-56 w-56 rounded-full bg-primary/15 blur-3xl" />

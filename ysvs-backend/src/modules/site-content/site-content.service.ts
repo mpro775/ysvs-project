@@ -12,10 +12,16 @@ import {
 } from './schemas/site-content.schema';
 import {
   CreateSiteContentDto,
+  UpdateHomepageContentDto,
   UpdateFooterContentDto,
   UpdateLegalPageDto,
   UpdateSiteContentDto,
 } from './dto';
+import {
+  Event,
+  EventDocument,
+  EventStatus,
+} from '../events/schemas/event.schema';
 
 type LegalPageType = 'privacy' | 'terms';
 
@@ -29,20 +35,36 @@ interface PublicLegalMetadata {
 
 export interface SitePublicResponse {
   footer: SiteContent['footer'];
+  homepage: SiteContent['homepage'];
   legal: PublicLegalMetadata[];
+}
+
+export interface HomepageCountdownEvent {
+  _id: string;
+  titleAr: string;
+  titleEn: string;
+  slug: string;
+  startDate: Date;
+  endDate: Date;
+  location?: Event['location'];
+  coverImage?: string;
 }
 
 @Injectable()
 export class SiteContentService {
   private readonly SINGLETON_KEY = 'site-content';
   private readonly CACHE_TTL = 3600000; // 1 hour
+  private readonly HOMEPAGE_COUNTDOWN_CACHE_TTL = 60000; // 1 minute
   private readonly PUBLIC_CACHE_KEY = 'site:public';
+  private readonly HOMEPAGE_COUNTDOWN_CACHE_KEY = 'site:homepage:countdown-event';
   private readonly PRIVACY_CACHE_KEY = 'site:legal:privacy';
   private readonly TERMS_CACHE_KEY = 'site:legal:terms';
 
   constructor(
     @InjectModel(SiteContent.name)
     private readonly siteContentModel: Model<SiteContentDocument>,
+    @InjectModel(Event.name)
+    private readonly eventModel: Model<EventDocument>,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
@@ -55,11 +77,64 @@ export class SiteContentService {
     const content = await this.getOrCreateContent();
     const response: SitePublicResponse = {
       footer: content.footer,
+      homepage: content.homepage,
       legal: this.getPublishedLegalMetadata(content),
     };
 
     await this.cacheManager.set(this.PUBLIC_CACHE_KEY, response, this.CACHE_TTL);
     return response;
+  }
+
+  async findHomepageCountdownEvent(): Promise<HomepageCountdownEvent | null> {
+    const cached = await this.cacheManager.get<HomepageCountdownEvent | null>(
+      this.HOMEPAGE_COUNTDOWN_CACHE_KEY,
+    );
+
+    if (cached !== undefined && cached !== null) {
+      return cached;
+    }
+
+    if (cached === null) {
+      return null;
+    }
+
+    const content = await this.getOrCreateContent();
+    const countdownEventId = content.homepage?.countdownEventId;
+
+    if (!countdownEventId) {
+      await this.cacheManager.set(
+        this.HOMEPAGE_COUNTDOWN_CACHE_KEY,
+        null,
+        this.HOMEPAGE_COUNTDOWN_CACHE_TTL,
+      );
+      return null;
+    }
+
+    const event = await this.eventModel
+      .findOne({
+        _id: countdownEventId,
+        status: EventStatus.UPCOMING,
+        startDate: { $gt: new Date() },
+      })
+      .select('_id titleAr titleEn slug startDate endDate location coverImage')
+      .lean<HomepageCountdownEvent>()
+      .exec();
+
+    if (!event) {
+      await this.cacheManager.set(
+        this.HOMEPAGE_COUNTDOWN_CACHE_KEY,
+        null,
+        this.HOMEPAGE_COUNTDOWN_CACHE_TTL,
+      );
+      return null;
+    }
+
+    await this.cacheManager.set(
+      this.HOMEPAGE_COUNTDOWN_CACHE_KEY,
+      event,
+      this.HOMEPAGE_COUNTDOWN_CACHE_TTL,
+    );
+    return event;
   }
 
   async findAdmin(): Promise<SiteContent> {
@@ -106,6 +181,10 @@ export class SiteContentService {
       payload.legalPages.terms = this.normalizeLegalPage(updateDto.legalPages.terms);
     }
 
+    if (updateDto.homepage) {
+      payload.homepage = await this.normalizeHomepage(updateDto.homepage);
+    }
+
     const updated = await this.siteContentModel
       .findByIdAndUpdate(existing._id, payload, { new: true, runValidators: true })
       .exec();
@@ -116,6 +195,38 @@ export class SiteContentService {
 
     await this.invalidateCache();
     return updated;
+  }
+
+  async updateHomepage(updateDto: UpdateHomepageContentDto): Promise<SiteContent['homepage']> {
+    const existing = await this.getOrCreateContent();
+    const normalized = await this.normalizeHomepage(updateDto);
+    const entries = Object.entries(normalized);
+
+    if (entries.length === 0) {
+      return existing.homepage;
+    }
+
+    const updated = await this.siteContentModel
+      .findByIdAndUpdate(
+        existing._id,
+        {
+          $set: {
+            ...entries.reduce<Record<string, unknown>>((acc, [key, value]) => {
+              acc[`homepage.${key}`] = value;
+              return acc;
+            }, {}),
+          },
+        },
+        { new: true, runValidators: true },
+      )
+      .exec();
+
+    if (!updated) {
+      throw new NotFoundException('تعذر تحديث إعدادات الصفحة الرئيسية');
+    }
+
+    await this.invalidateCache();
+    return updated.homepage;
   }
 
   async updateFooter(updateDto: UpdateFooterContentDto): Promise<SiteContent['footer']> {
@@ -345,6 +456,58 @@ export class SiteContentService {
     return normalized;
   }
 
+  private async normalizeHomepage(
+    homepage: UpdateHomepageContentDto,
+  ): Promise<UpdateHomepageContentDto> {
+    const normalized: UpdateHomepageContentDto = { ...homepage };
+
+    if (typeof homepage.conferencesCount === 'number') {
+      normalized.conferencesCount = Math.max(0, Math.floor(homepage.conferencesCount));
+    }
+
+    if (typeof homepage.registeredMembersCount === 'number') {
+      normalized.registeredMembersCount = Math.max(0, Math.floor(homepage.registeredMembersCount));
+    }
+
+    if (typeof homepage.annualActivitiesCount === 'number') {
+      normalized.annualActivitiesCount = Math.max(0, Math.floor(homepage.annualActivitiesCount));
+    }
+
+    if (homepage.countdownEventId === null) {
+      normalized.countdownEventId = null;
+      return normalized;
+    }
+
+    if (typeof homepage.countdownEventId === 'string') {
+      const countdownEventId = homepage.countdownEventId.trim();
+
+      if (!countdownEventId) {
+        normalized.countdownEventId = null;
+        return normalized;
+      }
+
+      const event = await this.eventModel
+        .findOne({
+          _id: countdownEventId,
+          status: EventStatus.UPCOMING,
+          startDate: { $gt: new Date() },
+        })
+        .select('_id')
+        .lean()
+        .exec();
+
+      if (!event) {
+        throw new NotFoundException(
+          'المؤتمر المحدد للعداد غير صالح. اختر مؤتمراً قادماً لم يبدأ بعد.',
+        );
+      }
+
+      normalized.countdownEventId = countdownEventId;
+    }
+
+    return normalized;
+  }
+
   private getDefaultContent(): CreateSiteContentDto {
     return {
       singletonKey: this.SINGLETON_KEY,
@@ -423,12 +586,19 @@ export class SiteContentService {
           isPublished: true,
         },
       },
+      homepage: {
+        countdownEventId: null,
+        conferencesCount: 25,
+        registeredMembersCount: 500,
+        annualActivitiesCount: 25,
+      },
     };
   }
 
   private async invalidateCache(): Promise<void> {
     await Promise.all([
       this.cacheManager.del(this.PUBLIC_CACHE_KEY),
+      this.cacheManager.del(this.HOMEPAGE_COUNTDOWN_CACHE_KEY),
       this.cacheManager.del(this.PRIVACY_CACHE_KEY),
       this.cacheManager.del(this.TERMS_CACHE_KEY),
     ]);

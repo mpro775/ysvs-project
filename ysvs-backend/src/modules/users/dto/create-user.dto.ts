@@ -9,6 +9,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '../../../common/decorators/roles.decorator';
+import { Gender } from '../schemas/user.schema';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'doctor@example.com', description: 'User email address' })
@@ -48,6 +49,11 @@ export class CreateUserDto {
   @IsOptional()
   @IsString({ message: 'مكان العمل يجب أن يكون نصاً' })
   workplace?: string;
+
+  @ApiPropertyOptional({ enum: Gender, example: Gender.MALE })
+  @IsOptional()
+  @IsEnum(Gender, { message: 'النوع غير صالح' })
+  gender?: Gender;
 
   @ApiPropertyOptional({ enum: UserRole, default: UserRole.MEMBER })
   @IsOptional()

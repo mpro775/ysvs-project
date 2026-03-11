@@ -19,6 +19,11 @@ export const ENDPOINTS = {
     BY_ID: (id: string) => `/users/${id}`,
     PROFILE: '/users/profile',
     UPDATE_PROFILE: '/users/profile',
+    PROFESSIONAL_VERIFICATIONS: '/users/professional-verifications',
+    MY_PROFESSIONAL_VERIFICATION: '/users/me/professional-verification',
+    UPLOAD_PROFESSIONAL_VERIFICATION: '/users/me/professional-verification/upload',
+    REVIEW_PROFESSIONAL_VERIFICATION: (id: string) =>
+      `/users/${id}/professional-verification/review`,
   },
 
   // Events
@@ -108,6 +113,8 @@ export const ENDPOINTS = {
     ADMIN: '/site-content/admin',
     BASE: '/site-content',
     FOOTER: '/site-content/footer',
+    HOMEPAGE: '/site-content/homepage',
+    HOMEPAGE_COUNTDOWN_EVENT: '/site-content/homepage/countdown-event',
     LEGAL_PRIVACY: '/site-content/legal/privacy',
     LEGAL_TERMS: '/site-content/legal/terms',
     PUBLISH_PRIVACY: '/site-content/legal/privacy/publish',

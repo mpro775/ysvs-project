@@ -7,3 +7,4 @@ export * from './useDashboard';
 export * from './useContact';
 export * from './useAdminNotificationsSocket';
 export * from './useAdminNotifications';
+export * from './useUsers';

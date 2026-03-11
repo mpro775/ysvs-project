@@ -98,10 +98,32 @@ export default function EventDetailPage() {
   const allowsGuestRegistration = event.registrationAccess === 'public';
   const startDate = new Date(event.startDate);
   const endDate = new Date(event.endDate);
-  const durationHours = Math.max(
-    1,
-    Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60))
-  );
+  const eventDays = event.eventDays || [];
+  const totalDays =
+    eventDays.length ||
+    Math.max(
+      1,
+      Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    );
+  const totalProgramHours = eventDays.length
+    ? Number(
+        eventDays
+          .reduce(
+            (sum, day) =>
+              sum +
+              (new Date(day.endTime).getTime() - new Date(day.startTime).getTime()) /
+                (1000 * 60 * 60),
+            0
+          )
+          .toFixed(1)
+      )
+    : Math.max(
+        1,
+        Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60))
+      );
+  const totalCmeHours = eventDays.length
+    ? Number(eventDays.reduce((sum, day) => sum + (day.cmeHours || 0), 0).toFixed(2))
+    : event.cmeHours;
   const registrationDeadlineLabel = event.registrationDeadline
     ? format(new Date(event.registrationDeadline), "d MMMM yyyy", { locale: ar })
     : "مفتوح حتى بداية المؤتمر";
@@ -230,9 +252,9 @@ export default function EventDetailPage() {
                     انتهى موعد التسجيل
                   </Badge>
                 )}
-                {event.cmeHours > 0 && (
+                {totalCmeHours > 0 && (
                   <Badge className="border-0 bg-[var(--event-accent)] px-3 py-1 text-white">
-                    {event.cmeHours} ساعة CME
+                    {totalCmeHours} ساعة CME
                   </Badge>
                 )}
               </div>
@@ -281,7 +303,9 @@ export default function EventDetailPage() {
                 <div className="event-hero-stat-card">
                   <Clock className="mb-2 h-4 w-4 text-white/80" />
                   <p className="text-[11px] text-white/70">مدة الفعالية</p>
-                  <p className="mt-1 text-sm font-semibold text-white">{durationHours} ساعة</p>
+                  <p className="mt-1 text-sm font-semibold text-white">
+                    {totalDays} يوم / {totalProgramHours} ساعة
+                  </p>
                 </div>
                 <div className="event-hero-stat-card">
                   <Users className="mb-2 h-4 w-4 text-white/80" />
@@ -573,7 +597,6 @@ export default function EventDetailPage() {
                           schema={event.formSchema}
                           isAuthenticated={isAuthenticated}
                           guestRegistrationEnabled={allowsGuestRegistration}
-                          guestEmailMode={event.guestEmailMode || "required"}
                         />
                       </CardContent>
                     </Card>
@@ -680,7 +703,7 @@ export default function EventDetailPage() {
             )}
 
             {/* CME Info */}
-            {event.cmeHours > 0 && (
+            {totalCmeHours > 0 && (
               <Card className="event-surface-card">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -690,7 +713,7 @@ export default function EventDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-3xl font-bold text-primary-600 dark:text-primary-300">
-                    {event.cmeHours} ساعة
+                    {totalCmeHours} ساعة
                   </p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     سيتم إصدار شهادة CME للحاضرين بعد انتهاء المؤتمر

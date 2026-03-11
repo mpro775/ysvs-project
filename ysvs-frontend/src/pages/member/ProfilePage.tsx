@@ -1,15 +1,23 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { format } from 'date-fns';
+import { ar } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { InlineLoader } from '@/components/shared/LoadingSpinner';
 import { useAuthStore } from '@/stores/authStore';
 import { useChangePassword } from '@/api/hooks/useAuth';
+import {
+  useMyProfessionalVerification,
+  useUploadProfessionalVerification,
+} from '@/api/hooks/useUsers';
+import { ProfessionalVerificationStatus } from '@/types';
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, 'كلمة المرور الحالية مطلوبة'),
@@ -25,6 +33,9 @@ type PasswordForm = z.infer<typeof passwordSchema>;
 export default function MemberProfilePage() {
   const { user } = useAuthStore();
   const { mutate: changePassword, isPending } = useChangePassword();
+  const { data: verification } = useMyProfessionalVerification();
+  const { mutate: uploadProfessionalVerification, isPending: isUploadingVerification } =
+    useUploadProfessionalVerification();
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<PasswordForm>({
     resolver: zodResolver(passwordSchema),
@@ -37,6 +48,28 @@ export default function MemberProfilePage() {
     );
   };
 
+  const verificationStatus =
+    verification?.status ||
+    user?.professionalVerification?.status ||
+    ProfessionalVerificationStatus.NOT_SUBMITTED;
+
+  const verificationStatusText: Record<ProfessionalVerificationStatus, string> = {
+    [ProfessionalVerificationStatus.NOT_SUBMITTED]: 'لم يتم الرفع',
+    [ProfessionalVerificationStatus.PENDING]: 'جاري المعالجة',
+    [ProfessionalVerificationStatus.APPROVED]: 'موثق',
+    [ProfessionalVerificationStatus.REJECTED]: 'مرفوض',
+  };
+
+  const verificationStatusVariant: Record<
+    ProfessionalVerificationStatus,
+    'default' | 'secondary' | 'destructive' | 'outline'
+  > = {
+    [ProfessionalVerificationStatus.NOT_SUBMITTED]: 'outline',
+    [ProfessionalVerificationStatus.PENDING]: 'secondary',
+    [ProfessionalVerificationStatus.APPROVED]: 'default',
+    [ProfessionalVerificationStatus.REJECTED]: 'destructive',
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">الملف الشخصي</h1>
@@ -44,6 +77,7 @@ export default function MemberProfilePage() {
       <Tabs defaultValue="info">
         <TabsList>
           <TabsTrigger value="info">المعلومات الشخصية</TabsTrigger>
+          <TabsTrigger value="verification">توثيق العضوية</TabsTrigger>
           <TabsTrigger value="security">الأمان</TabsTrigger>
         </TabsList>
 
@@ -95,8 +129,77 @@ export default function MemberProfilePage() {
               </div>
 
               <div className="space-y-2">
+                <Label>النوع</Label>
+                <Input value={user?.gender === 'male' ? 'ذكر' : user?.gender === 'female' ? 'أنثى' : ''} disabled />
+              </div>
+
+              <div className="space-y-2">
                 <Label>مكان العمل</Label>
                 <Input value={user?.workplace || ''} disabled />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="verification" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>توثيق بطاقة مزاولة المهنة</CardTitle>
+              <CardDescription>
+                يمكنك رفع بطاقة مزاولة المهنة ليتم اعتماد توثيق عضويتك من الإدارة.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">الحالة:</span>
+                <Badge variant={verificationStatusVariant[verificationStatus]}>
+                  {verificationStatusText[verificationStatus]}
+                </Badge>
+              </div>
+
+              {verification?.document?.url && (
+                <div className="text-sm">
+                  <a
+                    href={verification.document.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary-600 hover:underline"
+                  >
+                    عرض الملف المرفوع ({verification.document.originalName})
+                  </a>
+                </div>
+              )}
+
+              {verification?.lastSubmittedAt && (
+                <p className="text-xs text-muted-foreground">
+                  آخر رفع: {format(new Date(verification.lastSubmittedAt), 'd MMMM yyyy', { locale: ar })}
+                </p>
+              )}
+
+              {verificationStatus === ProfessionalVerificationStatus.REJECTED &&
+                verification?.rejectionReason && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                    سبب الرفض: {verification.rejectionReason}
+                  </div>
+                )}
+
+              <div className="space-y-2">
+                <Label htmlFor="professional-verification-upload">رفع/إعادة رفع البطاقة</Label>
+                <Input
+                  id="professional-verification-upload"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    uploadProfessionalVerification(file);
+                    event.currentTarget.value = '';
+                  }}
+                  disabled={isUploadingVerification}
+                />
+                <p className="text-xs text-muted-foreground">
+                  بعد الرفع ستتحول الحالة إلى "جاري المعالجة" حتى تتم مراجعتها من الإدارة.
+                </p>
               </div>
             </CardContent>
           </Card>
