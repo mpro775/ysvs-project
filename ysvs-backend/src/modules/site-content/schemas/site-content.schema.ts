@@ -117,7 +117,7 @@ export const LegalPagesSchema = SchemaFactory.createForClass(LegalPages);
 
 @Schema({ _id: false })
 export class HomepageContent {
-  @Prop({ trim: true, default: null })
+  @Prop({ type: String, trim: true, default: null, required: false })
   countdownEventId?: string | null;
 
   @Prop({ default: 25, min: 0 })
