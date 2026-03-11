@@ -157,8 +157,9 @@ export class MediaController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Delete a file (Admin only)' })
   @ApiResponse({ status: 200, description: 'File deleted successfully' })
-  async deleteFile(@Param('path') filePath: string) {
-    const normalizedPath = decodeURIComponent(filePath).replace(/^[/\\]+/, '');
+  async deleteFile(@Param('path') filePath: string | string[]) {
+    const rawPath = Array.isArray(filePath) ? filePath.join('/') : filePath;
+    const normalizedPath = decodeURIComponent(rawPath).replace(/^[/\\]+/, '');
 
     if (!normalizedPath) {
       throw new BadRequestException('مسار الملف مطلوب للحذف');
