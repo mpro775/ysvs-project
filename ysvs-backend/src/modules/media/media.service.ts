@@ -1,6 +1,8 @@
 import {
   Injectable,
   BadRequestException,
+  InternalServerErrorException,
+  NotFoundException,
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -277,6 +279,11 @@ export class MediaService {
   }
 
   async deleteFile(filePath: string): Promise<void> {
+    const existsBeforeDelete = await this.fileExists(filePath);
+    if (!existsBeforeDelete) {
+      throw new NotFoundException('الملف غير موجود');
+    }
+
     try {
       if (this.provider === 'r2') {
         await this.s3Client?.send(
@@ -289,9 +296,69 @@ export class MediaService {
         const fullPath = path.join(this.uploadPath, filePath);
         await fs.promises.unlink(fullPath);
       }
+
+      const existsAfterDelete = await this.fileExists(filePath);
+      if (existsAfterDelete) {
+        throw new InternalServerErrorException('تعذر حذف الملف من التخزين');
+      }
+
       this.logger.log(`File deleted: ${filePath}`);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown delete error';
+      this.logger.error(`Failed to delete file: ${filePath} - ${errorMessage}`);
+
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'name' in error &&
+        (error as { name?: string }).name === 'NoSuchKey'
+      ) {
+        throw new NotFoundException('الملف غير موجود');
+      }
+
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'name' in error &&
+        (error as { name?: string }).name === 'AccessDenied'
+      ) {
+        throw new BadRequestException('لا توجد صلاحية لحذف الملف من التخزين');
+      }
+
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: string }).code === 'ENOENT'
+      ) {
+        throw new NotFoundException('الملف غير موجود');
+      }
+
+      throw new InternalServerErrorException('تعذر حذف الملف من التخزين');
+    }
+  }
+
+  private async fileExists(filePath: string): Promise<boolean> {
+    if (this.provider === 'r2') {
+      const response = await this.s3Client?.send(
+        new ListObjectsV2Command({
+          Bucket: this.r2Bucket,
+          Prefix: filePath,
+          MaxKeys: 1,
+        }),
+      );
+
+      const matchedKey = response?.Contents?.[0]?.Key;
+      return matchedKey === filePath;
+    }
+
+    const fullPath = path.join(this.uploadPath, filePath);
+    try {
+      await fs.promises.access(fullPath, fs.constants.F_OK);
+      return true;
     } catch {
-      this.logger.warn(`Failed to delete file: ${filePath}`);
+      return false;
     }
   }
 
