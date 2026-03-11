@@ -29,6 +29,7 @@ import { NewsletterModule } from './modules/newsletter/newsletter.module';
 import { ContactModule } from './modules/contact/contact.module';
 import { SiteContentModule } from './modules/site-content/site-content.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -90,6 +91,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     ContactModule,
     SiteContentModule,
     NotificationsModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

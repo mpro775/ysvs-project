@@ -153,12 +153,18 @@ export class MediaController {
     };
   }
 
-  @Delete(':path')
+  @Delete(':path(*)')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Delete a file (Admin only)' })
   @ApiResponse({ status: 200, description: 'File deleted successfully' })
   async deleteFile(@Param('path') filePath: string) {
-    await this.mediaService.deleteFile(filePath);
+    const normalizedPath = decodeURIComponent(filePath).replace(/^[/\\]+/, '');
+
+    if (!normalizedPath) {
+      throw new BadRequestException('مسار الملف مطلوب للحذف');
+    }
+
+    await this.mediaService.deleteFile(normalizedPath);
     return { message: 'تم حذف الملف بنجاح' };
   }
 }

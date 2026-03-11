@@ -87,6 +87,7 @@ async function bootstrap() {
     .addTag('Newsletter', 'Newsletter subscription management')
     .addTag('Contact', 'Contact messages and inbox management')
     .addTag('Notifications', 'Admin realtime notifications')
+    .addTag('Health', 'Service health checks')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
