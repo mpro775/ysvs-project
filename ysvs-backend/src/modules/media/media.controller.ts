@@ -153,7 +153,7 @@ export class MediaController {
     };
   }
 
-  @Delete(':path(*)')
+  @Delete('*path')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Delete a file (Admin only)' })
   @ApiResponse({ status: 200, description: 'File deleted successfully' })
