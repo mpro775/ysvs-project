@@ -116,6 +116,7 @@ export interface EventSpeaker {
 
 export interface EventScheduleItem {
   id: string;
+  dayId?: string;
   titleAr: string;
   titleEn?: string;
   descriptionAr?: string;
@@ -127,6 +128,7 @@ export interface EventScheduleItem {
 }
 
 export interface EventDay {
+  id?: string;
   date: Date;
   startTime: Date;
   endTime: Date;

@@ -141,6 +141,14 @@ class EventScheduleItemDto {
   @IsNotEmpty()
   id: string;
 
+  @ApiProperty({
+    example: 'day-1',
+    description: 'Linked event day id that this session belongs to',
+  })
+  @IsString()
+  @IsNotEmpty()
+  dayId: string;
+
   @ApiProperty({ example: 'الكلمة الافتتاحية' })
   @IsString()
   @IsNotEmpty()
@@ -195,6 +203,11 @@ class EventScheduleItemDto {
 }
 
 class EventDayDto {
+  @ApiProperty({ example: 'day-1' })
+  @IsString()
+  @IsNotEmpty()
+  id: string;
+
   @ApiProperty({ example: '2026-03-15T00:00:00.000Z' })
   @IsDate({ message: 'تاريخ اليوم غير صالح' })
   @Type(() => Date)

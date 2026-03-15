@@ -60,6 +60,8 @@ const toDateInputValue = (date: Date) => toDateTimeLocalInputValue(date).slice(0
 const toDateTimeFromDayAndTime = (dateValue: string, timeValue: string) =>
   new Date(`${dateValue}T${timeValue}`);
 
+const toDayKey = (dateValue: string | Date) => new Date(dateValue).toISOString().slice(0, 10);
+
 const speakerSchema = z.object({
   id: z.string().min(1),
   nameAr: z.string().trim().min(2, "اسم المتحدث مطلوب"),
@@ -77,6 +79,7 @@ const speakerSchema = z.object({
 const scheduleItemSchema = z
   .object({
     id: z.string().min(1),
+    dayId: z.string().min(1, "اختر اليوم المرتبط بهذه الجلسة"),
     titleAr: z.string().trim().min(2, "عنوان الجلسة مطلوب"),
     titleEn: z.string().optional(),
     descriptionAr: z.string().optional(),
@@ -212,10 +215,39 @@ const eventSchema = z
     const eventStart = new Date(values.startDate);
     const eventEnd = new Date(values.endDate);
     const speakerIds = new Set(values.speakers.map((speaker) => speaker.id));
+    const dayById = new Map(values.eventDays.map((day) => [day.id, day]));
 
     values.schedule.forEach((session, index) => {
       const sessionStart = new Date(session.startTime);
       const sessionEnd = new Date(session.endTime);
+      const selectedDay = dayById.get(session.dayId);
+
+      if (!selectedDay) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["schedule", index, "dayId"],
+          message: "اليوم المحدد للجلسة غير موجود",
+        });
+      } else {
+        const dayStart = toDateTimeFromDayAndTime(selectedDay.date, selectedDay.startTime);
+        const dayEnd = toDateTimeFromDayAndTime(selectedDay.date, selectedDay.endTime);
+
+        if (toDayKey(sessionStart) !== toDayKey(selectedDay.date)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["schedule", index, "startTime"],
+            message: "تاريخ الجلسة يجب أن يطابق اليوم المحدد",
+          });
+        }
+
+        if (sessionStart < dayStart || sessionEnd > dayEnd) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["schedule", index, "startTime"],
+            message: "وقت الجلسة يجب أن يكون ضمن وقت اليوم المحدد",
+          });
+        }
+      }
 
       if (sessionStart < eventStart || sessionEnd > eventEnd) {
         ctx.addIssue({
@@ -533,6 +565,16 @@ export default function AdminEventCreatePage() {
     );
   };
 
+  const resolveSessionDayIdByDate = (sessionStartTime: string, fallbackDayId = "") => {
+    const sessionDateKey = toDayKey(sessionStartTime);
+    const matchedDay = eventDays.find((day) => toDayKey(day.date) === sessionDateKey);
+    if (matchedDay?.id) {
+      return matchedDay.id;
+    }
+
+    return fallbackDayId || eventDays[0]?.id || "";
+  };
+
   const updateEventDayField = (
     index: number,
     key: keyof EventForm["eventDays"][number],
@@ -544,11 +586,24 @@ export default function AdminEventCreatePage() {
   };
 
   const removeEventDay = (index: number) => {
+    const removedDayId = eventDays[index]?.id;
     const next = eventDays.filter((_, currentIndex) => currentIndex !== index);
     if (!next.length) {
       return;
     }
     setValue("eventDays", next, { shouldDirty: true, shouldValidate: true });
+
+    if (removedDayId) {
+      const fallbackDayId = next[0]?.id || "";
+      const nextSchedule = schedule.map((session) => ({
+        ...session,
+        dayId:
+          session.dayId === removedDayId
+            ? resolveSessionDayIdByDate(session.startTime, fallbackDayId)
+            : session.dayId,
+      }));
+      setValue("schedule", nextSchedule, { shouldDirty: true, shouldValidate: true });
+    }
   };
 
   const addSpeaker = () => {
@@ -604,16 +659,25 @@ export default function AdminEventCreatePage() {
   };
 
   const addScheduleItem = () => {
+    const defaultDay = sortedEventDays[0];
+    const defaultStart = defaultDay
+      ? toDateTimeLocalInputValue(toDateTimeFromDayAndTime(defaultDay.date, defaultDay.startTime))
+      : watchedValues.startDate || "";
+    const defaultEnd = defaultDay
+      ? toDateTimeLocalInputValue(toDateTimeFromDayAndTime(defaultDay.date, defaultDay.endTime))
+      : watchedValues.startDate || "";
+
     const next = [
       ...schedule,
       {
         id: createClientId("session"),
+        dayId: defaultDay?.id || "",
         titleAr: "",
         titleEn: "",
         descriptionAr: "",
         descriptionEn: "",
-        startTime: watchedValues.startDate || "",
-        endTime: watchedValues.startDate || "",
+        startTime: defaultStart,
+        endTime: defaultEnd,
         sessionType: "talk" as const,
         speakerIds: [],
       },
@@ -769,6 +833,7 @@ export default function AdminEventCreatePage() {
           .sort((a, b) => a.startTime.getTime() - b.startTime.getTime()),
         eventDays: eventDays
           .map((day) => ({
+            id: day.id,
             date: new Date(day.date),
             startTime: toDateTimeFromDayAndTime(day.date, day.startTime),
             endTime: toDateTimeFromDayAndTime(day.date, day.endTime),
@@ -1650,6 +1715,25 @@ export default function AdminEventCreatePage() {
                         </div>
 
                         <div className="space-y-1">
+                          <Label>اليوم *</Label>
+                          <Select
+                            value={session.dayId}
+                            onValueChange={(value) => updateScheduleField(index, "dayId", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="اختر اليوم" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sortedEventDays.map((day, dayIndex) => (
+                                <SelectItem key={day.id} value={day.id}>
+                                  {`اليوم ${dayIndex + 1} - ${day.date}`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1">
                           <Label>وصف مختصر</Label>
                           <Input
                             value={session.descriptionAr || ""}
@@ -1707,12 +1791,14 @@ export default function AdminEventCreatePage() {
                         </p>
                       )}
 
-                      {(errors.schedule?.[index]?.titleAr?.message ||
+                      {(errors.schedule?.[index]?.dayId?.message ||
+                        errors.schedule?.[index]?.titleAr?.message ||
                         errors.schedule?.[index]?.startTime?.message ||
                         errors.schedule?.[index]?.endTime?.message ||
                         errors.schedule?.[index]?.speakerIds?.message) && (
                         <p className="mt-2 text-sm text-destructive">
-                          {errors.schedule?.[index]?.titleAr?.message ||
+                          {errors.schedule?.[index]?.dayId?.message ||
+                            errors.schedule?.[index]?.titleAr?.message ||
                             errors.schedule?.[index]?.startTime?.message ||
                             errors.schedule?.[index]?.endTime?.message ||
                             errors.schedule?.[index]?.speakerIds?.message}

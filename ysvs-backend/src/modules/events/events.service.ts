@@ -57,7 +57,7 @@ export class EventsService {
 
   async create(createEventDto: CreateEventDto, userId: string): Promise<Event> {
     const normalizedPayload = this.normalizeEventTimeline(createEventDto);
-    this.validateEventPhaseOneFields(normalizedPayload, true);
+    this.validateEventPhaseOneFields(normalizedPayload, true, true);
 
     const event = new this.eventModel({
       ...normalizedPayload,
@@ -197,7 +197,7 @@ export class EventsService {
       ...updateEventDto,
     } as UpdateEventDto;
     const normalizedMergedEvent = this.normalizeEventTimeline(mergedEvent);
-    this.validateEventPhaseOneFields(normalizedMergedEvent, false);
+    this.validateEventPhaseOneFields(normalizedMergedEvent, false, false);
 
     const normalizedUpdatePayload = this.normalizeEventTimeline(updateEventDto);
 
@@ -374,6 +374,7 @@ export class EventsService {
       | 'formSchema'
     >,
     enforceFutureStartDate: boolean,
+    requireExplicitScheduleDayId: boolean,
   ): void {
     this.validateEventDates(
       payload.startDate,
@@ -392,7 +393,13 @@ export class EventsService {
       payload.liveStream,
     );
     this.validateEventDays(payload.eventDays);
-    this.validateScheduleTimeBounds(payload.startDate, payload.endDate, payload.schedule);
+    this.validateScheduleTimeBounds(
+      payload.startDate,
+      payload.endDate,
+      payload.eventDays,
+      payload.schedule,
+      requireExplicitScheduleDayId,
+    );
     this.validateScheduleSpeakers(payload.speakers, payload.schedule);
     this.validateProtectedProfileFields(payload.formSchema);
   }
@@ -451,7 +458,13 @@ export class EventsService {
         throw new BadRequestException('ساعات CME اليومية غير صالحة');
       }
 
+      const dayId =
+        typeof day.id === 'string' && day.id.trim().length > 0
+          ? day.id.trim()
+          : undefined;
+
       return {
+        id: dayId,
         date: dayDate,
         startTime,
         endTime,
@@ -483,9 +496,18 @@ export class EventsService {
     }
 
     const seenDates = new Set<string>();
+    const seenDayIds = new Set<string>();
 
     for (const day of eventDays) {
       const key = `${day.date.getFullYear()}-${day.date.getMonth()}-${day.date.getDate()}`;
+      const dayId = day.id?.trim();
+
+      if (dayId) {
+        if (seenDayIds.has(dayId)) {
+          throw new BadRequestException('لا يمكن تكرار معرف اليوم في جدول أيام المؤتمر');
+        }
+        seenDayIds.add(dayId);
+      }
 
       if (seenDates.has(key)) {
         throw new BadRequestException('لا يمكن تكرار نفس اليوم في جدول أيام المؤتمر');
@@ -676,7 +698,9 @@ export class EventsService {
   private validateScheduleTimeBounds(
     startDate?: Date,
     endDate?: Date,
-    schedule?: Array<{ startTime: Date; endTime: Date }>,
+    eventDays?: Array<{ id?: string; date: Date; startTime: Date; endTime: Date }>,
+    schedule?: Array<{ dayId?: string; startTime: Date; endTime: Date }>,
+    requireExplicitScheduleDayId = false,
   ): void {
     if (!schedule?.length) {
       return;
@@ -688,6 +712,16 @@ export class EventsService {
 
     const eventStart = new Date(startDate);
     const eventEnd = new Date(endDate);
+    const hasEventDays = Boolean(eventDays?.length);
+    const dayById = new Map<string, { date: Date; startTime: Date; endTime: Date }>();
+    const dayByDateKey = new Map<string, { date: Date; startTime: Date; endTime: Date }>();
+
+    for (const day of eventDays ?? []) {
+      if (day.id) {
+        dayById.set(day.id, day);
+      }
+      dayByDateKey.set(this.toDayKey(day.date), day);
+    }
 
     for (const item of schedule) {
       const sessionStart = new Date(item.startTime);
@@ -704,7 +738,34 @@ export class EventsService {
       if (sessionStart < eventStart || sessionEnd > eventEnd) {
         throw new BadRequestException('يجب أن يكون توقيت الجلسة ضمن نطاق وقت المؤتمر');
       }
+
+      if (!hasEventDays && !requireExplicitScheduleDayId) {
+        continue;
+      }
+
+      const selectedDayId = item.dayId?.trim();
+      if (requireExplicitScheduleDayId && !selectedDayId) {
+        throw new BadRequestException('يجب تحديد اليوم المرتبط بكل جلسة');
+      }
+
+      let matchedDay = selectedDayId ? dayById.get(selectedDayId) : undefined;
+      if (!matchedDay && !requireExplicitScheduleDayId) {
+        matchedDay = dayByDateKey.get(this.toDayKey(sessionStart));
+      }
+
+      if (!matchedDay) {
+        throw new BadRequestException('اليوم المحدد للجلسة غير موجود ضمن أيام المؤتمر');
+      }
+
+      if (sessionStart < matchedDay.startTime || sessionEnd > matchedDay.endTime) {
+        throw new BadRequestException('يجب أن تكون الجلسة ضمن وقت اليوم المرتبط بها');
+      }
     }
+  }
+
+  private toDayKey(dateInput: Date): string {
+    const date = new Date(dateInput);
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
   }
 
   private validateScheduleSpeakers(

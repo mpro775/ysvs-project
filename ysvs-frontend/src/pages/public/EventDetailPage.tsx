@@ -29,6 +29,8 @@ import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { cn, getEventDisplayStatus } from "@/lib/utils";
 
+const toDayKey = (dateValue: string | Date) => new Date(dateValue).toISOString().slice(0, 10);
+
 export default function EventDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
@@ -98,7 +100,9 @@ export default function EventDetailPage() {
   const allowsGuestRegistration = event.registrationAccess === 'public';
   const startDate = new Date(event.startDate);
   const endDate = new Date(event.endDate);
-  const eventDays = event.eventDays || [];
+  const eventDays = [...(event.eventDays || [])].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
   const totalDays =
     eventDays.length ||
     Math.max(
@@ -140,6 +144,27 @@ export default function EventDetailPage() {
   const speakerById = new Map((event.speakers || []).map((speaker) => [speaker.id, speaker]));
   const sortedSchedule = [...(event.schedule || [])].sort(
     (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+  );
+  const scheduleByDay = eventDays.map((day, index) => {
+    const daySessionItems = sortedSchedule.filter((session) => {
+      if (day.id && session.dayId) {
+        return session.dayId === day.id;
+      }
+
+      return toDayKey(session.startTime) === toDayKey(day.date);
+    });
+
+    return {
+      day,
+      label: `اليوم ${index + 1}`,
+      sessions: daySessionItems,
+    };
+  });
+  const classifiedSessionIds = new Set(
+    scheduleByDay.flatMap((group) => group.sessions.map((session) => session.id))
+  );
+  const legacyUnassignedSessions = sortedSchedule.filter(
+    (session) => !classifiedSessionIds.has(session.id)
   );
   const sessionTypeLabels: Record<string, string> = {
     talk: "محاضرة علمية",
@@ -474,70 +499,162 @@ export default function EventDetailPage() {
                 <Card className="event-surface-card">
                   <CardContent className="pt-6 text-right" dir="rtl">
                     {sortedSchedule.length ? (
-                      <div className="space-y-4">
-                        {sortedSchedule.map((item) => {
-                          const sessionSpeakers = (item.speakerIds || [])
-                            .map((speakerId) => speakerById.get(speakerId))
-                            .filter(Boolean);
-
-                          return (
-                            <div key={item.id} className="rounded-xl border p-4 text-right" dir="rtl">
-                              <div className="flex flex-wrap items-start justify-between gap-2" dir="rtl">
-                                <div className="text-right">
-                                  <p className="font-semibold">{item.titleAr}</p>
-                                  <p className="mt-1 text-sm text-muted-foreground">
-                                    {format(new Date(item.startTime), "EEEE، d MMMM yyyy", {
-                                      locale: ar,
-                                    })}
-                                  </p>
-                                </div>
-                                <Badge
-                                  variant="outline"
-                                  className={cn(
-                                    "font-medium",
-                                    sessionTypeBadgeClasses[item.sessionType] ||
-                                       "border-primary-300 text-primary-700 dark:border-primary-800 dark:text-primary-200"
-                                   )}
-                                 >
-                                  {sessionTypeLabels[item.sessionType] || item.sessionType}
-                                </Badge>
-                              </div>
-
-                              <div className="mt-3 flex flex-row-reverse items-center justify-end gap-2 text-sm text-muted-foreground">
-                                <Clock className="h-4 w-4" />
-                                <span>
-                                  {format(new Date(item.startTime), "h:mm a", { locale: ar })} -{" "}
-                                  {format(new Date(item.endTime), "h:mm a", { locale: ar })}
-                                </span>
-                              </div>
-
-                              {item.descriptionAr && (
-                                <p className="mt-3 text-right text-sm leading-relaxed">{item.descriptionAr}</p>
-                              )}
-
-                              {sessionSpeakers.length > 0 && (
-                                <div className="mt-3 border-t pt-3">
-                                  <p className="mb-2 flex flex-row-reverse items-center justify-end gap-2 text-xs font-semibold text-muted-foreground">
-                                    <Mic className="h-3.5 w-3.5" />
-                                    المتحدثون
-                                  </p>
-                                  <div className="flex flex-wrap justify-end gap-2">
-                                    {sessionSpeakers.map((speaker) => (
-                                      <button
-                                        key={speaker!.id}
-                                        type="button"
-                                        className="inline-flex items-center rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-medium text-primary-700 transition hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-900/30 dark:text-primary-200 dark:hover:bg-primary-900/45"
-                                        onClick={() => goToSpeakerCard(speaker!.id)}
-                                      >
-                                        {speaker!.nameAr}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
+                      <div className="space-y-6">
+                        {scheduleByDay.map((group) => (
+                          <div key={group.day.id || group.label} className="space-y-3">
+                            <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
+                              <p className="font-semibold">{group.label}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(group.day.date), "EEEE، d MMMM yyyy", { locale: ar })}
+                              </p>
                             </div>
-                          );
-                        })}
+
+                            {group.sessions.length ? (
+                              <div className="space-y-4">
+                                {group.sessions.map((item) => {
+                                  const sessionSpeakers = (item.speakerIds || [])
+                                    .map((speakerId) => speakerById.get(speakerId))
+                                    .filter(Boolean);
+
+                                  return (
+                                    <div key={item.id} className="rounded-xl border p-4 text-right" dir="rtl">
+                                      <div className="flex flex-wrap items-start justify-between gap-2" dir="rtl">
+                                        <div className="text-right">
+                                          <p className="font-semibold">{item.titleAr}</p>
+                                          <p className="mt-1 text-sm text-muted-foreground">
+                                            {format(new Date(item.startTime), "EEEE، d MMMM yyyy", {
+                                              locale: ar,
+                                            })}
+                                          </p>
+                                        </div>
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            "font-medium",
+                                            sessionTypeBadgeClasses[item.sessionType] ||
+                                              "border-primary-300 text-primary-700 dark:border-primary-800 dark:text-primary-200"
+                                          )}
+                                        >
+                                          {sessionTypeLabels[item.sessionType] || item.sessionType}
+                                        </Badge>
+                                      </div>
+
+                                      <div className="mt-3 flex flex-row-reverse items-center justify-end gap-2 text-sm text-muted-foreground">
+                                        <Clock className="h-4 w-4" />
+                                        <span>
+                                          {format(new Date(item.startTime), "h:mm a", { locale: ar })} -{" "}
+                                          {format(new Date(item.endTime), "h:mm a", { locale: ar })}
+                                        </span>
+                                      </div>
+
+                                      {item.descriptionAr && (
+                                        <p className="mt-3 text-right text-sm leading-relaxed">{item.descriptionAr}</p>
+                                      )}
+
+                                      {sessionSpeakers.length > 0 && (
+                                        <div className="mt-3 border-t pt-3">
+                                          <p className="mb-2 flex flex-row-reverse items-center justify-end gap-2 text-xs font-semibold text-muted-foreground">
+                                            <Mic className="h-3.5 w-3.5" />
+                                            المتحدثون
+                                          </p>
+                                          <div className="flex flex-wrap justify-end gap-2">
+                                            {sessionSpeakers.map((speaker) => (
+                                              <button
+                                                key={speaker!.id}
+                                                type="button"
+                                                className="inline-flex items-center rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-medium text-primary-700 transition hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-900/30 dark:text-primary-200 dark:hover:bg-primary-900/45"
+                                                onClick={() => goToSpeakerCard(speaker!.id)}
+                                              >
+                                                {speaker!.nameAr}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                                لا توجد جلسات مضافة لهذا اليوم.
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
+                        {legacyUnassignedSessions.length > 0 && (
+                          <div className="space-y-3">
+                            <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                              جلسات قديمة غير مصنفة حسب الأيام
+                            </div>
+                            <div className="space-y-4">
+                              {legacyUnassignedSessions.map((item) => {
+                                const sessionSpeakers = (item.speakerIds || [])
+                                  .map((speakerId) => speakerById.get(speakerId))
+                                  .filter(Boolean);
+
+                                return (
+                                  <div key={item.id} className="rounded-xl border p-4 text-right" dir="rtl">
+                                    <div className="flex flex-wrap items-start justify-between gap-2" dir="rtl">
+                                      <div className="text-right">
+                                        <p className="font-semibold">{item.titleAr}</p>
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                          {format(new Date(item.startTime), "EEEE، d MMMM yyyy", {
+                                            locale: ar,
+                                          })}
+                                        </p>
+                                      </div>
+                                      <Badge
+                                        variant="outline"
+                                        className={cn(
+                                          "font-medium",
+                                          sessionTypeBadgeClasses[item.sessionType] ||
+                                            "border-primary-300 text-primary-700 dark:border-primary-800 dark:text-primary-200"
+                                        )}
+                                      >
+                                        {sessionTypeLabels[item.sessionType] || item.sessionType}
+                                      </Badge>
+                                    </div>
+
+                                    <div className="mt-3 flex flex-row-reverse items-center justify-end gap-2 text-sm text-muted-foreground">
+                                      <Clock className="h-4 w-4" />
+                                      <span>
+                                        {format(new Date(item.startTime), "h:mm a", { locale: ar })} -{" "}
+                                        {format(new Date(item.endTime), "h:mm a", { locale: ar })}
+                                      </span>
+                                    </div>
+
+                                    {item.descriptionAr && (
+                                      <p className="mt-3 text-right text-sm leading-relaxed">{item.descriptionAr}</p>
+                                    )}
+
+                                    {sessionSpeakers.length > 0 && (
+                                      <div className="mt-3 border-t pt-3">
+                                        <p className="mb-2 flex flex-row-reverse items-center justify-end gap-2 text-xs font-semibold text-muted-foreground">
+                                          <Mic className="h-3.5 w-3.5" />
+                                          المتحدثون
+                                        </p>
+                                        <div className="flex flex-wrap justify-end gap-2">
+                                          {sessionSpeakers.map((speaker) => (
+                                            <button
+                                              key={speaker!.id}
+                                              type="button"
+                                              className="inline-flex items-center rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-medium text-primary-700 transition hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-900/30 dark:text-primary-200 dark:hover:bg-primary-900/45"
+                                              onClick={() => goToSpeakerCard(speaker!.id)}
+                                            >
+                                              {speaker!.nameAr}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-4">
