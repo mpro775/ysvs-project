@@ -232,15 +232,9 @@ const eventSchema = z
     registrationOpen: z.boolean(),
     registrationAccess: z.enum(["authenticated_only", "public"]),
     guestEmailMode: z.enum(["required", "optional"]),
-    outcomes: z
-      .array(z.string().trim().min(1, "لا يمكن حفظ نقطة فارغة"))
-      .min(1, "أضف نقطة واحدة على الأقل في مخرجات المؤتمر"),
-    objectives: z
-      .array(z.string().trim().min(1, "لا يمكن حفظ هدف فارغ"))
-      .min(1, "أضف هدفاً واحداً على الأقل"),
-    targetAudience: z
-      .array(z.string().trim().min(1, "لا يمكن حفظ فئة فارغة"))
-      .min(1, "أضف فئة مستهدفة واحدة على الأقل"),
+    outcomes: z.array(z.string().trim().min(1, "لا يمكن حفظ نقطة فارغة")),
+    objectives: z.array(z.string().trim().min(1, "لا يمكن حفظ هدف فارغ")),
+    targetAudience: z.array(z.string().trim().min(1, "لا يمكن حفظ فئة فارغة")),
     eventDays: z.array(eventDaySchema).min(1, "أضف يوماً واحداً على الأقل"),
     speakers: z.array(speakerSchema),
     schedule: z.array(scheduleItemSchema),
@@ -416,6 +410,7 @@ export default function AdminEventEditPage() {
     watch,
     setValue,
     reset,
+    getValues,
     formState: { errors },
   } = useForm<EventForm>({
     resolver: zodResolver(eventSchema) as Resolver<EventForm>,
@@ -439,9 +434,9 @@ export default function AdminEventEditPage() {
       },
       coordinatesLat: undefined,
       coordinatesLng: undefined,
-      outcomes: [""],
-      objectives: [""],
-      targetAudience: [""],
+      outcomes: [],
+      objectives: [],
+      targetAudience: [],
       eventDays: [
         {
           id: createClientId("day"),
@@ -513,9 +508,9 @@ export default function AdminEventEditPage() {
         registrationOpen: event.registrationOpen,
         registrationAccess: event.registrationAccess || "authenticated_only",
         guestEmailMode: event.guestEmailMode || "required",
-        outcomes: event.outcomes?.length ? event.outcomes : [""],
-        objectives: event.objectives?.length ? event.objectives : [""],
-        targetAudience: event.targetAudience?.length ? event.targetAudience : [""],
+        outcomes: (event.outcomes || []).map((item) => (item || "").trim()).filter(Boolean),
+        objectives: (event.objectives || []).map((item) => (item || "").trim()).filter(Boolean),
+        targetAudience: (event.targetAudience || []).map((item) => (item || "").trim()).filter(Boolean),
         eventDays: normalizedEventDays,
         speakers:
           event.speakers?.map((speaker) => ({
@@ -619,7 +614,7 @@ export default function AdminEventEditPage() {
 
   const removeOutcome = (index: number) => {
     const next = outcomes.filter((_, currentIndex) => currentIndex !== index);
-    setValue("outcomes", next.length ? next : [""], { shouldDirty: true, shouldValidate: true });
+    setValue("outcomes", next, { shouldDirty: true, shouldValidate: true });
   };
 
   const addObjective = () => {
@@ -634,7 +629,7 @@ export default function AdminEventEditPage() {
 
   const removeObjective = (index: number) => {
     const next = objectives.filter((_, currentIndex) => currentIndex !== index);
-    setValue("objectives", next.length ? next : [""], { shouldDirty: true, shouldValidate: true });
+    setValue("objectives", next, { shouldDirty: true, shouldValidate: true });
   };
 
   const addTargetAudience = () => {
@@ -649,7 +644,7 @@ export default function AdminEventEditPage() {
 
   const removeTargetAudience = (index: number) => {
     const next = targetAudience.filter((_, currentIndex) => currentIndex !== index);
-    setValue("targetAudience", next.length ? next : [""], { shouldDirty: true, shouldValidate: true });
+    setValue("targetAudience", next, { shouldDirty: true, shouldValidate: true });
   };
 
   const addEventDay = () => {
@@ -961,12 +956,25 @@ export default function AdminEventEditPage() {
   };
 
   const onInvalid = (formErrors: FieldErrors<EventForm>) => {
+    const normalizedValues = getValues();
+    const fallbackParsed = eventSchema.safeParse(normalizedValues);
+    if (fallbackParsed.success) {
+      onSubmit(fallbackParsed.data);
+      return;
+    }
+
+    const firstIssue = fallbackParsed.error.issues[0];
+    const issuePath = firstIssue?.path?.length ? ` (${firstIssue.path.join(".")})` : "";
+    const issueMessage = firstIssue?.message && firstIssue.message !== "Invalid input"
+      ? firstIssue.message
+      : undefined;
+
     const firstError = findFirstErrorMessage(formErrors);
     const readableMessage =
-      !firstError || firstError === "Invalid input"
+      issueMessage || !firstError || firstError === "Invalid input"
         ? "توجد قيم غير صالحة في بعض الحقول. راجع الحقول الرقمية والاختيارات ثم أعد المحاولة"
         : firstError;
-    setSummaryError(`يرجى تصحيح الأخطاء قبل الحفظ: ${readableMessage}`);
+    setSummaryError(`يرجى تصحيح الأخطاء قبل الحفظ: ${readableMessage}${issueMessage ? issuePath : ""}`);
 
     const hasProgramErrors = Boolean(
       formErrors.outcomes ||
