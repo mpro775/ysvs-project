@@ -30,6 +30,9 @@ import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto'
 
 @Injectable()
 export class EventsService {
+  private readonly eventsCacheVersionKey = 'events:cache-version';
+  private readonly eventsCacheVersionTtl = 24 * 60 * 60 * 1000;
+
   private readonly protectedProfileFieldIds = new Set([
     'fullNameAr',
     'fullNameEn',
@@ -82,7 +85,8 @@ export class EventsService {
 
   async findPublished(queryDto: EventsQueryDto): Promise<PaginatedResult<Event>> {
     const { page = 1, limit = 10, status } = queryDto;
-    const cacheKey = `events:published:${page}:${limit}:${status ?? 'all'}`;
+    const cacheVersion = await this.getEventsCacheVersion();
+    const cacheKey = `events:published:v${cacheVersion}:${page}:${limit}:${status ?? 'all'}`;
     const cached = await this.cacheManager.get<PaginatedResult<Event>>(cacheKey);
 
     if (cached) {
@@ -116,7 +120,8 @@ export class EventsService {
   }
 
   async findUpcoming(): Promise<Event | null> {
-    const cacheKey = 'events:upcoming';
+    const cacheVersion = await this.getEventsCacheVersion();
+    const cacheKey = `events:upcoming:v${cacheVersion}`;
     const cached = await this.cacheManager.get<Event>(cacheKey);
 
     if (cached) {
@@ -754,13 +759,25 @@ export class EventsService {
   }
 
   private async invalidateCache(): Promise<void> {
-    // Clear specific cache keys
-    // Note: In production with Redis, you could use pattern matching
-    const keysToDelete = [
-      'events:published:1:10',
-      'events:published:1:20',
-      'events:upcoming',
-    ];
-    await Promise.all(keysToDelete.map((key) => this.cacheManager.del(key)));
+    const currentVersion = await this.getEventsCacheVersion();
+    await this.cacheManager.set(
+      this.eventsCacheVersionKey,
+      currentVersion + 1,
+      this.eventsCacheVersionTtl,
+    );
+  }
+
+  private async getEventsCacheVersion(): Promise<number> {
+    const cachedVersion = await this.cacheManager.get<number | string>(
+      this.eventsCacheVersionKey,
+    );
+    const parsedVersion = Number(cachedVersion);
+
+    if (Number.isFinite(parsedVersion) && parsedVersion >= 1) {
+      return parsedVersion;
+    }
+
+    await this.cacheManager.set(this.eventsCacheVersionKey, 1, this.eventsCacheVersionTtl);
+    return 1;
   }
 }
