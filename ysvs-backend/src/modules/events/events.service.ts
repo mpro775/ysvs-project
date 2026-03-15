@@ -777,22 +777,12 @@ export class EventsService {
     }
 
     const allowedSpeakerIds = new Set((speakers ?? []).map((speaker) => speaker.id));
-    const typesWithoutSpeakers = new Set<SessionType>([
-      SessionType.BREAK,
-      SessionType.NETWORKING,
-      SessionType.OPENING,
-      SessionType.CLOSING,
-    ]);
 
     for (const item of schedule) {
       const speakerIds = item.speakerIds ?? [];
 
       if (!Array.isArray(speakerIds)) {
         throw new BadRequestException('معرفات المتحدثين في الجلسة يجب أن تكون قائمة');
-      }
-
-      if (!typesWithoutSpeakers.has(item.sessionType) && speakerIds.length === 0) {
-        throw new BadRequestException('الجلسات العلمية تتطلب متحدثاً واحداً على الأقل');
       }
 
       for (const speakerId of speakerIds) {

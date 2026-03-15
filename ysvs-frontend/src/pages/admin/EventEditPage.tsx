@@ -29,7 +29,6 @@ import type { FormField } from "@/types";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 
-const scientificSessionTypes = ["talk", "panel", "workshop"] as const;
 const sessionTypeOptions = [
   { value: "talk", label: "محاضرة علمية" },
   { value: "panel", label: "جلسة نقاش" },
@@ -46,9 +45,6 @@ const streamProviderOptions = [
   { value: "zoom", label: "Zoom" },
   { value: "custom", label: "منصة أخرى" },
 ] as const;
-
-const requiresSpeakers = (sessionType: string) =>
-  scientificSessionTypes.includes(sessionType as (typeof scientificSessionTypes)[number]);
 
 const createClientId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -283,14 +279,6 @@ const eventSchema = z
           code: z.ZodIssueCode.custom,
           path: ["schedule", index, "startTime"],
           message: "يجب أن تكون الجلسة ضمن وقت بداية ونهاية المؤتمر",
-        });
-      }
-
-      if (requiresSpeakers(session.sessionType) && session.speakerIds.length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["schedule", index, "speakerIds"],
-          message: "هذه الجلسة تتطلب متحدثاً واحداً على الأقل",
         });
       }
 
@@ -1752,14 +1740,10 @@ export default function AdminEventEditPage() {
                         <Select
                           value={session.sessionType}
                           onValueChange={(value) => {
-                            const keepSpeakerIds = requiresSpeakers(value)
-                              ? session.speakerIds || []
-                              : [];
                             const next = [...schedule];
                             next[index] = {
                               ...next[index],
                               sessionType: value as EventForm["schedule"][number]["sessionType"],
-                              speakerIds: keepSpeakerIds,
                             };
                             setValue("schedule", next, { shouldDirty: true, shouldValidate: true });
                           }}
@@ -1823,32 +1807,26 @@ export default function AdminEventEditPage() {
                       </div>
                     </div>
 
-                    {requiresSpeakers(session.sessionType) ? (
-                      <div className="mt-3 space-y-2 rounded-md bg-muted/40 p-3">
-                        <p className="text-xs text-muted-foreground">اختر متحدثاً واحداً على الأقل لهذه الجلسة</p>
-                        {!speakers.length ? (
-                          <p className="text-sm text-amber-700">أضف متحدثين أولاً لربطهم بالجلسة</p>
-                        ) : (
-                          <div className="grid gap-2 md:grid-cols-2">
-                            {speakers.map((speaker) => (
-                              <label key={`${session.id}-${speaker.id}`} className="flex items-center gap-2 text-sm">
-                                <Checkbox
-                                  checked={(session.speakerIds || []).includes(speaker.id)}
-                                  onCheckedChange={(checked) =>
-                                    toggleSessionSpeaker(index, speaker.id, checked === true)
-                                  }
-                                />
-                                <span>{speaker.nameAr || "متحدث بدون اسم"}</span>
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        هذا النوع لا يتطلب متحدثاً ويمكن نشره كجلسة مستقلة مثل الاستراحة أو الافتتاح.
-                      </p>
-                    )}
+                    <div className="mt-3 space-y-2 rounded-md bg-muted/40 p-3">
+                      <p className="text-xs text-muted-foreground">المتحدثون اختياريون حالياً ويمكن إضافتهم لاحقاً</p>
+                      {!speakers.length ? (
+                        <p className="text-sm text-amber-700">لا يوجد متحدثون بعد، ويمكن حفظ الجلسة بدون متحدثين</p>
+                      ) : (
+                        <div className="grid gap-2 md:grid-cols-2">
+                          {speakers.map((speaker) => (
+                            <label key={`${session.id}-${speaker.id}`} className="flex items-center gap-2 text-sm">
+                              <Checkbox
+                                checked={(session.speakerIds || []).includes(speaker.id)}
+                                onCheckedChange={(checked) =>
+                                  toggleSessionSpeaker(index, speaker.id, checked === true)
+                                }
+                              />
+                              <span>{speaker.nameAr || "متحدث بدون اسم"}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
                     {(errors.schedule?.[index]?.dayId?.message ||
                       errors.schedule?.[index]?.titleAr?.message ||
