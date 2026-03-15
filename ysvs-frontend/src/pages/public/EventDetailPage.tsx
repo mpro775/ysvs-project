@@ -381,10 +381,25 @@ export default function EventDetailPage() {
               <TabsContent value="about" className="mt-6">
                 <div className="event-surface-card rounded-2xl p-6">
                   <div className="event-rich-content prose prose-lg max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground prose-a:text-primary-700 hover:prose-a:text-primary-600 dark:prose-invert dark:prose-a:text-primary-300 dark:hover:prose-a:text-primary-200">
-                    {event.descriptionAr ? (
-                      <div
-                        dangerouslySetInnerHTML={{ __html: event.descriptionAr }}
-                      />
+                    {event.descriptionAr || event.descriptionEn ? (
+                      <>
+                        {event.descriptionAr && (
+                          <div
+                            dangerouslySetInnerHTML={{ __html: event.descriptionAr }}
+                          />
+                        )}
+
+                        {event.descriptionEn && (
+                          <div className={cn(event.descriptionAr ? "mt-6 border-t border-[var(--event-border)] pt-6" : "")}>
+                            <h4 className="mb-3 text-left text-base font-semibold">Event Description (English)</h4>
+                            <div
+                              dir="ltr"
+                              className="text-left"
+                              dangerouslySetInnerHTML={{ __html: event.descriptionEn }}
+                            />
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <p className="text-muted-foreground">لا يوجد وصف متاح</p>
                     )}

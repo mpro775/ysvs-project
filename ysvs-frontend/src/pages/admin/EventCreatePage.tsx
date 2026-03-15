@@ -1228,6 +1228,11 @@ export default function AdminEventCreatePage() {
                 <Textarea id="descriptionAr" rows={4} {...register("descriptionAr")} />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="descriptionEn">الوصف (إنجليزي)</Label>
+                <Textarea id="descriptionEn" dir="ltr" rows={4} {...register("descriptionEn")} />
+              </div>
+
               <EventCoverImageField
                 value={watchedValues.coverImage || undefined}
                 onChange={(url) =>
