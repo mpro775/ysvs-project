@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,54 +24,166 @@ import { useAuthStore } from '@/stores/authStore';
 const OTHER_OPTION_VALUE = '__other__';
 const getOtherFieldId = (fieldId: string) => `${fieldId}__other`;
 
-const guestProfileFields = [
+const PROFILE_FIELD_IDS = {
+  fullNameAr: 'fullNameAr',
+  fullNameEn: 'fullNameEn',
+  email: 'email',
+  phone: 'phone',
+  gender: 'gender',
+  country: 'country',
+  jobTitle: 'jobTitle',
+  specialty: 'specialty',
+  workplace: 'workplace',
+  professionalCardDocument: 'professionalCardDocument',
+  profileDeclaration: 'profileDeclaration',
+} as const;
+
+const baseProfileFieldIds = new Set<string>(Object.values(PROFILE_FIELD_IDS));
+
+const genderOptions = [
+  { value: 'male', label: 'ذكر' },
+  { value: 'female', label: 'أنثى' },
+];
+
+const jobTitleOptions = [
+  { value: 'consultant', label: 'استشاري' },
+  { value: 'specialist', label: 'أخصائي' },
+  { value: 'resident', label: 'مقيم' },
+  { value: 'general_practitioner', label: 'طبيب عام' },
+  { value: 'student', label: 'طالب' },
+  { value: 'nursing', label: 'تمريض' },
+];
+
+const specialtyOptions = [
+  { value: 'vascular_surgery', label: 'جراحة الأوعية الدموية' },
+  { value: 'cardiac_surgery', label: 'جراحة القلب' },
+  { value: 'cardiology', label: 'أمراض القلب' },
+  { value: 'anesthesia', label: 'التخدير' },
+  { value: 'critical_care', label: 'العناية المركزة' },
+];
+
+const countryOptions = [
+  { value: 'yemen', label: 'اليمن' },
+  { value: 'saudi_arabia', label: 'السعودية' },
+  { value: 'oman', label: 'عُمان' },
+  { value: 'uae', label: 'الإمارات' },
+  { value: 'qatar', label: 'قطر' },
+  { value: 'kuwait', label: 'الكويت' },
+  { value: 'bahrain', label: 'البحرين' },
+  { value: 'egypt', label: 'مصر' },
+  { value: 'jordan', label: 'الأردن' },
+  { value: 'other_arab', label: 'دولة عربية أخرى' },
+  { value: 'other', label: 'دولة أخرى' },
+];
+
+const buildBaseProfileFields = (isGuest: boolean): FormField[] => [
   {
-    id: 'fullNameAr',
+    id: PROFILE_FIELD_IDS.fullNameAr,
+    type: 'text',
     label: 'الاسم الكامل (عربي)',
-    type: 'text' as const,
+    labelEn: 'Full Name (Arabic)',
     placeholder: 'د. أحمد محمد',
     required: true,
+    order: 0,
+    validation: { minLength: 3 },
   },
   {
-    id: 'fullNameEn',
+    id: PROFILE_FIELD_IDS.fullNameEn,
+    type: 'text',
     label: 'الاسم الكامل (إنجليزي)',
-    type: 'text' as const,
+    labelEn: 'Full Name (English)',
     placeholder: 'Dr. Ahmed Mohammed',
     required: true,
+    order: 1,
+    validation: { minLength: 3 },
   },
   {
-    id: 'email',
+    id: PROFILE_FIELD_IDS.email,
+    type: 'email',
     label: 'البريد الإلكتروني',
-    type: 'email' as const,
+    labelEn: 'Email',
     placeholder: 'you@example.com',
     required: true,
+    order: 2,
   },
   {
-    id: 'phone',
+    id: PROFILE_FIELD_IDS.phone,
+    type: 'phone',
     label: 'رقم الهاتف',
-    type: 'phone' as const,
+    labelEn: 'Phone',
     placeholder: '+967 xxx xxx xxx',
     required: true,
+    order: 3,
   },
   {
-    id: 'specialty',
-    label: 'الوصف الوظيفي',
-    type: 'text' as const,
-    placeholder: 'جراح أوعية، أخصائي، طبيب مقيم...',
+    id: PROFILE_FIELD_IDS.gender,
+    type: 'select',
+    label: 'الجنس',
+    labelEn: 'Gender',
     required: true,
+    order: 4,
+    options: genderOptions,
   },
   {
-    id: 'gender',
-    label: 'النوع',
-    type: 'select' as const,
+    id: PROFILE_FIELD_IDS.country,
+    type: 'select',
+    label: 'الدولة',
+    labelEn: 'Country',
     required: true,
+    order: 5,
+    options: countryOptions,
+    allowOther: true,
   },
   {
-    id: 'workplace',
-    label: 'مكان العمل',
-    type: 'text' as const,
+    id: PROFILE_FIELD_IDS.jobTitle,
+    type: 'select',
+    label: 'الصفة الوظيفية',
+    labelEn: 'Job Title',
+    required: true,
+    order: 6,
+    options: jobTitleOptions,
+    allowOther: true,
+  },
+  {
+    id: PROFILE_FIELD_IDS.specialty,
+    type: 'select',
+    label: 'التخصص',
+    labelEn: 'Specialty',
+    required: true,
+    order: 7,
+    options: specialtyOptions,
+    allowOther: true,
+  },
+  {
+    id: PROFILE_FIELD_IDS.workplace,
+    type: 'text',
+    label: 'جهة العمل / المستشفى / الجامعة',
+    labelEn: 'Workplace / Hospital / University',
     placeholder: 'مستشفى الثورة العام',
     required: true,
+    order: 8,
+    validation: { minLength: 2 },
+  },
+  {
+    id: PROFILE_FIELD_IDS.professionalCardDocument,
+    type: 'file',
+    label: 'رفع ملف بطاقة مزاولة المهنة',
+    labelEn: 'Professional License Card Upload',
+    required: isGuest,
+    order: 9,
+    validation: {
+      fileTypes: ['.jpg', '.jpeg', '.png', '.pdf'],
+      maxFileSize: 10,
+    },
+  },
+  {
+    id: PROFILE_FIELD_IDS.profileDeclaration,
+    type: 'checkbox',
+    label:
+      'أقر بأن جميع البيانات المدخلة صحيحة، وأتحمل المسؤولية عن صحة المستند المرفوع.',
+    labelEn: 'I confirm all provided data and uploaded document are correct.',
+    required: isGuest,
+    order: 10,
   },
 ];
 
@@ -83,24 +195,8 @@ interface DynamicFormProps {
 }
 
 // Build Zod schema dynamically
-function buildValidationSchema(fields: FormField[], includeGuestProfile: boolean) {
+function buildValidationSchema(fields: FormField[]) {
   const shape: Record<string, z.ZodTypeAny> = {};
-
-  if (includeGuestProfile) {
-    shape.fullNameAr = z.string().trim().min(3, 'الاسم بالعربي مطلوب');
-    shape.fullNameEn = z.string().trim().min(3, 'الاسم بالإنجليزي مطلوب');
-    shape.email = z.string().trim().email('البريد الإلكتروني غير صالح');
-    shape.phone = z
-      .string()
-      .trim()
-      .min(1, 'رقم الهاتف مطلوب')
-      .refine((value) => /^(?:\+?967\d{0,9}|7\d{2,8})$/.test(value.replace(/[\s\-().]/g, '')), {
-        message: 'رقم الهاتف غير صالح',
-      });
-    shape.specialty = z.string().trim().min(2, 'الوصف الوظيفي مطلوب');
-    shape.gender = z.enum(['male', 'female']);
-    shape.workplace = z.string().trim().min(2, 'مكان العمل مطلوب');
-  }
 
   fields.forEach((field) => {
     let validator: z.ZodTypeAny;
@@ -405,7 +501,16 @@ export function DynamicForm({
 
   const isGuest = guestRegistrationEnabled && !isAuthenticated;
   const sortedSchema = [...schema].sort((a, b) => a.order - b.order);
-  const validationSchema = buildValidationSchema(sortedSchema, isGuest);
+  const baseProfileFields = useMemo(() => buildBaseProfileFields(isGuest), [isGuest]);
+  const eventSpecificSchema = useMemo(
+    () => sortedSchema.filter((field) => !baseProfileFieldIds.has(field.id)),
+    [sortedSchema],
+  );
+  const allFields = useMemo(
+    () => [...baseProfileFields, ...eventSpecificSchema],
+    [baseProfileFields, eventSpecificSchema],
+  );
+  const validationSchema = useMemo(() => buildValidationSchema(allFields), [allFields]);
   const sectionOrdinals = [
     'أولاً',
     'ثانياً',
@@ -426,9 +531,47 @@ export function DynamicForm({
     setError,
     clearErrors,
     formState: { errors },
-  } = useForm({
+  } = useForm<Record<string, unknown>>({
     resolver: zodResolver(validationSchema),
+    defaultValues: {
+      [PROFILE_FIELD_IDS.fullNameAr]: user?.fullNameAr || '',
+      [PROFILE_FIELD_IDS.fullNameEn]: user?.fullNameEn || '',
+      [PROFILE_FIELD_IDS.email]: user?.email || '',
+      [PROFILE_FIELD_IDS.phone]: user?.phone || '',
+      [PROFILE_FIELD_IDS.gender]: user?.gender || '',
+      [PROFILE_FIELD_IDS.workplace]: user?.workplace || '',
+      [PROFILE_FIELD_IDS.profileDeclaration]: false,
+    },
   });
+
+  const mapSelectFieldDefault = (
+    fieldId:
+      | typeof PROFILE_FIELD_IDS.country
+      | typeof PROFILE_FIELD_IDS.jobTitle
+      | typeof PROFILE_FIELD_IDS.specialty,
+    value: string | undefined,
+    options: Array<{ value: string }>,
+  ) => {
+    if (!value?.trim()) {
+      return;
+    }
+
+    const normalized = value.trim();
+    const hasOption = options.some((option) => option.value === normalized);
+    if (hasOption) {
+      setValue(fieldId, normalized, { shouldDirty: false });
+      return;
+    }
+
+    setValue(fieldId, OTHER_OPTION_VALUE, { shouldDirty: false });
+    setValue(getOtherFieldId(fieldId), normalized, { shouldDirty: false });
+  };
+
+  useEffect(() => {
+    mapSelectFieldDefault(PROFILE_FIELD_IDS.country, user?.country, countryOptions);
+    mapSelectFieldDefault(PROFILE_FIELD_IDS.jobTitle, user?.jobTitle, jobTitleOptions);
+    mapSelectFieldDefault(PROFILE_FIELD_IDS.specialty, user?.specialty, specialtyOptions);
+  }, [user?.country, user?.jobTitle, user?.specialty]);
 
   const validateSelectedFile = (field: FormField, file: File): string | null => {
     const allowedTypes = field.validation?.fileTypes;
@@ -501,7 +644,7 @@ export function DynamicForm({
         ? data.email.trim().toLowerCase()
         : undefined;
 
-    for (const field of sortedSchema) {
+    for (const field of allFields) {
       if ((field.type === 'select' || field.type === 'radio') && field.allowOther) {
         const selectedValue = data[field.id];
         if (selectedValue === OTHER_OPTION_VALUE) {
@@ -529,75 +672,22 @@ export function DynamicForm({
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 text-right" dir="rtl">
       {!isGuest && (
         <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
-          سيتم اعتماد البيانات الأساسية من حسابك تلقائياً
+          تم تعبئة البيانات الأساسية من حسابك تلقائياً، ويمكنك تعديلها قبل إرسال التسجيل.
           {user?.fullNameAr ? ` (${user.fullNameAr})` : ''}
-          ، ويظهر هنا فقط ما هو خاص بهذا المؤتمر.
+          .
         </div>
       )}
 
-      {isGuest && (
-        <div className="space-y-4 rounded-lg border p-4">
-          <p className="text-sm font-semibold">البيانات الأساسية للضيف</p>
-          <div className="grid gap-4 md:grid-cols-2">
-            {guestProfileFields.map((field) => {
-              const value = watch(field.id);
-              const error = errors[field.id]?.message as string | undefined;
+      <div className="space-y-4 rounded-lg border p-4">
+        <p className="text-sm font-semibold">
+          {isGuest ? 'البيانات الأساسية للضيف' : 'البيانات الأساسية للتسجيل'}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          تشمل هذه البيانات: الاسم عربي/إنجليزي، الهاتف، البريد، الجنس، الدولة، الصفة الوظيفية، التخصص، جهة العمل.
+        </p>
+      </div>
 
-              if (field.id === 'gender') {
-                return (
-                  <div key={field.id} className="space-y-2 text-right">
-                    <Label htmlFor={field.id}>
-                      {field.label}
-                      {field.required && <span className="ml-1 text-destructive">*</span>}
-                    </Label>
-                    <Select
-                      value={(value as string) || ''}
-                      onValueChange={(nextValue) =>
-                        setValue(field.id, nextValue, { shouldValidate: true, shouldDirty: true })
-                      }
-                    >
-                      <SelectTrigger id={field.id} className={error ? 'border-destructive' : ''}>
-                        <SelectValue placeholder="اختر النوع" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">ذكر</SelectItem>
-                        <SelectItem value="female">أنثى</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {error && <p className="text-sm text-destructive">{error}</p>}
-                  </div>
-                );
-              }
-
-              return (
-                <div key={field.id} className="space-y-2 text-right">
-                  <Label htmlFor={field.id}>
-                    {field.label}
-                    {field.required && <span className="ml-1 text-destructive">*</span>}
-                  </Label>
-                  <Input
-                    id={field.id}
-                    type={field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'}
-                    dir={field.type === 'email' || field.type === 'phone' ? 'ltr' : 'rtl'}
-                    className={error ? 'border-destructive' : ''}
-                    placeholder={field.placeholder}
-                    value={(value as string) || ''}
-                    onChange={(event) =>
-                      setValue(field.id, event.target.value, {
-                        shouldValidate: true,
-                        shouldDirty: true,
-                      })
-                    }
-                  />
-                  {error && <p className="text-sm text-destructive">{error}</p>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {sortedSchema.map((field, index) => {
+      {allFields.map((field, index) => {
         const value = watch(field.id);
         const error = errors[field.id]?.message as string | undefined;
         const otherFieldId = getOtherFieldId(field.id);
@@ -606,7 +696,7 @@ export function DynamicForm({
 
         if (field.type === 'section') {
           const sectionNumber =
-            sortedSchema.slice(0, index + 1).filter((item) => item.type === 'section').length;
+            allFields.slice(0, index + 1).filter((item) => item.type === 'section').length;
           const prefix =
             sectionOrdinals[sectionNumber - 1] || `${sectionNumber}.`;
 
@@ -636,6 +726,11 @@ export function DynamicForm({
               {field.label}
               {field.required && <span className="ml-1 text-destructive">*</span>}
             </Label>
+            {field.id === PROFILE_FIELD_IDS.professionalCardDocument && (
+              <p className="text-xs text-muted-foreground">
+                يشترط أن تكون البطاقة واضحة وسارية المفعول. الصيغ المسموحة: صورة أو PDF.
+              </p>
+            )}
             {renderField(
               field,
               value,

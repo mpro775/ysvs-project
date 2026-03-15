@@ -36,19 +36,36 @@ const DEFAULT_PROFILE_FIELD_IDS = {
   FULL_NAME_EN: 'fullNameEn',
   EMAIL: 'email',
   PHONE: 'phone',
+  COUNTRY: 'country',
+  JOB_TITLE: 'jobTitle',
   SPECIALTY: 'specialty',
   GENDER: 'gender',
   WORKPLACE: 'workplace',
+  PROFESSIONAL_CARD_DOCUMENT: 'professionalCardDocument',
+  PROFILE_DECLARATION: 'profileDeclaration',
 } as const;
+
+const OTHER_OPTION_VALUE = '__other__';
+const getOtherFieldId = (fieldId: string) => `${fieldId}__other`;
 
 type GuestProfileData = {
   fullNameAr: string;
   fullNameEn: string;
   email: string;
   phone: string;
+  country: string;
+  jobTitle: string;
   specialty: string;
   gender: 'male' | 'female';
   workplace: string;
+  professionalCardDocument?: {
+    key?: string;
+    url?: string;
+    originalName?: string;
+    size?: number;
+    mimetype?: string;
+  };
+  profileDeclaration: boolean;
 };
 
 @Injectable()
@@ -94,11 +111,25 @@ export class RegistrationService {
     }
 
     const field = event.formSchema.find((f) => f.id === fieldId);
-    if (!field || field.type !== FormFieldType.FILE) {
+    const isDefaultProfessionalCardField =
+      fieldId === DEFAULT_PROFILE_FIELD_IDS.PROFESSIONAL_CARD_DOCUMENT;
+
+    if (!field && !isDefaultProfessionalCardField) {
       throw new BadRequestException('حقل الملف غير موجود في نموذج المؤتمر');
     }
 
-    this.validateUploadAgainstField(field.validation?.fileTypes, field.validation?.maxFileSize, file);
+    if (field && field.type !== FormFieldType.FILE) {
+      throw new BadRequestException('حقل الملف غير موجود في نموذج المؤتمر');
+    }
+
+    const allowedTypes = isDefaultProfessionalCardField
+      ? ['.jpg', '.jpeg', '.png', '.pdf']
+      : field?.validation?.fileTypes;
+    const maxFileSize = isDefaultProfessionalCardField
+      ? 10
+      : field?.validation?.maxFileSize;
+
+    this.validateUploadAgainstField(allowedTypes, maxFileSize, file);
 
     const uploadOwner = userId || `guest-${uuidv4()}`;
     const folder = `event-registrations/${eventId}/${uploadOwner}`;
@@ -143,7 +174,7 @@ export class RegistrationService {
     }
 
     const guestProfile = this.extractGuestProfileData(createRegistrationDto.formData);
-    const normalizedGuestEmail =
+    let normalizedGuestEmail: string | undefined =
       createRegistrationDto.guestEmail?.trim().toLowerCase() ||
       guestProfile.email.toLowerCase();
 
@@ -175,6 +206,9 @@ export class RegistrationService {
       if (!user) {
         throw new NotFoundException('المستخدم غير موجود');
       }
+
+      await this.updateUserProfileFromRegistrationData(user, createRegistrationDto.formData);
+      normalizedGuestEmail = undefined;
     }
 
     if (!user) {
@@ -550,16 +584,36 @@ export class RegistrationService {
         ? (formData as Record<string, unknown>)
         : {};
 
+    const normalizedJobTitle = this.resolveSelectableField(
+      safeData,
+      DEFAULT_PROFILE_FIELD_IDS.JOB_TITLE,
+    );
+    const normalizedSpecialty = this.resolveSelectableField(
+      safeData,
+      DEFAULT_PROFILE_FIELD_IDS.SPECIALTY,
+    );
+    const normalizedCountry = this.resolveSelectableField(
+      safeData,
+      DEFAULT_PROFILE_FIELD_IDS.COUNTRY,
+    );
+
     return {
       fullNameAr: String(safeData[DEFAULT_PROFILE_FIELD_IDS.FULL_NAME_AR] || '').trim(),
       fullNameEn: String(safeData[DEFAULT_PROFILE_FIELD_IDS.FULL_NAME_EN] || '').trim(),
       email: String(safeData[DEFAULT_PROFILE_FIELD_IDS.EMAIL] || '').trim(),
       phone: String(safeData[DEFAULT_PROFILE_FIELD_IDS.PHONE] || '').trim(),
-      specialty: String(safeData[DEFAULT_PROFILE_FIELD_IDS.SPECIALTY] || '').trim(),
+      country: normalizedCountry,
+      jobTitle: normalizedJobTitle,
+      specialty: normalizedSpecialty,
       gender: String(safeData[DEFAULT_PROFILE_FIELD_IDS.GENDER] || '').trim() as
         | 'male'
         | 'female',
       workplace: String(safeData[DEFAULT_PROFILE_FIELD_IDS.WORKPLACE] || '').trim(),
+      professionalCardDocument: this.extractUploadedFile(
+        safeData[DEFAULT_PROFILE_FIELD_IDS.PROFESSIONAL_CARD_DOCUMENT],
+      ),
+      profileDeclaration:
+        safeData[DEFAULT_PROFILE_FIELD_IDS.PROFILE_DECLARATION] === true,
     };
   }
 
@@ -591,17 +645,114 @@ export class RegistrationService {
       throw new BadRequestException('رقم الهاتف للضيف غير صالح');
     }
 
+    if (!guestProfile.country) {
+      throw new BadRequestException('الدولة مطلوبة للضيف');
+    }
+
+    if (!guestProfile.jobTitle) {
+      throw new BadRequestException('الصفة الوظيفية مطلوبة للضيف');
+    }
+
     if (!guestProfile.specialty) {
-      throw new BadRequestException('الوصف الوظيفي مطلوب للضيف');
+      throw new BadRequestException('التخصص مطلوب للضيف');
     }
 
     if (!guestProfile.workplace) {
-      throw new BadRequestException('مكان العمل مطلوب للضيف');
+      throw new BadRequestException('جهة العمل / المستشفى / الجامعة مطلوبة للضيف');
     }
 
     if (!['male', 'female'].includes(guestProfile.gender)) {
-      throw new BadRequestException('النوع مطلوب للضيف');
+      throw new BadRequestException('الجنس مطلوب للضيف');
     }
+
+    if (!guestProfile.professionalCardDocument?.url) {
+      throw new BadRequestException('رفع صورة بطاقة مزاولة المهنة مطلوب للضيف');
+    }
+
+    if (!guestProfile.profileDeclaration) {
+      throw new BadRequestException('يجب الموافقة على الإقرار قبل إرسال التسجيل');
+    }
+  }
+
+  private resolveSelectableField(
+    formData: Record<string, unknown>,
+    fieldId: string,
+  ): string {
+    const selected = String(formData[fieldId] || '').trim();
+
+    if (selected === OTHER_OPTION_VALUE) {
+      return String(formData[getOtherFieldId(fieldId)] || '').trim();
+    }
+
+    return selected;
+  }
+
+  private extractUploadedFile(
+    value: unknown,
+  ):
+    | {
+        key?: string;
+        url?: string;
+        originalName?: string;
+        size?: number;
+        mimetype?: string;
+      }
+    | undefined {
+    if (!value || typeof value !== 'object') {
+      return undefined;
+    }
+
+    const file = value as {
+      key?: unknown;
+      url?: unknown;
+      originalName?: unknown;
+      size?: unknown;
+      mimetype?: unknown;
+    };
+
+    return {
+      key: typeof file.key === 'string' ? file.key : undefined,
+      url: typeof file.url === 'string' ? file.url : undefined,
+      originalName: typeof file.originalName === 'string' ? file.originalName : undefined,
+      size: typeof file.size === 'number' ? file.size : undefined,
+      mimetype: typeof file.mimetype === 'string' ? file.mimetype : undefined,
+    };
+  }
+
+  private async updateUserProfileFromRegistrationData(
+    user: UserDocument,
+    formData: Record<string, unknown>,
+  ): Promise<void> {
+    if (!formData || typeof formData !== 'object') {
+      return;
+    }
+
+    const nextProfile = {
+      fullNameAr:
+        String(formData[DEFAULT_PROFILE_FIELD_IDS.FULL_NAME_AR] || user.fullNameAr || '').trim() ||
+        user.fullNameAr,
+      fullNameEn:
+        String(formData[DEFAULT_PROFILE_FIELD_IDS.FULL_NAME_EN] || user.fullNameEn || '').trim() ||
+        user.fullNameEn,
+      phone:
+        String(formData[DEFAULT_PROFILE_FIELD_IDS.PHONE] || user.phone || '').trim() || user.phone,
+      country:
+        this.resolveSelectableField(formData, DEFAULT_PROFILE_FIELD_IDS.COUNTRY) || user.country,
+      jobTitle:
+        this.resolveSelectableField(formData, DEFAULT_PROFILE_FIELD_IDS.JOB_TITLE) || user.jobTitle,
+      specialty:
+        this.resolveSelectableField(formData, DEFAULT_PROFILE_FIELD_IDS.SPECIALTY) || user.specialty,
+      workplace:
+        String(formData[DEFAULT_PROFILE_FIELD_IDS.WORKPLACE] || user.workplace || '').trim() ||
+        user.workplace,
+      gender:
+        formData[DEFAULT_PROFILE_FIELD_IDS.GENDER] === 'male' ||
+        formData[DEFAULT_PROFILE_FIELD_IDS.GENDER] === 'female'
+          ? (formData[DEFAULT_PROFILE_FIELD_IDS.GENDER] as 'male' | 'female')
+          : user.gender,
+    };
+
+    await this.userModel.findByIdAndUpdate(user._id, nextProfile).exec();
   }
 
   private validateUploadAgainstField(

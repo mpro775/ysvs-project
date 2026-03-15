@@ -22,14 +22,51 @@ import { useRegister } from '@/api/hooks/useAuth';
 import api from '@/api/axios';
 import { ENDPOINTS } from '@/api/endpoints';
 
+const OTHER_OPTION_VALUE = '__other__';
+
+const jobTitleOptions = [
+  { value: 'consultant', label: 'استشاري' },
+  { value: 'specialist', label: 'أخصائي' },
+  { value: 'resident', label: 'مقيم' },
+  { value: 'general_practitioner', label: 'طبيب عام' },
+  { value: 'student', label: 'طالب' },
+  { value: 'nursing', label: 'تمريض' },
+];
+
+const specialtyOptions = [
+  { value: 'vascular_surgery', label: 'جراحة الأوعية الدموية' },
+  { value: 'cardiac_surgery', label: 'جراحة القلب' },
+  { value: 'cardiology', label: 'أمراض القلب' },
+  { value: 'anesthesia', label: 'التخدير' },
+  { value: 'critical_care', label: 'العناية المركزة' },
+];
+
+const countryOptions = [
+  { value: 'yemen', label: 'اليمن' },
+  { value: 'saudi_arabia', label: 'السعودية' },
+  { value: 'oman', label: 'عُمان' },
+  { value: 'uae', label: 'الإمارات' },
+  { value: 'qatar', label: 'قطر' },
+  { value: 'kuwait', label: 'الكويت' },
+  { value: 'bahrain', label: 'البحرين' },
+  { value: 'egypt', label: 'مصر' },
+  { value: 'jordan', label: 'الأردن' },
+  { value: 'other', label: 'أخرى' },
+];
+
 const registerSchema = z
   .object({
     fullNameAr: z.string().min(3, 'الاسم بالعربي يجب أن يكون 3 أحرف على الأقل'),
     fullNameEn: z.string().min(3, 'الاسم بالإنجليزي يجب أن يكون 3 أحرف على الأقل'),
     email: z.string().email('البريد الإلكتروني غير صالح'),
-    phone: z.string().optional(),
-    specialty: z.string().optional(),
-    workplace: z.string().optional(),
+    phone: z.string().min(1, 'رقم الهاتف مطلوب'),
+    country: z.string().min(1, 'الدولة مطلوبة'),
+    countryOther: z.string().optional(),
+    jobTitle: z.string().min(1, 'الصفة الوظيفية مطلوبة'),
+    jobTitleOther: z.string().optional(),
+    specialty: z.string().min(1, 'التخصص مطلوب'),
+    specialtyOther: z.string().optional(),
+    workplace: z.string().min(2, 'جهة العمل / المستشفى / الجامعة مطلوبة'),
     gender: z.enum(['male', 'female']),
     password: z.string().min(8, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'),
     confirmPassword: z.string(),
@@ -40,6 +77,31 @@ const registerSchema = z
   .refine((data) => data.password === data.confirmPassword, {
     message: 'كلمات المرور غير متطابقة',
     path: ['confirmPassword'],
+  })
+  .superRefine((data, ctx) => {
+    if (data.country === OTHER_OPTION_VALUE && !data.countryOther?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['countryOther'],
+        message: 'يرجى كتابة الدولة عند اختيار أخرى',
+      });
+    }
+
+    if (data.jobTitle === OTHER_OPTION_VALUE && !data.jobTitleOther?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['jobTitleOther'],
+        message: 'يرجى كتابة الصفة الوظيفية عند اختيار أخرى',
+      });
+    }
+
+    if (data.specialty === OTHER_OPTION_VALUE && !data.specialtyOther?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['specialtyOther'],
+        message: 'يرجى كتابة التخصص عند اختيار أخرى',
+      });
+    }
   });
 
 type RegisterForm = z.infer<typeof registerSchema>;
@@ -60,14 +122,46 @@ export default function RegisterPage() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       terms: false,
+      country: 'yemen',
     },
   });
 
   const termsValue = watch('terms');
+  const countryValue = watch('country');
+  const jobTitleValue = watch('jobTitle');
+  const specialtyValue = watch('specialty');
 
   const onSubmit = (data: RegisterForm) => {
-    const { confirmPassword: _, terms: __, ...registerData } = data;
-    registerUser(registerData, {
+    const normalizedCountry =
+      data.country === OTHER_OPTION_VALUE
+        ? data.countryOther?.trim() || ''
+        : data.country;
+    const normalizedJobTitle =
+      data.jobTitle === OTHER_OPTION_VALUE
+        ? data.jobTitleOther?.trim() || ''
+        : data.jobTitle;
+    const normalizedSpecialty =
+      data.specialty === OTHER_OPTION_VALUE
+        ? data.specialtyOther?.trim() || ''
+        : data.specialty;
+
+    const {
+      confirmPassword: _,
+      terms: __,
+      countryOther: ___,
+      jobTitleOther: ____,
+      specialtyOther: _____,
+      ...registerData
+    } = data;
+
+    registerUser(
+      {
+        ...registerData,
+        country: normalizedCountry,
+        jobTitle: normalizedJobTitle,
+        specialty: normalizedSpecialty,
+      },
+      {
       onSuccess: async (registerResponse) => {
         if (professionalCardFile && registerResponse?.accessToken) {
           const formData = new FormData();
@@ -91,7 +185,8 @@ export default function RegisterPage() {
 
         navigate('/login');
       },
-    });
+    }
+    );
   };
 
   return (
@@ -151,37 +246,20 @@ export default function RegisterPage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="phone">رقم الهاتف</Label>
+                <Label htmlFor="phone">رقم الهاتف *</Label>
                 <Input
                   id="phone"
                   type="tel"
                   placeholder="+967 xxx xxx xxx"
                   dir="ltr"
                   {...register('phone')}
+                  className={errors.phone ? 'border-destructive' : ''}
                 />
+                {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="specialty">التخصص</Label>
-                <Input
-                  id="specialty"
-                  placeholder="جراحة الأوعية الدموية"
-                  {...register('specialty')}
-                />
-              </div>
-            </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="workplace">مكان العمل</Label>
-                <Input
-                  id="workplace"
-                  placeholder="مستشفى الثورة العام"
-                  {...register('workplace')}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="gender">النوع *</Label>
+                <Label htmlFor="gender">الجنس *</Label>
                 <Select
                   value={watch('gender') || ''}
                   onValueChange={(value: 'male' | 'female') =>
@@ -189,7 +267,7 @@ export default function RegisterPage() {
                   }
                 >
                   <SelectTrigger id="gender" className={errors.gender ? 'border-destructive' : ''}>
-                    <SelectValue placeholder="اختر النوع" />
+                    <SelectValue placeholder="اختر الجنس" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="male">ذكر</SelectItem>
@@ -198,6 +276,114 @@ export default function RegisterPage() {
                 </Select>
                 {errors.gender && <p className="text-sm text-destructive">{errors.gender.message}</p>}
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="country">الدولة *</Label>
+                <Select
+                  value={countryValue || ''}
+                  onValueChange={(value) => setValue('country', value, { shouldDirty: true, shouldValidate: true })}
+                >
+                  <SelectTrigger id="country" className={errors.country ? 'border-destructive' : ''}>
+                    <SelectValue placeholder="اختر الدولة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countryOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={OTHER_OPTION_VALUE}>أخرى</SelectItem>
+                  </SelectContent>
+                </Select>
+                {countryValue === OTHER_OPTION_VALUE && (
+                  <Input
+                    className={errors.countryOther ? 'border-destructive' : ''}
+                    placeholder="اكتب الدولة"
+                    {...register('countryOther')}
+                  />
+                )}
+                {(errors.country || errors.countryOther) && (
+                  <p className="text-sm text-destructive">
+                    {errors.country?.message || errors.countryOther?.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="jobTitle">الصفة الوظيفية *</Label>
+                <Select
+                  value={jobTitleValue || ''}
+                  onValueChange={(value) => setValue('jobTitle', value, { shouldDirty: true, shouldValidate: true })}
+                >
+                  <SelectTrigger id="jobTitle" className={errors.jobTitle ? 'border-destructive' : ''}>
+                    <SelectValue placeholder="اختر الصفة الوظيفية" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {jobTitleOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={OTHER_OPTION_VALUE}>أخرى</SelectItem>
+                  </SelectContent>
+                </Select>
+                {jobTitleValue === OTHER_OPTION_VALUE && (
+                  <Input
+                    className={errors.jobTitleOther ? 'border-destructive' : ''}
+                    placeholder="اكتب الصفة الوظيفية"
+                    {...register('jobTitleOther')}
+                  />
+                )}
+                {(errors.jobTitle || errors.jobTitleOther) && (
+                  <p className="text-sm text-destructive">
+                    {errors.jobTitle?.message || errors.jobTitleOther?.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="specialty">التخصص *</Label>
+                <Select
+                  value={specialtyValue || ''}
+                  onValueChange={(value) => setValue('specialty', value, { shouldDirty: true, shouldValidate: true })}
+                >
+                  <SelectTrigger id="specialty" className={errors.specialty ? 'border-destructive' : ''}>
+                    <SelectValue placeholder="اختر التخصص" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {specialtyOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={OTHER_OPTION_VALUE}>أخرى</SelectItem>
+                  </SelectContent>
+                </Select>
+                {specialtyValue === OTHER_OPTION_VALUE && (
+                  <Input
+                    className={errors.specialtyOther ? 'border-destructive' : ''}
+                    placeholder="اكتب التخصص"
+                    {...register('specialtyOther')}
+                  />
+                )}
+                {(errors.specialty || errors.specialtyOther) && (
+                  <p className="text-sm text-destructive">
+                    {errors.specialty?.message || errors.specialtyOther?.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="workplace">جهة العمل / المستشفى / الجامعة *</Label>
+                <Input
+                  id="workplace"
+                  placeholder="مثال: مستشفى الثورة العام"
+                  {...register('workplace')}
+                  className={errors.workplace ? 'border-destructive' : ''}
+                />
+                {errors.workplace && <p className="text-sm text-destructive">{errors.workplace.message}</p>}
+              </div>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="professionalCard">

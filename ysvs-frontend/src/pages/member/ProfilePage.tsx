@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useEffect } from 'react';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -12,12 +13,90 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { InlineLoader } from '@/components/shared/LoadingSpinner';
 import { useAuthStore } from '@/stores/authStore';
-import { useChangePassword } from '@/api/hooks/useAuth';
+import { useChangePassword, useUpdateProfile } from '@/api/hooks/useAuth';
 import {
   useMyProfessionalVerification,
   useUploadProfessionalVerification,
 } from '@/api/hooks/useUsers';
 import { ProfessionalVerificationStatus } from '@/types';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+const OTHER_OPTION_VALUE = '__other__';
+
+const jobTitleOptions = [
+  { value: 'consultant', label: 'استشاري' },
+  { value: 'specialist', label: 'أخصائي' },
+  { value: 'resident', label: 'مقيم' },
+  { value: 'general_practitioner', label: 'طبيب عام' },
+  { value: 'student', label: 'طالب' },
+  { value: 'nursing', label: 'تمريض' },
+];
+
+const specialtyOptions = [
+  { value: 'vascular_surgery', label: 'جراحة الأوعية الدموية' },
+  { value: 'cardiac_surgery', label: 'جراحة القلب' },
+  { value: 'cardiology', label: 'أمراض القلب' },
+  { value: 'anesthesia', label: 'التخدير' },
+  { value: 'critical_care', label: 'العناية المركزة' },
+];
+
+const countryOptions = [
+  { value: 'yemen', label: 'اليمن' },
+  { value: 'saudi_arabia', label: 'السعودية' },
+  { value: 'oman', label: 'عُمان' },
+  { value: 'uae', label: 'الإمارات' },
+  { value: 'qatar', label: 'قطر' },
+  { value: 'kuwait', label: 'الكويت' },
+  { value: 'bahrain', label: 'البحرين' },
+  { value: 'egypt', label: 'مصر' },
+  { value: 'jordan', label: 'الأردن' },
+];
+
+const profileSchema = z
+  .object({
+    fullNameAr: z.string().min(3, 'الاسم بالعربي مطلوب'),
+    fullNameEn: z.string().min(3, 'الاسم بالإنجليزي مطلوب'),
+    phone: z.string().min(1, 'رقم الهاتف مطلوب'),
+    gender: z.enum(['male', 'female']),
+    country: z.string().min(1, 'الدولة مطلوبة'),
+    countryOther: z.string().optional(),
+    jobTitle: z.string().min(1, 'الصفة الوظيفية مطلوبة'),
+    jobTitleOther: z.string().optional(),
+    specialty: z.string().min(1, 'التخصص مطلوب'),
+    specialtyOther: z.string().optional(),
+    workplace: z.string().min(2, 'جهة العمل / المستشفى / الجامعة مطلوبة'),
+  })
+  .superRefine((data, ctx) => {
+    if (data.country === OTHER_OPTION_VALUE && !data.countryOther?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['countryOther'],
+        message: 'يرجى كتابة الدولة',
+      });
+    }
+
+    if (data.jobTitle === OTHER_OPTION_VALUE && !data.jobTitleOther?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['jobTitleOther'],
+        message: 'يرجى كتابة الصفة الوظيفية',
+      });
+    }
+
+    if (data.specialty === OTHER_OPTION_VALUE && !data.specialtyOther?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['specialtyOther'],
+        message: 'يرجى كتابة التخصص',
+      });
+    }
+  });
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, 'كلمة المرور الحالية مطلوبة'),
@@ -29,23 +108,90 @@ const passwordSchema = z.object({
 });
 
 type PasswordForm = z.infer<typeof passwordSchema>;
+type ProfileForm = z.infer<typeof profileSchema>;
 
 export default function MemberProfilePage() {
   const { user } = useAuthStore();
   const { mutate: changePassword, isPending } = useChangePassword();
+  const { mutate: updateProfile, isPending: isUpdatingProfile } = useUpdateProfile();
   const { data: verification } = useMyProfessionalVerification();
   const { mutate: uploadProfessionalVerification, isPending: isUploadingVerification } =
     useUploadProfessionalVerification();
 
+  const mapSelectValue = (
+    rawValue: string | undefined,
+    options: Array<{ value: string }>,
+  ): { value: string; other: string } => {
+    if (!rawValue?.trim()) {
+      return { value: '', other: '' };
+    }
+
+    const normalized = rawValue.trim();
+    if (options.some((option) => option.value === normalized)) {
+      return { value: normalized, other: '' };
+    }
+
+    return { value: OTHER_OPTION_VALUE, other: normalized };
+  };
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<PasswordForm>({
     resolver: zodResolver(passwordSchema),
   });
+
+  const {
+    register: registerProfile,
+    handleSubmit: handleProfileSubmit,
+    watch,
+    setValue,
+    reset: resetProfile,
+    formState: { errors: profileErrors },
+  } = useForm<ProfileForm>({
+    resolver: zodResolver(profileSchema),
+  });
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const country = mapSelectValue(user.country, countryOptions);
+    const jobTitle = mapSelectValue(user.jobTitle, jobTitleOptions);
+    const specialty = mapSelectValue(user.specialty, specialtyOptions);
+
+    resetProfile({
+      fullNameAr: user.fullNameAr || '',
+      fullNameEn: user.fullNameEn || '',
+      phone: user.phone || '',
+      gender: user.gender || 'male',
+      country: country.value,
+      countryOther: country.other,
+      jobTitle: jobTitle.value,
+      jobTitleOther: jobTitle.other,
+      specialty: specialty.value,
+      specialtyOther: specialty.other,
+      workplace: user.workplace || '',
+    });
+  }, [user, resetProfile]);
 
   const onSubmit = (data: PasswordForm) => {
     changePassword(
       { currentPassword: data.currentPassword, newPassword: data.newPassword },
       { onSuccess: () => reset() }
     );
+  };
+
+  const onProfileSubmit = (data: ProfileForm) => {
+    updateProfile({
+      fullNameAr: data.fullNameAr,
+      fullNameEn: data.fullNameEn,
+      phone: data.phone,
+      gender: data.gender,
+      country: data.country === OTHER_OPTION_VALUE ? data.countryOther?.trim() : data.country,
+      jobTitle: data.jobTitle === OTHER_OPTION_VALUE ? data.jobTitleOther?.trim() : data.jobTitle,
+      specialty:
+        data.specialty === OTHER_OPTION_VALUE ? data.specialtyOther?.trim() : data.specialty,
+      workplace: data.workplace,
+    });
   };
 
   const verificationStatus =
@@ -101,42 +247,136 @@ export default function MemberProfilePage() {
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <form onSubmit={handleProfileSubmit(onProfileSubmit)} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>الاسم (عربي)</Label>
-                  <Input value={user?.fullNameAr || ''} disabled />
+                  <Label>البريد الإلكتروني</Label>
+                  <Input value={user?.email || ''} disabled dir="ltr" />
                 </div>
-                <div className="space-y-2">
-                  <Label>الاسم (إنجليزي)</Label>
-                  <Input value={user?.fullNameEn || ''} disabled dir="ltr" />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullNameAr">الاسم (عربي)</Label>
+                    <Input id="fullNameAr" {...registerProfile('fullNameAr')} className={profileErrors.fullNameAr ? 'border-destructive' : ''} />
+                    {profileErrors.fullNameAr && <p className="text-sm text-destructive">{profileErrors.fullNameAr.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="fullNameEn">الاسم (إنجليزي)</Label>
+                    <Input id="fullNameEn" dir="ltr" {...registerProfile('fullNameEn')} className={profileErrors.fullNameEn ? 'border-destructive' : ''} />
+                    {profileErrors.fullNameEn && <p className="text-sm text-destructive">{profileErrors.fullNameEn.message}</p>}
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label>البريد الإلكتروني</Label>
-                <Input value={user?.email || ''} disabled dir="ltr" />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>رقم الهاتف</Label>
-                  <Input value={user?.phone || ''} disabled dir="ltr" />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">رقم الهاتف</Label>
+                    <Input id="phone" dir="ltr" {...registerProfile('phone')} className={profileErrors.phone ? 'border-destructive' : ''} />
+                    {profileErrors.phone && <p className="text-sm text-destructive">{profileErrors.phone.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">الجنس</Label>
+                    <Select
+                      value={watch('gender') || ''}
+                      onValueChange={(value: 'male' | 'female') => setValue('gender', value, { shouldValidate: true, shouldDirty: true })}
+                    >
+                      <SelectTrigger id="gender" className={profileErrors.gender ? 'border-destructive' : ''}>
+                        <SelectValue placeholder="اختر الجنس" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">ذكر</SelectItem>
+                        <SelectItem value="female">أنثى</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {profileErrors.gender && <p className="text-sm text-destructive">{profileErrors.gender.message}</p>}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>التخصص</Label>
-                  <Input value={user?.specialty || ''} disabled />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="country">الدولة</Label>
+                    <Select
+                      value={watch('country') || ''}
+                      onValueChange={(value) => setValue('country', value, { shouldValidate: true, shouldDirty: true })}
+                    >
+                      <SelectTrigger id="country" className={profileErrors.country ? 'border-destructive' : ''}>
+                        <SelectValue placeholder="اختر الدولة" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countryOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                        <SelectItem value={OTHER_OPTION_VALUE}>أخرى</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {watch('country') === OTHER_OPTION_VALUE && (
+                      <Input {...registerProfile('countryOther')} className={profileErrors.countryOther ? 'border-destructive' : ''} placeholder="اكتب الدولة" />
+                    )}
+                    {(profileErrors.country || profileErrors.countryOther) && (
+                      <p className="text-sm text-destructive">{profileErrors.country?.message || profileErrors.countryOther?.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="jobTitle">الصفة الوظيفية</Label>
+                    <Select
+                      value={watch('jobTitle') || ''}
+                      onValueChange={(value) => setValue('jobTitle', value, { shouldValidate: true, shouldDirty: true })}
+                    >
+                      <SelectTrigger id="jobTitle" className={profileErrors.jobTitle ? 'border-destructive' : ''}>
+                        <SelectValue placeholder="اختر الصفة الوظيفية" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {jobTitleOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                        <SelectItem value={OTHER_OPTION_VALUE}>أخرى</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {watch('jobTitle') === OTHER_OPTION_VALUE && (
+                      <Input {...registerProfile('jobTitleOther')} className={profileErrors.jobTitleOther ? 'border-destructive' : ''} placeholder="اكتب الصفة الوظيفية" />
+                    )}
+                    {(profileErrors.jobTitle || profileErrors.jobTitleOther) && (
+                      <p className="text-sm text-destructive">{profileErrors.jobTitle?.message || profileErrors.jobTitleOther?.message}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label>النوع</Label>
-                <Input value={user?.gender === 'male' ? 'ذكر' : user?.gender === 'female' ? 'أنثى' : ''} disabled />
-              </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="specialty">التخصص</Label>
+                    <Select
+                      value={watch('specialty') || ''}
+                      onValueChange={(value) => setValue('specialty', value, { shouldValidate: true, shouldDirty: true })}
+                    >
+                      <SelectTrigger id="specialty" className={profileErrors.specialty ? 'border-destructive' : ''}>
+                        <SelectValue placeholder="اختر التخصص" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {specialtyOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                        <SelectItem value={OTHER_OPTION_VALUE}>أخرى</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {watch('specialty') === OTHER_OPTION_VALUE && (
+                      <Input {...registerProfile('specialtyOther')} className={profileErrors.specialtyOther ? 'border-destructive' : ''} placeholder="اكتب التخصص" />
+                    )}
+                    {(profileErrors.specialty || profileErrors.specialtyOther) && (
+                      <p className="text-sm text-destructive">{profileErrors.specialty?.message || profileErrors.specialtyOther?.message}</p>
+                    )}
+                  </div>
 
-              <div className="space-y-2">
-                <Label>مكان العمل</Label>
-                <Input value={user?.workplace || ''} disabled />
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="workplace">جهة العمل / المستشفى / الجامعة</Label>
+                    <Input id="workplace" {...registerProfile('workplace')} className={profileErrors.workplace ? 'border-destructive' : ''} />
+                    {profileErrors.workplace && <p className="text-sm text-destructive">{profileErrors.workplace.message}</p>}
+                  </div>
+                </div>
+
+                <Button type="submit" disabled={isUpdatingProfile}>
+                  {isUpdatingProfile && <InlineLoader className="ml-2" />}
+                  {isUpdatingProfile ? 'جاري الحفظ...' : 'حفظ التعديلات'}
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </TabsContent>

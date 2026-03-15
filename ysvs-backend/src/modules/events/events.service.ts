@@ -38,9 +38,13 @@ export class EventsService {
     'fullNameEn',
     'email',
     'phone',
+    'country',
+    'jobTitle',
     'specialty',
     'gender',
     'workplace',
+    'professionalCardDocument',
+    'profileDeclaration',
   ]);
 
   constructor(

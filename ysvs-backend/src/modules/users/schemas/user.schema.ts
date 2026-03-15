@@ -62,7 +62,13 @@ export class User extends Document {
   specialty: string;
 
   @Prop({ trim: true })
+  jobTitle: string;
+
+  @Prop({ trim: true })
   workplace: string;
+
+  @Prop({ trim: true })
+  country: string;
 
   @Prop({
     type: String,

@@ -14,7 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { RegistrationService } from '../events/registration.service';
 import { CertificatesService } from '../certificates/certificates.service';
 import { NotificationsPublisherService } from '../notifications/notifications.publisher.service';
-import { ProfessionalVerificationStatus } from '../users/schemas/user.schema';
+import { Gender, ProfessionalVerificationStatus } from '../users/schemas/user.schema';
 
 export interface TokenPayload {
   sub: string;
@@ -117,6 +117,8 @@ export class AuthService {
           fullNameAr: user.fullNameAr,
           fullNameEn: user.fullNameEn,
           phone: user.phone,
+          country: user.country,
+          jobTitle: user.jobTitle,
           specialty: user.specialty,
           workplace: user.workplace,
           gender: user.gender,
@@ -157,6 +159,8 @@ export class AuthService {
           fullNameAr: fullUser.fullNameAr,
           fullNameEn: fullUser.fullNameEn,
           phone: fullUser.phone,
+          country: fullUser.country,
+          jobTitle: fullUser.jobTitle,
           specialty: fullUser.specialty,
           workplace: fullUser.workplace,
           gender: fullUser.gender,
@@ -300,6 +304,27 @@ export class AuthService {
     return {
       data: user,
       message: 'تم جلب بيانات المستخدم بنجاح',
+    };
+  }
+
+  async updateProfile(
+    userId: string,
+    updateProfileDto: {
+      fullNameAr?: string;
+      fullNameEn?: string;
+      phone?: string;
+      gender?: Gender;
+      country?: string;
+      jobTitle?: string;
+      specialty?: string;
+      workplace?: string;
+    },
+  ) {
+    const updatedUser = await this.usersService.updateOwnProfile(userId, updateProfileDto);
+
+    return {
+      data: updatedUser,
+      message: 'تم تحديث الملف الشخصي بنجاح',
     };
   }
 

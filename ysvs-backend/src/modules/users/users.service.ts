@@ -154,6 +154,34 @@ export class UsersService {
     return user;
   }
 
+  async updateOwnProfile(
+    userId: string,
+    profileData: Partial<
+      Pick<
+        User,
+        | 'fullNameAr'
+        | 'fullNameEn'
+        | 'phone'
+        | 'gender'
+        | 'country'
+        | 'jobTitle'
+        | 'specialty'
+        | 'workplace'
+      >
+    >,
+  ): Promise<User> {
+    const user = await this.userModel
+      .findByIdAndUpdate(userId, profileData, { new: true })
+      .select('-password -refreshToken -passwordResetToken -verificationToken')
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException('المستخدم غير موجود');
+    }
+
+    return user;
+  }
+
   async remove(id: string): Promise<void> {
     const result = await this.userModel.findByIdAndDelete(id).exec();
 

@@ -37,9 +37,13 @@ const defaultProfileFieldIds = new Set([
   'fullNameEn',
   'email',
   'phone',
+  'country',
+  'jobTitle',
   'specialty',
   'gender',
   'workplace',
+  'professionalCardDocument',
+  'profileDeclaration',
 ]);
 
 const getGenderLabel = (value?: unknown) => {
@@ -172,9 +176,11 @@ export default function AdminEventRegistrantsPage() {
         "الاسم (إنجليزي)": user?.fullNameEn || formData.fullNameEn || "Guest",
         "البريد الإلكتروني": user?.email || formData.email || reg.guestEmail || "-",
         الهاتف: user?.phone || formData.phone || "-",
-        "الوصف الوظيفي": user?.specialty || formData.specialty || "-",
-        النوع: user?.gender ? getGenderLabel(user.gender) : getGenderLabel(formData.gender),
-        "مكان العمل": user?.workplace || formData.workplace || "-",
+        الجنس: user?.gender ? getGenderLabel(user.gender) : getGenderLabel(formData.gender),
+        الدولة: user?.country || formData.country || "-",
+        "الصفة الوظيفية": user?.jobTitle || formData.jobTitle || "-",
+        التخصص: user?.specialty || formData.specialty || "-",
+        "جهة العمل / المستشفى / الجامعة": user?.workplace || formData.workplace || "-",
         الحالة:
           reg.status === "attended"
             ? "حضر"
@@ -463,14 +469,14 @@ export default function AdminEventRegistrantsPage() {
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
-                <p className="text-sm font-semibold text-foreground">الوصف الوظيفي</p>
+                <p className="text-sm font-semibold text-foreground">الصفة الوظيفية</p>
                 <p className="text-sm text-muted-foreground">
-                  {(detailsRegistration.user as User | undefined)?.specialty ||
-                    String(detailsRegistration.formData.specialty || '-')}
+                  {(detailsRegistration.user as User | undefined)?.jobTitle ||
+                    String(detailsRegistration.formData.jobTitle || '-')}
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
-                <p className="text-sm font-semibold text-foreground">النوع</p>
+                <p className="text-sm font-semibold text-foreground">الجنس</p>
                 <p className="text-sm text-muted-foreground">
                   {(detailsRegistration.user as User | undefined)?.gender
                     ? getGenderLabel((detailsRegistration.user as User).gender)
@@ -478,7 +484,21 @@ export default function AdminEventRegistrantsPage() {
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
-                <p className="text-sm font-semibold text-foreground">مكان العمل</p>
+                <p className="text-sm font-semibold text-foreground">الدولة</p>
+                <p className="text-sm text-muted-foreground">
+                  {(detailsRegistration.user as User | undefined)?.country ||
+                    String(detailsRegistration.formData.country || '-')}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                <p className="text-sm font-semibold text-foreground">التخصص</p>
+                <p className="text-sm text-muted-foreground">
+                  {(detailsRegistration.user as User | undefined)?.specialty ||
+                    String(detailsRegistration.formData.specialty || '-')}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                <p className="text-sm font-semibold text-foreground">جهة العمل / المستشفى / الجامعة</p>
                 <p className="text-sm text-muted-foreground">
                   {(detailsRegistration.user as User | undefined)?.workplace ||
                     String(detailsRegistration.formData.workplace || '-')}

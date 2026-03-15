@@ -49,6 +49,8 @@ export interface User {
   fullNameAr: string;
   fullNameEn: string;
   phone?: string;
+  country?: string;
+  jobTitle?: string;
   role: UserRole;
   specialty?: string;
   workplace?: string;
@@ -523,6 +525,8 @@ export interface RegisterData {
   fullNameAr: string;
   fullNameEn: string;
   phone?: string;
+  country?: string;
+  jobTitle?: string;
   specialty?: string;
   workplace?: string;
   gender: Gender;

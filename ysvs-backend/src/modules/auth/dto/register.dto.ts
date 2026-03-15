@@ -44,10 +44,20 @@ export class RegisterDto {
   @IsString({ message: 'التخصص يجب أن يكون نصاً' })
   specialty?: string;
 
+  @ApiPropertyOptional({ example: 'استشاري', description: 'Job title' })
+  @IsOptional()
+  @IsString({ message: 'الصفة الوظيفية يجب أن تكون نصاً' })
+  jobTitle?: string;
+
   @ApiPropertyOptional({ example: 'مستشفى الثورة العام', description: 'Workplace' })
   @IsOptional()
   @IsString({ message: 'مكان العمل يجب أن يكون نصاً' })
   workplace?: string;
+
+  @ApiPropertyOptional({ example: 'اليمن', description: 'Country' })
+  @IsOptional()
+  @IsString({ message: 'الدولة يجب أن تكون نصاً' })
+  country?: string;
 
   @ApiProperty({ enum: Gender, example: Gender.MALE, description: 'Gender' })
   @IsEnum(Gender, { message: 'النوع غير صالح' })

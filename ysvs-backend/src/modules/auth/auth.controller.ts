@@ -21,6 +21,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   ChangePasswordDto,
+  UpdateProfileDto,
 } from './dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
@@ -106,6 +107,18 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'User profile' })
   getProfile(@CurrentUser('id') userId: string) {
     return this.authService.getProfile(userId);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
+  @Patch('me')
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({ status: 200, description: 'User profile updated successfully' })
+  updateProfile(
+    @CurrentUser('id') userId: string,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    return this.authService.updateProfile(userId, updateProfileDto);
   }
 
   @ApiBearerAuth('JWT-auth')

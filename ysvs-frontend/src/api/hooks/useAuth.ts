@@ -172,3 +172,36 @@ export const useChangePassword = () => {
     },
   });
 };
+
+// Update current profile
+export const useUpdateProfile = () => {
+  const { updateUser } = useAuthStore();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      fullNameAr?: string;
+      fullNameEn?: string;
+      phone?: string;
+      gender?: 'male' | 'female';
+      country?: string;
+      jobTitle?: string;
+      specialty?: string;
+      workplace?: string;
+    }) => {
+      const response = await api.patch<unknown, ApiResponse<User>>(
+        ENDPOINTS.AUTH.UPDATE_ME,
+        data,
+      );
+      return response.data;
+    },
+    onSuccess: (user) => {
+      updateUser(user);
+      queryClient.setQueryData(['auth', 'me'], user);
+      toast.success('تم تحديث الملف الشخصي بنجاح.');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'تعذر تحديث الملف الشخصي حالياً.');
+    },
+  });
+};
