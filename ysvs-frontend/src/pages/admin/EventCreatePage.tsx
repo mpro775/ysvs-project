@@ -60,6 +60,8 @@ const toDateInputValue = (dateValue?: Date | string) => toDateTimeLocalInputValu
 const toDateTimeFromDayAndTime = (dateValue: string, timeValue: string) =>
   new Date(`${dateValue}T${timeValue}`);
 
+const addMinutes = (dateValue: Date, minutes: number) => new Date(dateValue.getTime() + minutes * 60 * 1000);
+
 const toDayKey = (dateValue: string | Date) => toDateInputValue(dateValue);
 
 const formatDateTimePreview = (value: string) => {
@@ -434,6 +436,7 @@ export default function AdminEventCreatePage() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [slugStatus, setSlugStatus] = useState<SlugStatus>("idle");
   const [activeScheduleDayId, setActiveScheduleDayId] = useState("");
+  const [activeScheduleSessionId, setActiveScheduleSessionId] = useState("");
   const { mutate: createEvent, isPending } = useCreateEvent();
 
   const {
@@ -525,6 +528,30 @@ export default function AdminEventCreatePage() {
       setActiveScheduleDayId(sortedEventDays[0].id);
     }
   }, [sortedEventDays, activeScheduleDayId]);
+
+  const getSortedSessionsForDay = (dayId: string) =>
+    schedule
+      .map((session, index) => ({ session, index }))
+      .filter((item) => item.session.dayId === dayId)
+      .sort((a, b) => new Date(a.session.startTime).getTime() - new Date(b.session.startTime).getTime());
+
+  useEffect(() => {
+    if (!activeScheduleDayId) {
+      setActiveScheduleSessionId("");
+      return;
+    }
+
+    const sessionsForDay = getSortedSessionsForDay(activeScheduleDayId);
+    if (!sessionsForDay.length) {
+      setActiveScheduleSessionId("");
+      return;
+    }
+
+    const hasActiveSession = sessionsForDay.some((item) => item.session.id === activeScheduleSessionId);
+    if (!hasActiveSession) {
+      setActiveScheduleSessionId(sessionsForDay[0].session.id);
+    }
+  }, [activeScheduleDayId, activeScheduleSessionId, schedule]);
 
   const derivedStartDate = useMemo(() => {
     const firstDay = sortedEventDays[0];
@@ -726,17 +753,24 @@ export default function AdminEventCreatePage() {
       sortedEventDays.find((day) => day.id === targetDayId) ||
       sortedEventDays.find((day) => day.id === activeScheduleDayId) ||
       sortedEventDays[0];
-    const defaultStart = defaultDay
-      ? toDateTimeLocalInputValue(toDateTimeFromDayAndTime(defaultDay.date, defaultDay.startTime))
-      : watchedValues.startDate || "";
-    const defaultEnd = defaultDay
-      ? toDateTimeLocalInputValue(toDateTimeFromDayAndTime(defaultDay.date, defaultDay.endTime))
-      : watchedValues.startDate || "";
+    const daySessions = defaultDay ? getSortedSessionsForDay(defaultDay.id) : [];
+    const dayStart = defaultDay ? toDateTimeFromDayAndTime(defaultDay.date, defaultDay.startTime) : undefined;
+    const dayEnd = defaultDay ? toDateTimeFromDayAndTime(defaultDay.date, defaultDay.endTime) : undefined;
+    const lastSession = daySessions[daySessions.length - 1]?.session;
+    const startBase = lastSession ? new Date(lastSession.endTime) : dayStart;
+    const endBase = startBase && dayEnd ? addMinutes(startBase, 30) : undefined;
+    const defaultStart = startBase ? toDateTimeLocalInputValue(startBase) : watchedValues.startDate || "";
+    const defaultEnd = endBase
+      ? toDateTimeLocalInputValue(endBase > dayEnd! ? dayEnd! : endBase)
+      : dayEnd
+        ? toDateTimeLocalInputValue(dayEnd)
+        : watchedValues.startDate || "";
+    const newSessionId = createClientId("session");
 
     const next = [
       ...schedule,
       {
-        id: createClientId("session"),
+        id: newSessionId,
         dayId: defaultDay?.id || "",
         titleAr: "",
         titleEn: "",
@@ -749,6 +783,10 @@ export default function AdminEventCreatePage() {
       },
     ];
     setValue("schedule", next, { shouldDirty: true, shouldValidate: true });
+    if (defaultDay?.id) {
+      setActiveScheduleDayId(defaultDay.id);
+    }
+    setActiveScheduleSessionId(newSessionId);
   };
 
   const updateScheduleField = (
@@ -1763,13 +1801,13 @@ export default function AdminEventCreatePage() {
                     </TabsList>
 
                     {sortedEventDays.map((day, dayIndex) => {
-                      const daySessions = schedule
-                        .map((session, index) => ({ session, index }))
-                        .filter((item) => item.session.dayId === day.id)
-                        .sort(
-                          (a, b) =>
-                            new Date(a.session.startTime).getTime() - new Date(b.session.startTime).getTime()
-                        );
+                      const daySessions = getSortedSessionsForDay(day.id);
+                      const activeSessionEntry =
+                        daySessions.find((item) => item.session.id === activeScheduleSessionId) || daySessions[0];
+                      const activeSession = activeSessionEntry?.session;
+                      const activeSessionIndex = daySessions.findIndex(
+                        (item) => item.session.id === activeSessionEntry?.session.id
+                      );
 
                       return (
                         <TabsContent key={day.id} value={day.id} className="space-y-4">
@@ -1783,129 +1821,171 @@ export default function AdminEventCreatePage() {
                             </div>
                           )}
 
-                          {daySessions.map(({ session, index }, sessionOrder) => (
-                            <div key={session.id} className="rounded-lg border p-4">
-                              <div className="mb-3 flex items-center justify-between">
-                                <p className="text-sm font-medium">جلسة {sessionOrder + 1}</p>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeScheduleItem(index)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-
-                              <div className="grid gap-3 md:grid-cols-2">
-                                <div className="space-y-1 md:col-span-2">
-                                  <Label>عنوان الجلسة *</Label>
-                                  <Input
-                                    value={session.titleAr}
-                                    onChange={(event) => updateScheduleField(index, "titleAr", event.target.value)}
-                                  />
-                                </div>
-
-                                <div className="space-y-1">
-                                  <Label>نوع الجلسة *</Label>
-                                  <Select
-                                    value={session.sessionType}
-                                    onValueChange={(value) => {
-                                      const next = [...schedule];
-                                      next[index] = {
-                                        ...next[index],
-                                        sessionType: value as EventForm["schedule"][number]["sessionType"],
-                                      };
-                                      setValue("schedule", next, { shouldDirty: true, shouldValidate: true });
-                                    }}
+                          {daySessions.length > 0 && activeSession && (
+                            <div className="space-y-4 rounded-lg border p-4">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {daySessions.map(({ session }, sessionOrder) => (
+                                  <Button
+                                    key={session.id}
+                                    type="button"
+                                    variant={session.id === activeSession.id ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setActiveScheduleSessionId(session.id)}
                                   >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="اختر نوع الجلسة" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {sessionTypeOptions.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {option.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-
-                                <div className="space-y-1">
-                                  <Label>اليوم</Label>
-                                  <Input value={`اليوم ${dayIndex + 1} - ${day.date}`} readOnly disabled />
-                                </div>
-
-                                <div className="space-y-1">
-                                  <Label>وصف مختصر</Label>
-                                  <Input
-                                    value={session.descriptionAr || ""}
-                                    onChange={(event) =>
-                                      updateScheduleField(index, "descriptionAr", event.target.value)
-                                    }
-                                  />
-                                </div>
-
-                                <div className="space-y-1">
-                                  <Label>وقت البداية *</Label>
-                                  <Input
-                                    type="datetime-local"
-                                    value={session.startTime}
-                                    onChange={(event) =>
-                                      updateScheduleField(index, "startTime", event.target.value)
-                                    }
-                                  />
-                                </div>
-
-                                <div className="space-y-1">
-                                  <Label>وقت النهاية *</Label>
-                                  <Input
-                                    type="datetime-local"
-                                    value={session.endTime}
-                                    onChange={(event) =>
-                                      updateScheduleField(index, "endTime", event.target.value)
-                                    }
-                                  />
-                                </div>
+                                    {`جلسة ${sessionOrder + 1}`}
+                                  </Button>
+                                ))}
                               </div>
 
-                              <div className="mt-3 space-y-2 rounded-md bg-muted/40 p-3">
-                                <p className="text-xs text-muted-foreground">المتحدثون اختياريون حالياً ويمكن إضافتهم لاحقاً</p>
-                                {!speakers.length ? (
-                                  <p className="text-sm text-amber-700">لا يوجد متحدثون بعد، ويمكن حفظ الجلسة بدون متحدثين</p>
-                                ) : (
-                                  <div className="grid gap-2 md:grid-cols-2">
-                                    {speakers.map((speaker) => (
-                                      <label key={`${session.id}-${speaker.id}`} className="flex items-center gap-2 text-sm">
-                                        <Checkbox
-                                          checked={(session.speakerIds || []).includes(speaker.id)}
-                                          onCheckedChange={(checked) =>
-                                            toggleSessionSpeaker(index, speaker.id, checked === true)
-                                          }
-                                        />
-                                        <span>{speaker.nameAr || "متحدث بدون اسم"}</span>
-                                      </label>
-                                    ))}
+                              {daySessions.length > 1 && (
+                                <div className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2 text-sm">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={activeSessionIndex <= 0}
+                                    onClick={() => setActiveScheduleSessionId(daySessions[activeSessionIndex - 1].session.id)}
+                                  >
+                                    الجلسة السابقة
+                                  </Button>
+                                  <span className="text-muted-foreground">{`التنقل بين ${daySessions.length} جلسات`}</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={activeSessionIndex >= daySessions.length - 1}
+                                    onClick={() => setActiveScheduleSessionId(daySessions[activeSessionIndex + 1].session.id)}
+                                  >
+                                    الجلسة التالية
+                                  </Button>
+                                </div>
+                              )}
+
+                              <div className="rounded-lg border p-4">
+                                <div className="mb-3 flex items-center justify-between">
+                                  <p className="text-sm font-medium">{`جلسة ${activeSessionIndex + 1}`}</p>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeScheduleItem(activeSessionEntry.index)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+
+                                <div className="grid gap-3 md:grid-cols-2">
+                                  <div className="space-y-1 md:col-span-2">
+                                    <Label>عنوان الجلسة *</Label>
+                                    <Input
+                                      value={activeSession.titleAr}
+                                      onChange={(event) =>
+                                        updateScheduleField(activeSessionEntry.index, "titleAr", event.target.value)
+                                      }
+                                    />
                                   </div>
+
+                                  <div className="space-y-1">
+                                    <Label>نوع الجلسة *</Label>
+                                    <Select
+                                      value={activeSession.sessionType}
+                                      onValueChange={(value) => {
+                                        const next = [...schedule];
+                                        next[activeSessionEntry.index] = {
+                                          ...next[activeSessionEntry.index],
+                                          sessionType: value as EventForm["schedule"][number]["sessionType"],
+                                        };
+                                        setValue("schedule", next, { shouldDirty: true, shouldValidate: true });
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="اختر نوع الجلسة" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {sessionTypeOptions.map((option) => (
+                                          <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <Label>اليوم</Label>
+                                    <Input value={`اليوم ${dayIndex + 1} - ${day.date}`} readOnly disabled />
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <Label>وصف مختصر</Label>
+                                    <Input
+                                      value={activeSession.descriptionAr || ""}
+                                      onChange={(event) =>
+                                        updateScheduleField(activeSessionEntry.index, "descriptionAr", event.target.value)
+                                      }
+                                    />
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <Label>وقت البداية *</Label>
+                                    <Input
+                                      type="datetime-local"
+                                      value={activeSession.startTime}
+                                      onChange={(event) =>
+                                        updateScheduleField(activeSessionEntry.index, "startTime", event.target.value)
+                                      }
+                                    />
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <Label>وقت النهاية *</Label>
+                                    <Input
+                                      type="datetime-local"
+                                      value={activeSession.endTime}
+                                      onChange={(event) =>
+                                        updateScheduleField(activeSessionEntry.index, "endTime", event.target.value)
+                                      }
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="mt-3 space-y-2 rounded-md bg-muted/40 p-3">
+                                  <p className="text-xs text-muted-foreground">المتحدثون اختياريون حالياً ويمكن إضافتهم لاحقاً</p>
+                                  {!speakers.length ? (
+                                    <p className="text-sm text-amber-700">لا يوجد متحدثون بعد، ويمكن حفظ الجلسة بدون متحدثين</p>
+                                  ) : (
+                                    <div className="grid gap-2 md:grid-cols-2">
+                                      {speakers.map((speaker) => (
+                                        <label key={`${activeSession.id}-${speaker.id}`} className="flex items-center gap-2 text-sm">
+                                          <Checkbox
+                                            checked={(activeSession.speakerIds || []).includes(speaker.id)}
+                                            onCheckedChange={(checked) =>
+                                              toggleSessionSpeaker(activeSessionEntry.index, speaker.id, checked === true)
+                                            }
+                                          />
+                                          <span>{speaker.nameAr || "متحدث بدون اسم"}</span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {(errors.schedule?.[activeSessionEntry.index]?.dayId?.message ||
+                                  errors.schedule?.[activeSessionEntry.index]?.titleAr?.message ||
+                                  errors.schedule?.[activeSessionEntry.index]?.startTime?.message ||
+                                  errors.schedule?.[activeSessionEntry.index]?.endTime?.message ||
+                                  errors.schedule?.[activeSessionEntry.index]?.speakerIds?.message) && (
+                                  <p className="mt-2 text-sm text-destructive">
+                                    {errors.schedule?.[activeSessionEntry.index]?.dayId?.message ||
+                                      errors.schedule?.[activeSessionEntry.index]?.titleAr?.message ||
+                                      errors.schedule?.[activeSessionEntry.index]?.startTime?.message ||
+                                      errors.schedule?.[activeSessionEntry.index]?.endTime?.message ||
+                                      errors.schedule?.[activeSessionEntry.index]?.speakerIds?.message}
+                                  </p>
                                 )}
                               </div>
-
-                              {(errors.schedule?.[index]?.dayId?.message ||
-                                errors.schedule?.[index]?.titleAr?.message ||
-                                errors.schedule?.[index]?.startTime?.message ||
-                                errors.schedule?.[index]?.endTime?.message ||
-                                errors.schedule?.[index]?.speakerIds?.message) && (
-                                <p className="mt-2 text-sm text-destructive">
-                                  {errors.schedule?.[index]?.dayId?.message ||
-                                    errors.schedule?.[index]?.titleAr?.message ||
-                                    errors.schedule?.[index]?.startTime?.message ||
-                                    errors.schedule?.[index]?.endTime?.message ||
-                                    errors.schedule?.[index]?.speakerIds?.message}
-                                </p>
-                              )}
                             </div>
-                          ))}
+                          )}
 
                           <div className="flex justify-end">
                             <Button type="button" variant="outline" size="sm" onClick={() => addScheduleItem(day.id)}>
