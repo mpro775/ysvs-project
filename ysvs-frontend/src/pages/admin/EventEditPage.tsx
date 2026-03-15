@@ -95,6 +95,14 @@ const findFirstErrorMessage = (errorValue: unknown): string | undefined => {
   return undefined;
 };
 
+const normalizeOptionalNumber = (value: unknown): number | undefined => {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return undefined;
+  }
+
+  return value;
+};
+
 type EventEditTab = "basic" | "program" | "form";
 
 const speakerSchema = z.object({
@@ -467,16 +475,16 @@ export default function AdminEventEditPage() {
           passcode: event.liveStream?.passcode || "",
           instructions: event.liveStream?.instructions || "",
           supportContact: event.liveStream?.supportContact || "",
-          joinWindowMinutes: event.liveStream?.joinWindowMinutes,
+          joinWindowMinutes: normalizeOptionalNumber(event.liveStream?.joinWindowMinutes),
           recordingAvailable: Boolean(event.liveStream?.recordingAvailable),
           recordingUrl: event.liveStream?.recordingUrl || "",
         },
         venue: event.location?.venue || "",
         address: event.location?.address || "",
         city: event.location?.city || "",
-        coordinatesLat: event.location?.coordinates?.lat,
-        coordinatesLng: event.location?.coordinates?.lng,
-        maxAttendees: event.maxAttendees,
+        coordinatesLat: normalizeOptionalNumber(event.location?.coordinates?.lat),
+        coordinatesLng: normalizeOptionalNumber(event.location?.coordinates?.lng),
+        maxAttendees: normalizeOptionalNumber(event.maxAttendees),
         cmeHours: event.cmeHours,
         registrationOpen: event.registrationOpen,
         registrationAccess: event.registrationAccess || "authenticated_only",
@@ -915,7 +923,11 @@ export default function AdminEventEditPage() {
 
   const onInvalid = (formErrors: FieldErrors<EventForm>) => {
     const firstError = findFirstErrorMessage(formErrors);
-    setSummaryError(firstError ? `يرجى تصحيح الأخطاء قبل الحفظ: ${firstError}` : "يرجى تصحيح الأخطاء قبل الحفظ");
+    const readableMessage =
+      !firstError || firstError === "Invalid input"
+        ? "توجد قيم غير صالحة في بعض الحقول. راجع الحقول الرقمية والاختيارات ثم أعد المحاولة"
+        : firstError;
+    setSummaryError(`يرجى تصحيح الأخطاء قبل الحفظ: ${readableMessage}`);
 
     const hasProgramErrors = Boolean(
       formErrors.outcomes ||
