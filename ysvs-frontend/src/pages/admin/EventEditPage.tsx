@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowRight, AlertCircle, Plus, Trash2 } from "lucide-react";
@@ -52,15 +52,50 @@ const requiresSpeakers = (sessionType: string) =>
 
 const createClientId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
-const toDateInputValue = (dateValue?: Date | string) => {
+const toDateTimeLocalInputValue = (dateValue?: Date | string) => {
   if (!dateValue) return "";
-  return new Date(dateValue).toISOString().slice(0, 10);
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "";
+  const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000;
+  return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 16);
 };
+
+const toDateInputValue = (dateValue?: Date | string) => toDateTimeLocalInputValue(dateValue).slice(0, 10);
 
 const toDateTimeFromDayAndTime = (dateValue: string, timeValue: string) =>
   new Date(`${dateValue}T${timeValue}`);
 
-const toDayKey = (dateValue: string | Date) => new Date(dateValue).toISOString().slice(0, 10);
+const toDayKey = (dateValue: string | Date) => toDateInputValue(dateValue);
+
+const formatDateTimePreview = (value: string) => {
+  if (!value) return "-";
+  return value.replace("T", " ");
+};
+
+const findFirstErrorMessage = (errorValue: unknown): string | undefined => {
+  if (!errorValue || typeof errorValue !== "object") {
+    return undefined;
+  }
+
+  if (
+    "message" in errorValue &&
+    typeof (errorValue as { message?: unknown }).message === "string" &&
+    (errorValue as { message: string }).message.trim().length > 0
+  ) {
+    return (errorValue as { message: string }).message;
+  }
+
+  for (const nestedValue of Object.values(errorValue)) {
+    const nestedMessage = findFirstErrorMessage(nestedValue);
+    if (nestedMessage) {
+      return nestedMessage;
+    }
+  }
+
+  return undefined;
+};
+
+type EventEditTab = "basic" | "program" | "form";
 
 const speakerSchema = z.object({
   id: z.string().min(1),
@@ -331,10 +366,7 @@ const eventSchema = z
 type EventForm = z.infer<typeof eventSchema>;
 type SlugStatus = "idle" | "checking" | "available" | "taken";
 
-const toDateTimeLocal = (dateValue?: Date | string) => {
-  if (!dateValue) return "";
-  return new Date(dateValue).toISOString().slice(0, 16);
-};
+const toDateTimeLocal = (dateValue?: Date | string) => toDateTimeLocalInputValue(dateValue);
 
 export default function AdminEventEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -344,6 +376,7 @@ export default function AdminEventEditPage() {
   const [formSchema, setFormSchema] = useState<FormField[]>([]);
   const [slugStatus, setSlugStatus] = useState<SlugStatus>("idle");
   const [summaryError, setSummaryError] = useState("");
+  const [activeTab, setActiveTab] = useState<EventEditTab>("basic");
 
   const {
     register,
@@ -786,6 +819,7 @@ export default function AdminEventEditPage() {
 
     if (slugStatus === "taken") {
       setSummaryError("لا يمكن حفظ التعديلات لأن الرابط المختصر مستخدم مسبقاً");
+      setActiveTab("basic");
       return;
     }
 
@@ -879,6 +913,21 @@ export default function AdminEventEditPage() {
     );
   };
 
+  const onInvalid = (formErrors: FieldErrors<EventForm>) => {
+    const firstError = findFirstErrorMessage(formErrors);
+    setSummaryError(firstError ? `يرجى تصحيح الأخطاء قبل الحفظ: ${firstError}` : "يرجى تصحيح الأخطاء قبل الحفظ");
+
+    const hasProgramErrors = Boolean(
+      formErrors.outcomes ||
+        formErrors.objectives ||
+        formErrors.targetAudience ||
+        formErrors.speakers ||
+        formErrors.schedule
+    );
+
+    setActiveTab(hasProgramErrors ? "program" : "basic");
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4 sm:space-y-6">
@@ -922,8 +971,8 @@ export default function AdminEventEditPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Tabs defaultValue="basic">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} dir="rtl" className="text-right">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as EventEditTab)}>
           <TabsList>
             <TabsTrigger value="basic">البيانات الأساسية</TabsTrigger>
             <TabsTrigger value="program">البرنامج العلمي</TabsTrigger>
@@ -1140,7 +1189,7 @@ export default function AdminEventEditPage() {
                     </div>
                     <div>
                       <p className="text-muted-foreground">بداية المؤتمر</p>
-                      <p className="font-semibold">{derivedStartDate || "-"}</p>
+                      <p className="font-semibold">{formatDateTimePreview(derivedStartDate)}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">إجمالي CME</p>
@@ -1829,6 +1878,9 @@ export default function AdminEventEditPage() {
             {isPending ? 'جاري حفظ التغييرات...' : 'حفظ التغييرات'}
           </Button>
         </div>
+        {slugStatus === "taken" && (
+          <p className="mt-3 text-sm text-destructive">لا يمكن الحفظ لأن الرابط المختصر مستخدم مسبقاً.</p>
+        )}
       </form>
     </div>
   );

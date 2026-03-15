@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, ArrowRight, Check, AlertCircle, Plus, Trash2 } from "lucide-react";
@@ -50,17 +50,48 @@ const requiresSpeakers = (sessionType: string) =>
 
 const createClientId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
-const toDateTimeLocalInputValue = (date: Date) => {
+const toDateTimeLocalInputValue = (dateValue?: Date | string) => {
+  if (!dateValue) return "";
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "";
   const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000;
   return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 16);
 };
 
-const toDateInputValue = (date: Date) => toDateTimeLocalInputValue(date).slice(0, 10);
+const toDateInputValue = (dateValue?: Date | string) => toDateTimeLocalInputValue(dateValue).slice(0, 10);
 
 const toDateTimeFromDayAndTime = (dateValue: string, timeValue: string) =>
   new Date(`${dateValue}T${timeValue}`);
 
-const toDayKey = (dateValue: string | Date) => new Date(dateValue).toISOString().slice(0, 10);
+const toDayKey = (dateValue: string | Date) => toDateInputValue(dateValue);
+
+const formatDateTimePreview = (value: string) => {
+  if (!value) return "-";
+  return value.replace("T", " ");
+};
+
+const findFirstErrorMessage = (errorValue: unknown): string | undefined => {
+  if (!errorValue || typeof errorValue !== "object") {
+    return undefined;
+  }
+
+  if (
+    "message" in errorValue &&
+    typeof (errorValue as { message?: unknown }).message === "string" &&
+    (errorValue as { message: string }).message.trim().length > 0
+  ) {
+    return (errorValue as { message: string }).message;
+  }
+
+  for (const nestedValue of Object.values(errorValue)) {
+    const nestedMessage = findFirstErrorMessage(nestedValue);
+    if (nestedMessage) {
+      return nestedMessage;
+    }
+  }
+
+  return undefined;
+};
 
 const speakerSchema = z.object({
   id: z.string().min(1),
@@ -853,6 +884,12 @@ export default function AdminEventCreatePage() {
     );
   };
 
+  const onInvalid = (formErrors: FieldErrors<EventForm>) => {
+    const firstError = findFirstErrorMessage(formErrors);
+    setStepError(firstError ? `يرجى تصحيح الأخطاء قبل الإرسال: ${firstError}` : "يرجى تصحيح الأخطاء قبل الإرسال");
+    setCurrentStep(0);
+  };
+
   const nextStep = async () => {
     setStepError("");
 
@@ -932,7 +969,7 @@ export default function AdminEventCreatePage() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} dir="rtl" className="text-right">
         {currentStep === 0 && (
           <Card>
             <CardHeader>
@@ -1144,7 +1181,7 @@ export default function AdminEventCreatePage() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">بداية المؤتمر</p>
-                    <p className="font-semibold">{derivedStartDate || "-"}</p>
+                    <p className="font-semibold">{formatDateTimePreview(derivedStartDate)}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">إجمالي CME</p>
@@ -1853,17 +1890,21 @@ export default function AdminEventCreatePage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <p className="text-sm text-muted-foreground">تاريخ البداية</p>
-                  <p className="font-medium">{watchedValues.startDate}</p>
+                  <p className="font-medium">{formatDateTimePreview(watchedValues.startDate || "")}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">تاريخ النهاية</p>
-                  <p className="font-medium">{watchedValues.endDate}</p>
+                  <p className="font-medium">{formatDateTimePreview(watchedValues.endDate || "")}</p>
                 </div>
               </div>
 
               <div>
                 <p className="text-sm text-muted-foreground">إغلاق التسجيل</p>
-                <p className="font-medium">{watchedValues.registrationDeadline || "غير محدد"}</p>
+                <p className="font-medium">
+                  {watchedValues.registrationDeadline
+                    ? formatDateTimePreview(watchedValues.registrationDeadline)
+                    : "غير محدد"}
+                </p>
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
@@ -1923,6 +1964,9 @@ export default function AdminEventCreatePage() {
             </Button>
           )}
         </div>
+        {slugStatus === "taken" && currentStep === steps.length - 1 && (
+          <p className="pt-3 text-sm text-destructive">لا يمكن الإنشاء لأن الرابط المختصر مستخدم مسبقاً.</p>
+        )}
       </form>
     </div>
   );
