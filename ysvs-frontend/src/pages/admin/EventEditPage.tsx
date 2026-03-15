@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useForm, type FieldErrors } from "react-hook-form";
+import { useForm, type FieldErrors, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowRight, AlertCircle, Plus, Trash2 } from "lucide-react";
@@ -78,7 +78,10 @@ const findFirstErrorMessage = (errorValue: unknown): string | undefined => {
     typeof (errorValue as { message?: unknown }).message === "string" &&
     (errorValue as { message: string }).message.trim().length > 0
   ) {
-    return (errorValue as { message: string }).message;
+    const directMessage = (errorValue as { message: string }).message;
+    if (directMessage !== "Invalid input") {
+      return directMessage;
+    }
   }
 
   for (const nestedValue of Object.values(errorValue)) {
@@ -92,27 +95,55 @@ const findFirstErrorMessage = (errorValue: unknown): string | undefined => {
 };
 
 const normalizeOptionalNumber = (value: unknown): number | undefined => {
-  if (typeof value !== "number" || Number.isNaN(value)) {
+  if (value === null || value === undefined || value === "") {
     return undefined;
   }
 
-  return value;
+  const numericValue = typeof value === "number" ? value : Number(value);
+  if (Number.isNaN(numericValue)) {
+    return undefined;
+  }
+
+  return numericValue;
 };
+
+const optionalTextSchema = z.preprocess(
+  (value) => (value === null || value === undefined ? undefined : value),
+  z.string().optional()
+);
+
+const optionalUrlSchema = (message: string) =>
+  z.preprocess(
+    (value) => (value === null || value === undefined ? "" : value),
+    z.string().url(message).optional().or(z.literal(""))
+  );
+
+const optionalNumberSchema = (min: number, message?: string) =>
+  z.preprocess(
+    (value) => {
+      if (value === null || value === undefined || value === "") {
+        return undefined;
+      }
+      const parsed = typeof value === "number" ? value : Number(value);
+      return Number.isNaN(parsed) ? undefined : parsed;
+    },
+    message ? z.number().min(min, message).optional() : z.number().min(min).optional()
+  );
 
 type EventEditTab = "basic" | "program" | "form";
 
 const speakerSchema = z.object({
   id: z.string().min(1),
   nameAr: z.string().trim().min(2, "اسم المتحدث مطلوب"),
-  nameEn: z.string().optional(),
+  nameEn: optionalTextSchema,
   titleAr: z.string().trim().min(2, "المسمى الوظيفي مطلوب"),
-  titleEn: z.string().optional(),
-  organizationAr: z.string().optional(),
-  organizationEn: z.string().optional(),
-  bioAr: z.string().optional(),
-  bioEn: z.string().optional(),
-  imageMediaId: z.string().optional(),
-  imageUrl: z.string().optional(),
+  titleEn: optionalTextSchema,
+  organizationAr: optionalTextSchema,
+  organizationEn: optionalTextSchema,
+  bioAr: optionalTextSchema,
+  bioEn: optionalTextSchema,
+  imageMediaId: optionalTextSchema,
+  imageUrl: optionalTextSchema,
 });
 
 const scheduleItemSchema = z
@@ -120,9 +151,9 @@ const scheduleItemSchema = z
     id: z.string().min(1),
     dayId: z.string().min(1, "اختر اليوم المرتبط بهذه الجلسة"),
     titleAr: z.string().trim().min(2, "عنوان الجلسة مطلوب"),
-    titleEn: z.string().optional(),
-    descriptionAr: z.string().optional(),
-    descriptionEn: z.string().optional(),
+    titleEn: optionalTextSchema,
+    descriptionAr: optionalTextSchema,
+    descriptionEn: optionalTextSchema,
     startTime: z.string().min(1, "وقت بداية الجلسة مطلوب"),
     endTime: z.string().min(1, "وقت نهاية الجلسة مطلوب"),
     sessionType: z.enum(sessionTypeOptions.map((item) => item.value) as [
@@ -141,15 +172,15 @@ const liveStreamSchema = z.object({
     (typeof streamProviderOptions)[number]["value"],
     ...(typeof streamProviderOptions)[number]["value"][],
   ]),
-  embedUrl: z.string().url("رابط تضمين البث غير صالح").optional().or(z.literal("")),
-  joinUrl: z.string().url("رابط الانضمام غير صالح").optional().or(z.literal("")),
-  meetingId: z.string().optional(),
-  passcode: z.string().optional(),
-  instructions: z.string().optional(),
-  supportContact: z.string().optional(),
-  joinWindowMinutes: z.number().min(0).optional(),
+  embedUrl: optionalUrlSchema("رابط تضمين البث غير صالح"),
+  joinUrl: optionalUrlSchema("رابط الانضمام غير صالح"),
+  meetingId: optionalTextSchema,
+  passcode: optionalTextSchema,
+  instructions: optionalTextSchema,
+  supportContact: optionalTextSchema,
+  joinWindowMinutes: optionalNumberSchema(0),
   recordingAvailable: z.boolean().optional(),
-  recordingUrl: z.string().url("رابط إعادة البث غير صالح").optional().or(z.literal("")),
+  recordingUrl: optionalUrlSchema("رابط إعادة البث غير صالح"),
 });
 
 const eventDaySchema = z
@@ -158,7 +189,7 @@ const eventDaySchema = z
     date: z.string().min(1, "تاريخ اليوم مطلوب"),
     startTime: z.string().min(1, "وقت بداية اليوم مطلوب"),
     endTime: z.string().min(1, "وقت نهاية اليوم مطلوب"),
-    cmeHours: z.number().min(0, "ساعات CME اليومية لا يمكن أن تكون سالبة"),
+    cmeHours: z.coerce.number().min(0, "ساعات CME اليومية لا يمكن أن تكون سالبة"),
   })
   .refine(
     (value) =>
@@ -178,22 +209,26 @@ const eventSchema = z
       .string()
       .min(3, "الرابط المختصر مطلوب")
       .regex(/^[a-z0-9-]+$/, "الرابط يجب أن يحتوي على أحرف إنجليزية صغيرة وأرقام وشرطات فقط"),
-    descriptionAr: z.string().optional(),
-    descriptionEn: z.string().optional(),
-    coverImage: z.string().url("رابط الصورة غير صالح").optional().or(z.literal("")),
+    descriptionAr: optionalTextSchema,
+    descriptionEn: optionalTextSchema,
+    coverImage: optionalUrlSchema("رابط الصورة غير صالح"),
     startDate: z.string().min(1, "تاريخ البداية مطلوب"),
     endDate: z.string().min(1, "تاريخ النهاية مطلوب"),
-    registrationDeadline: z.string().optional(),
+    registrationDeadline: optionalTextSchema,
     eventMode: z.enum(["in_person", "online"]),
     hasLiveStream: z.boolean(),
     liveStream: liveStreamSchema,
-    venue: z.string().optional(),
-    address: z.string().optional(),
-    city: z.string().optional(),
-    coordinatesLat: z.number().min(-90, "خط العرض يجب أن يكون بين -90 و 90").max(90).optional(),
-    coordinatesLng: z.number().min(-180, "خط الطول يجب أن يكون بين -180 و 180").max(180).optional(),
-    maxAttendees: z.number().min(0).optional(),
-    cmeHours: z.number().min(0).optional(),
+    venue: optionalTextSchema,
+    address: optionalTextSchema,
+    city: optionalTextSchema,
+    coordinatesLat: optionalNumberSchema(-90, "خط العرض يجب أن يكون بين -90 و 90").pipe(
+      z.number().max(90, "خط العرض يجب أن يكون بين -90 و 90").optional()
+    ),
+    coordinatesLng: optionalNumberSchema(-180, "خط الطول يجب أن يكون بين -180 و 180").pipe(
+      z.number().max(180, "خط الطول يجب أن يكون بين -180 و 180").optional()
+    ),
+    maxAttendees: optionalNumberSchema(0),
+    cmeHours: optionalNumberSchema(0),
     registrationOpen: z.boolean(),
     registrationAccess: z.enum(["authenticated_only", "public"]),
     guestEmailMode: z.enum(["required", "optional"]),
@@ -373,6 +408,7 @@ export default function AdminEventEditPage() {
   const [slugStatus, setSlugStatus] = useState<SlugStatus>("idle");
   const [summaryError, setSummaryError] = useState("");
   const [activeTab, setActiveTab] = useState<EventEditTab>("basic");
+  const [activeScheduleDayId, setActiveScheduleDayId] = useState("");
 
   const {
     register,
@@ -382,7 +418,7 @@ export default function AdminEventEditPage() {
     reset,
     formState: { errors },
   } = useForm<EventForm>({
-    resolver: zodResolver(eventSchema),
+    resolver: zodResolver(eventSchema) as Resolver<EventForm>,
     defaultValues: {
       registrationAccess: "authenticated_only",
       guestEmailMode: "required",
@@ -518,6 +554,18 @@ export default function AdminEventEditPage() {
       ),
     [eventDays]
   );
+
+  useEffect(() => {
+    if (!sortedEventDays.length) {
+      setActiveScheduleDayId("");
+      return;
+    }
+
+    const hasActiveDay = sortedEventDays.some((day) => day.id === activeScheduleDayId);
+    if (!hasActiveDay) {
+      setActiveScheduleDayId(sortedEventDays[0].id);
+    }
+  }, [sortedEventDays, activeScheduleDayId]);
 
   const derivedStartDate = useMemo(() => {
     const firstDay = sortedEventDays[0];
@@ -714,8 +762,11 @@ export default function AdminEventEditPage() {
     }
   };
 
-  const addScheduleItem = () => {
-    const defaultDay = sortedEventDays[0];
+  const addScheduleItem = (targetDayId?: string) => {
+    const defaultDay =
+      sortedEventDays.find((day) => day.id === targetDayId) ||
+      sortedEventDays.find((day) => day.id === activeScheduleDayId) ||
+      sortedEventDays[0];
     const defaultStart = defaultDay
       ? toDateTimeLocal(toDateTimeFromDayAndTime(defaultDay.date, defaultDay.startTime))
       : watchedValues.startDate || "";
@@ -1707,142 +1758,196 @@ export default function AdminEventEditPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-end">
-                  <Button type="button" variant="outline" size="sm" onClick={addScheduleItem}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addScheduleItem(activeScheduleDayId)}
+                  >
                     <Plus className="ml-1 h-4 w-4" />
                     إضافة جلسة
                   </Button>
                 </div>
 
-                {!schedule.length && (
-                  <p className="text-sm text-muted-foreground">لم تتم إضافة جلسات للجدول بعد</p>
-                )}
-
-                {schedule.map((session, index) => (
-                  <div key={session.id} className="rounded-lg border p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <p className="text-sm font-medium">جلسة {index + 1}</p>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeScheduleItem(index)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <div className="space-y-1 md:col-span-2">
-                        <Label>عنوان الجلسة *</Label>
-                        <Input
-                          value={session.titleAr}
-                          onChange={(event) => updateScheduleField(index, "titleAr", event.target.value)}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label>نوع الجلسة *</Label>
-                        <Select
-                          value={session.sessionType}
-                          onValueChange={(value) => {
-                            const next = [...schedule];
-                            next[index] = {
-                              ...next[index],
-                              sessionType: value as EventForm["schedule"][number]["sessionType"],
-                            };
-                            setValue("schedule", next, { shouldDirty: true, shouldValidate: true });
-                          }}
+                {sortedEventDays.length ? (
+                  <Tabs
+                    dir="rtl"
+                    value={activeScheduleDayId}
+                    onValueChange={setActiveScheduleDayId}
+                    className="space-y-4"
+                  >
+                    <TabsList className="h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
+                      {sortedEventDays.map((day, dayIndex) => (
+                        <TabsTrigger
+                          key={day.id}
+                          value={day.id}
+                          className="rounded-md border bg-background px-3 py-1.5 data-[state=active]:border-primary data-[state=active]:bg-primary/10"
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="اختر نوع الجلسة" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sessionTypeOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                          {`اليوم ${dayIndex + 1}`}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
 
-                      <div className="space-y-1">
-                        <Label>اليوم *</Label>
-                        <Select
-                          value={session.dayId}
-                          onValueChange={(value) => updateScheduleField(index, "dayId", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="اختر اليوم" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sortedEventDays.map((day, dayIndex) => (
-                              <SelectItem key={day.id} value={day.id}>
-                                {`اليوم ${dayIndex + 1} - ${day.date}`}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    {sortedEventDays.map((day, dayIndex) => {
+                      const daySessions = schedule
+                        .map((session, index) => ({ session, index }))
+                        .filter((item) => item.session.dayId === day.id)
+                        .sort(
+                          (a, b) =>
+                            new Date(a.session.startTime).getTime() - new Date(b.session.startTime).getTime()
+                        );
 
-                      <div className="space-y-1">
-                        <Label>وصف مختصر</Label>
-                        <Input
-                          value={session.descriptionAr || ""}
-                          onChange={(event) => updateScheduleField(index, "descriptionAr", event.target.value)}
-                        />
-                      </div>
+                      return (
+                        <TabsContent key={day.id} value={day.id} className="space-y-4">
+                          <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                            {`جلسات اليوم ${dayIndex + 1} (${day.date})`}
+                          </div>
 
-                      <div className="space-y-1">
-                        <Label>وقت البداية *</Label>
-                        <Input
-                          type="datetime-local"
-                          value={session.startTime}
-                          onChange={(event) => updateScheduleField(index, "startTime", event.target.value)}
-                        />
-                      </div>
+                          {!daySessions.length && (
+                            <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+                              لا توجد جلسات مضافة لهذا اليوم بعد.
+                            </div>
+                          )}
 
-                      <div className="space-y-1">
-                        <Label>وقت النهاية *</Label>
-                        <Input
-                          type="datetime-local"
-                          value={session.endTime}
-                          onChange={(event) => updateScheduleField(index, "endTime", event.target.value)}
-                        />
-                      </div>
-                    </div>
+                          {daySessions.map(({ session, index }, sessionOrder) => (
+                            <div key={session.id} className="rounded-lg border p-4">
+                              <div className="mb-3 flex items-center justify-between">
+                                <p className="text-sm font-medium">جلسة {sessionOrder + 1}</p>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeScheduleItem(index)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
 
-                    <div className="mt-3 space-y-2 rounded-md bg-muted/40 p-3">
-                      <p className="text-xs text-muted-foreground">المتحدثون اختياريون حالياً ويمكن إضافتهم لاحقاً</p>
-                      {!speakers.length ? (
-                        <p className="text-sm text-amber-700">لا يوجد متحدثون بعد، ويمكن حفظ الجلسة بدون متحدثين</p>
-                      ) : (
-                        <div className="grid gap-2 md:grid-cols-2">
-                          {speakers.map((speaker) => (
-                            <label key={`${session.id}-${speaker.id}`} className="flex items-center gap-2 text-sm">
-                              <Checkbox
-                                checked={(session.speakerIds || []).includes(speaker.id)}
-                                onCheckedChange={(checked) =>
-                                  toggleSessionSpeaker(index, speaker.id, checked === true)
-                                }
-                              />
-                              <span>{speaker.nameAr || "متحدث بدون اسم"}</span>
-                            </label>
+                              <div className="grid gap-3 md:grid-cols-2">
+                                <div className="space-y-1 md:col-span-2">
+                                  <Label>عنوان الجلسة *</Label>
+                                  <Input
+                                    value={session.titleAr}
+                                    onChange={(event) => updateScheduleField(index, "titleAr", event.target.value)}
+                                  />
+                                </div>
+
+                                <div className="space-y-1">
+                                  <Label>نوع الجلسة *</Label>
+                                  <Select
+                                    value={session.sessionType}
+                                    onValueChange={(value) => {
+                                      const next = [...schedule];
+                                      next[index] = {
+                                        ...next[index],
+                                        sessionType: value as EventForm["schedule"][number]["sessionType"],
+                                      };
+                                      setValue("schedule", next, { shouldDirty: true, shouldValidate: true });
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="اختر نوع الجلسة" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {sessionTypeOptions.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {option.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <Label>اليوم</Label>
+                                  <Input value={`اليوم ${dayIndex + 1} - ${day.date}`} readOnly disabled />
+                                </div>
+
+                                <div className="space-y-1">
+                                  <Label>وصف مختصر</Label>
+                                  <Input
+                                    value={session.descriptionAr || ""}
+                                    onChange={(event) =>
+                                      updateScheduleField(index, "descriptionAr", event.target.value)
+                                    }
+                                  />
+                                </div>
+
+                                <div className="space-y-1">
+                                  <Label>وقت البداية *</Label>
+                                  <Input
+                                    type="datetime-local"
+                                    value={session.startTime}
+                                    onChange={(event) =>
+                                      updateScheduleField(index, "startTime", event.target.value)
+                                    }
+                                  />
+                                </div>
+
+                                <div className="space-y-1">
+                                  <Label>وقت النهاية *</Label>
+                                  <Input
+                                    type="datetime-local"
+                                    value={session.endTime}
+                                    onChange={(event) =>
+                                      updateScheduleField(index, "endTime", event.target.value)
+                                    }
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="mt-3 space-y-2 rounded-md bg-muted/40 p-3">
+                                <p className="text-xs text-muted-foreground">المتحدثون اختياريون حالياً ويمكن إضافتهم لاحقاً</p>
+                                {!speakers.length ? (
+                                  <p className="text-sm text-amber-700">لا يوجد متحدثون بعد، ويمكن حفظ الجلسة بدون متحدثين</p>
+                                ) : (
+                                  <div className="grid gap-2 md:grid-cols-2">
+                                    {speakers.map((speaker) => (
+                                      <label key={`${session.id}-${speaker.id}`} className="flex items-center gap-2 text-sm">
+                                        <Checkbox
+                                          checked={(session.speakerIds || []).includes(speaker.id)}
+                                          onCheckedChange={(checked) =>
+                                            toggleSessionSpeaker(index, speaker.id, checked === true)
+                                          }
+                                        />
+                                        <span>{speaker.nameAr || "متحدث بدون اسم"}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {(errors.schedule?.[index]?.dayId?.message ||
+                                errors.schedule?.[index]?.titleAr?.message ||
+                                errors.schedule?.[index]?.startTime?.message ||
+                                errors.schedule?.[index]?.endTime?.message ||
+                                errors.schedule?.[index]?.speakerIds?.message) && (
+                                <p className="mt-2 text-sm text-destructive">
+                                  {errors.schedule?.[index]?.dayId?.message ||
+                                    errors.schedule?.[index]?.titleAr?.message ||
+                                    errors.schedule?.[index]?.startTime?.message ||
+                                    errors.schedule?.[index]?.endTime?.message ||
+                                    errors.schedule?.[index]?.speakerIds?.message}
+                                </p>
+                              )}
+                            </div>
                           ))}
-                        </div>
-                      )}
-                    </div>
 
-                    {(errors.schedule?.[index]?.dayId?.message ||
-                      errors.schedule?.[index]?.titleAr?.message ||
-                      errors.schedule?.[index]?.startTime?.message ||
-                      errors.schedule?.[index]?.endTime?.message ||
-                      errors.schedule?.[index]?.speakerIds?.message) && (
-                      <p className="mt-2 text-sm text-destructive">
-                        {errors.schedule?.[index]?.dayId?.message ||
-                          errors.schedule?.[index]?.titleAr?.message ||
-                          errors.schedule?.[index]?.startTime?.message ||
-                          errors.schedule?.[index]?.endTime?.message ||
-                          errors.schedule?.[index]?.speakerIds?.message}
-                      </p>
-                    )}
+                          <div className="flex justify-end">
+                            <Button type="button" variant="outline" size="sm" onClick={() => addScheduleItem(day.id)}>
+                              <Plus className="ml-1 h-4 w-4" />
+                              إضافة جلسة جديدة لهذا اليوم
+                            </Button>
+                          </div>
+                        </TabsContent>
+                      );
+                    })}
+                  </Tabs>
+                ) : (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    أضف يوماً واحداً على الأقل أولاً، ثم أضف جلسات الجدول الزمني.
                   </div>
-                ))}
+                )}
               </CardContent>
             </Card>
           </TabsContent>
