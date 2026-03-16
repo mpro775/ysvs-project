@@ -4,7 +4,6 @@ import {
   Calendar,
   MapPin,
   Clock,
-  Users,
   Award,
   ArrowRight,
   XCircle,
@@ -131,10 +130,6 @@ export default function EventDetailPage() {
   const registrationDeadlineLabel = event.registrationDeadline
     ? format(new Date(event.registrationDeadline), "d MMMM yyyy", { locale: ar })
     : "مفتوح حتى بداية المؤتمر";
-  const attendeeLabel =
-    event.maxAttendees > 0
-      ? `${event.currentAttendees} / ${event.maxAttendees}`
-      : `${event.currentAttendees}`;
   const eventMode = event.eventMode || (event.location ? "in_person" : "online");
   const isOnlineMode = eventMode === "online";
   const hasLiveStream = Boolean(event.hasLiveStream && event.liveStream);
@@ -317,7 +312,7 @@ export default function EventDetailPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                 <div className="event-hero-stat-card">
                   <Calendar className="mb-2 h-4 w-4 text-white/80" />
                   <p className="text-[11px] text-white/70">تاريخ المؤتمر</p>
@@ -331,11 +326,6 @@ export default function EventDetailPage() {
                   <p className="mt-1 text-sm font-semibold text-white">
                     {totalDays} يوم / {totalProgramHours} ساعة
                   </p>
-                </div>
-                <div className="event-hero-stat-card">
-                  <Users className="mb-2 h-4 w-4 text-white/80" />
-                  <p className="text-[11px] text-white/70">عدد المسجلين</p>
-                  <p className="mt-1 text-sm font-semibold text-white">{attendeeLabel}</p>
                 </div>
                 <div className="event-hero-stat-card">
                   {isOnlineMode ? (
@@ -774,27 +764,6 @@ export default function EventDetailPage() {
                         }
                       )}
                     </p>
-                  )}
-                  {event.maxAttendees > 0 && (
-                    <div>
-                      <div className="mb-2 flex justify-between text-sm">
-                        <span>المقاعد المتاحة</span>
-                        <span>
-                          {event.maxAttendees - event.currentAttendees} متبقي
-                        </span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
-                        <div
-                          className="h-full bg-primary-600"
-                          style={{
-                            width: `${
-                              (event.currentAttendees / event.maxAttendees) *
-                              100
-                            }%`,
-                          }}
-                        />
-                      </div>
-                    </div>
                   )}
                   <Button className="w-full" type="button" onClick={handleRegisterCtaClick}>
                     سجل الآن

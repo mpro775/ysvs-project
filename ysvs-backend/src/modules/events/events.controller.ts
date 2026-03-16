@@ -77,8 +77,8 @@ export class EventsController {
   @Get('all')
   @ApiOperation({ summary: 'Get all events (Admin only)' })
   @ApiResponse({ status: 200, description: 'List of all events' })
-  findAll(@Query() paginationDto: PaginationDto) {
-    return this.eventsService.findAll(paginationDto);
+  findAll(@Query() query: EventsQueryDto) {
+    return this.eventsService.findAll(query);
   }
 
   @Public()

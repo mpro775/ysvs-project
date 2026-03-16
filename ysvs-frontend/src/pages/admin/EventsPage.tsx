@@ -34,7 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEvents, useDeleteEvent } from "@/api/hooks/useEvents";
+import { useAdminEvents, useDeleteEvent } from "@/api/hooks/useEvents";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { format } from "date-fns";
@@ -62,7 +62,7 @@ export default function AdminEventsPage() {
   const status = searchParams.get("status") || "all";
   const page = parseInt(searchParams.get("page") || "1");
 
-  const { data, isLoading } = useEvents({
+  const { data, isLoading } = useAdminEvents({
     status: status === "all" ? undefined : status,
     search: searchParams.get("search") || undefined,
     page,

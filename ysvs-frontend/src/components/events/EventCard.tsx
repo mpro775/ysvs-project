@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Calendar, MapPin, Users } from "lucide-react";
+import { Calendar, MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,16 +79,6 @@ export function EventCard({ event }: EventCardProps) {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="h-4 w-4" />
             <span>{event.location.city}</span>
-          </div>
-        )}
-
-        {/* Attendees */}
-        {event.maxAttendees > 0 && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Users className="h-4 w-4" />
-            <span>
-              {event.currentAttendees} / {event.maxAttendees} مسجل
-            </span>
           </div>
         )}
 
