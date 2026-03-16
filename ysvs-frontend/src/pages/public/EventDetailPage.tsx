@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useParams, Link, useLocation } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Calendar,
   MapPin,
@@ -33,9 +33,9 @@ const toDayKey = (dateValue: string | Date) => new Date(dateValue).toISOString()
 export default function EventDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const { data: event, isLoading } = useEventBySlug(slug || "");
   const { isAuthenticated } = useAuthStore();
-  const [activeTab, setActiveTab] = useState("about");
   const tabsContainerRef = useRef<HTMLDivElement | null>(null);
   const registrationDeadlinePassed = Boolean(
     event?.registrationDeadline &&
@@ -48,27 +48,62 @@ export default function EventDetailPage() {
       !registrationDeadlinePassed
   );
 
-  useEffect(() => {
-    const hashValue = location.hash.replace("#", "");
-    if (!hashValue) {
-      return;
-    }
+  const validTabs = useMemo(() => {
+    const tabs = ["about", "speakers", "schedule"];
 
-    const validTabs = ["about", "speakers", "schedule"];
     if (canRegister) {
-      validTabs.push("register");
+      tabs.push("register");
     }
 
-    if (validTabs.includes(hashValue) && hashValue !== activeTab) {
-      setActiveTab(hashValue);
-    }
-  }, [location.hash, canRegister, activeTab]);
+    return tabs;
+  }, [canRegister]);
+
+  const requestedTab = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    return searchParams.get("tab");
+  }, [location.search]);
+
+  const activeTab = requestedTab && validTabs.includes(requestedTab) ? requestedTab : "about";
+
+  const navigateToTab = useCallback(
+    (tab: string, replace = true) => {
+      const normalizedTab = validTabs.includes(tab) ? tab : "about";
+      const nextSearchParams = new URLSearchParams(location.search);
+
+      if (normalizedTab === "about") {
+        nextSearchParams.delete("tab");
+      } else {
+        nextSearchParams.set("tab", normalizedTab);
+      }
+
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearchParams.toString() ? `?${nextSearchParams.toString()}` : "",
+          hash: "",
+        },
+        {
+          replace,
+          preventScrollReset: true,
+        }
+      );
+    },
+    [location.pathname, location.search, navigate, validTabs]
+  );
 
   useEffect(() => {
-    if (!canRegister && activeTab === "register") {
-      setActiveTab("about");
+    const legacyHashTab = location.hash.replace("#", "");
+
+    if (legacyHashTab && validTabs.includes(legacyHashTab) && requestedTab !== legacyHashTab) {
+      navigateToTab(legacyHashTab);
     }
-  }, [canRegister, activeTab]);
+  }, [location.hash, navigateToTab, requestedTab, validTabs]);
+
+  useEffect(() => {
+    if (!isLoading && requestedTab && !validTabs.includes(requestedTab)) {
+      navigateToTab("about");
+    }
+  }, [isLoading, navigateToTab, requestedTab, validTabs]);
 
   if (isLoading) {
     return (
@@ -190,19 +225,8 @@ export default function EventDetailPage() {
     : undefined;
   const eventModeLabel = isOnlineMode ? "أونلاين" : "حضوري";
 
-  const updateHashForTab = (tab: string) => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const nextHash = tab === "about" ? "" : `#${tab}`;
-    const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
-    window.history.replaceState(null, "", nextUrl);
-  };
-
   const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    updateHashForTab(tab);
+    navigateToTab(tab);
   };
 
   const handleRegisterCtaClick = () => {
@@ -215,7 +239,7 @@ export default function EventDetailPage() {
   };
 
   const goToSpeakerCard = (speakerId: string) => {
-    setActiveTab("speakers");
+    navigateToTab("speakers");
     window.setTimeout(() => {
       const target = document.getElementById(`speaker-${speakerId}`);
       if (target) {
@@ -359,12 +383,32 @@ export default function EventDetailPage() {
           {/* Main Content */}
           <div className="lg:col-span-2" ref={tabsContainerRef}>
             <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <TabsList className="w-full justify-start rounded-xl border border-[var(--event-border)] bg-[var(--event-surface-muted)] p-1">
-                <TabsTrigger value="about">نبذة عن المؤتمر</TabsTrigger>
-                <TabsTrigger value="speakers">المتحدثون</TabsTrigger>
-                <TabsTrigger value="schedule">الجدول</TabsTrigger>
+              <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto rounded-xl border border-[var(--event-border)] bg-[var(--event-surface-muted)] p-1">
+                <TabsTrigger
+                  value="about"
+                  className="h-11 flex-none px-4 data-[state=active]:border-[var(--event-border-strong)] data-[state=active]:bg-background data-[state=active]:text-foreground"
+                >
+                  نبذة عن المؤتمر
+                </TabsTrigger>
+                <TabsTrigger
+                  value="speakers"
+                  className="h-11 flex-none px-4 data-[state=active]:border-[var(--event-border-strong)] data-[state=active]:bg-background data-[state=active]:text-foreground"
+                >
+                  المتحدثون
+                </TabsTrigger>
+                <TabsTrigger
+                  value="schedule"
+                  className="h-11 flex-none px-4 data-[state=active]:border-[var(--event-border-strong)] data-[state=active]:bg-background data-[state=active]:text-foreground"
+                >
+                  الجدول
+                </TabsTrigger>
                 {canRegister && (
-                  <TabsTrigger value="register">التسجيل</TabsTrigger>
+                  <TabsTrigger
+                    value="register"
+                    className="h-11 flex-none px-4 data-[state=active]:border-[var(--event-border-strong)] data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  >
+                    التسجيل
+                  </TabsTrigger>
                 )}
               </TabsList>
 
