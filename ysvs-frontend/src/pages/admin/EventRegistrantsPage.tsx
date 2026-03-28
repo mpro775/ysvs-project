@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  fetchAllEventRegistrations,
   useEvent,
   useEventRegistrations,
   useMarkAttendance,
@@ -29,6 +30,7 @@ import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import * as XLSX from "xlsx";
 import type { FormField, Registration, UploadedFormFile, User } from "@/types";
+import { toast } from "sonner";
 
 const OTHER_OPTION_VALUE = "__other__";
 const getOtherFieldId = (fieldId: string) => `${fieldId}__other`;
@@ -59,6 +61,7 @@ export default function AdminEventRegistrantsPage() {
     useEventRegistrations(id || "");
   const { mutate: markAttendance, isPending } = useMarkAttendance();
   const [detailsRegistration, setDetailsRegistration] = useState<Registration | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const formatPrimitiveValue = (value: unknown): string => {
     if (value === null || value === undefined || value === "") {
@@ -148,77 +151,94 @@ export default function AdminEventRegistrantsPage() {
     return null;
   };
 
-  const handleExport = () => {
-    if (!registrations?.data || !event) return;
+  const handleExport = async () => {
+    if (!id || !event) return;
 
-    const formatDynamicValue = (value: unknown): string => {
-      if (!value) return '';
-      if (Array.isArray(value)) return value.join('، ');
-      if (typeof value === 'object') {
-        const maybeFile = value as { originalName?: unknown; url?: unknown };
-        if (typeof maybeFile.url === 'string') {
-          return maybeFile.url;
-        }
-        return JSON.stringify(value);
+    setIsExporting(true);
+
+    try {
+      const allRegistrations = await fetchAllEventRegistrations(id);
+
+      if (!allRegistrations.length) {
+        toast.info("لا يوجد مسجلين لتصديرهم");
+        return;
       }
-      return String(value);
-    };
 
-    const data = registrations.data.map((reg) => {
-      const user = reg.user as User | undefined;
-      const formData = reg.formData || {};
-      const professionalCardFile = getUploadedFile(formData.professionalCardDocument);
-      const baseData: Record<string, unknown> = {
-        "رقم التسجيل": reg.registrationNumber,
-        "الاسم (عربي)": user?.fullNameAr || formData.fullNameAr || "ضيف",
-        "الاسم (إنجليزي)": user?.fullNameEn || formData.fullNameEn || "Guest",
-        "البريد الإلكتروني": user?.email || formData.email || reg.guestEmail || "-",
-        الهاتف: user?.phone || formData.phone || "-",
-        "رابط بطاقة مزاولة المهنة": professionalCardFile?.url || "-",
-        الجنس: user?.gender ? getGenderLabel(user.gender) : getGenderLabel(formData.gender),
-        الدولة: user?.country || formData.country || "-",
-        "الصفة الوظيفية": user?.jobTitle || formData.jobTitle || "-",
-        التخصص: user?.specialty || formData.specialty || "-",
-        "جهة العمل / المستشفى / الجامعة": user?.workplace || formData.workplace || "-",
-        الحالة:
-          reg.status === "attended"
-            ? "حضر"
-            : reg.status === "confirmed"
-            ? "مؤكد"
-            : "معلق",
-        "تاريخ التسجيل": format(new Date(reg.createdAt), "yyyy-MM-dd"),
+      const formatDynamicValue = (value: unknown): string => {
+        if (!value) return '';
+        if (Array.isArray(value)) return value.join('، ');
+        if (typeof value === 'object') {
+          const maybeFile = value as { originalName?: unknown; url?: unknown };
+          if (typeof maybeFile.url === 'string') {
+            return maybeFile.url;
+          }
+          return JSON.stringify(value);
+        }
+        return String(value);
       };
 
-      // Add dynamic form data
-      if (event.formSchema) {
-        event.formSchema
-          .filter((field) => !defaultProfileFieldIds.has(field.id))
-          .forEach((field) => {
-          if (field.type === "section") {
-            return;
-          }
+      const data = allRegistrations.map((reg) => {
+        const user = reg.user as User | undefined;
+        const formData = reg.formData || {};
+        const professionalCardFile = getUploadedFile(formData.professionalCardDocument);
+        const baseData: Record<string, unknown> = {
+          "رقم التسجيل": reg.registrationNumber,
+          "الاسم (عربي)": user?.fullNameAr || formData.fullNameAr || "ضيف",
+          "الاسم (إنجليزي)": user?.fullNameEn || formData.fullNameEn || "Guest",
+          "البريد الإلكتروني": user?.email || formData.email || reg.guestEmail || "-",
+          الهاتف: user?.phone || formData.phone || "-",
+          "رابط بطاقة مزاولة المهنة": professionalCardFile?.url || "-",
+          الجنس: user?.gender ? getGenderLabel(user.gender) : getGenderLabel(formData.gender),
+          الدولة: user?.country || formData.country || "-",
+          "الصفة الوظيفية": user?.jobTitle || formData.jobTitle || "-",
+          التخصص: user?.specialty || formData.specialty || "-",
+          "جهة العمل / المستشفى / الجامعة": user?.workplace || formData.workplace || "-",
+          الحالة:
+            reg.status === "attended"
+              ? "حضر"
+              : reg.status === "confirmed"
+              ? "مؤكد"
+              : "معلق",
+          "تاريخ التسجيل": format(new Date(reg.createdAt), "yyyy-MM-dd"),
+        };
 
-          const currentValue = formData[field.id];
-          if (
-            (field.type === "select" || field.type === "radio") &&
-            field.allowOther &&
-            currentValue === OTHER_OPTION_VALUE
-          ) {
-            baseData[field.label] = formatDynamicValue(formData[getOtherFieldId(field.id)]);
-            return;
-          }
+        if (event.formSchema) {
+          event.formSchema
+            .filter((field) => !defaultProfileFieldIds.has(field.id))
+            .forEach((field) => {
+              if (field.type === "section") {
+                return;
+              }
 
-          baseData[field.label] = formatDynamicValue(currentValue);
-        });
-      }
+              const currentValue = formData[field.id];
+              if (
+                (field.type === "select" || field.type === "radio") &&
+                field.allowOther &&
+                currentValue === OTHER_OPTION_VALUE
+              ) {
+                baseData[field.label] = formatDynamicValue(formData[getOtherFieldId(field.id)]);
+                return;
+              }
 
-      return baseData;
-    });
+              baseData[field.label] = formatDynamicValue(currentValue);
+            });
+        }
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "المسجلين");
-    XLSX.writeFile(workbook, `registrations-${event.slug}.xlsx`);
+        return baseData;
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "المسجلين");
+      XLSX.writeFile(workbook, `registrations-${event.slug}.xlsx`);
+
+      toast.success(`تم تصدير ${allRegistrations.length} سجل بنجاح`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "تعذر تصدير المسجلين حالياً";
+      toast.error(message);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleAttendance = (registrationId: string, attended: boolean) => {
@@ -260,9 +280,9 @@ export default function AdminEventRegistrantsPage() {
             <p className="text-muted-foreground">{event.titleAr}</p>
           </div>
         </div>
-        <Button onClick={handleExport} disabled={!registrations?.data?.length}>
+        <Button onClick={handleExport} disabled={isExporting || !registrations?.meta?.total}>
           <Download className="ml-2 h-4 w-4" />
-          تصدير Excel
+          {isExporting ? "جارٍ التصدير..." : "تصدير Excel"}
         </Button>
       </div>
 

@@ -319,6 +319,33 @@ export const useEventRegistrations = (eventId: string, filters?: { page?: number
   });
 };
 
+export const fetchAllEventRegistrations = async (
+  eventId: string,
+  pageSize: number = 100
+): Promise<Registration[]> => {
+  const allRegistrations: Registration[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const response = await api.get<unknown, PaginatedResponse<Registration>>(
+      ENDPOINTS.EVENTS.REGISTRATIONS(eventId),
+      {
+        params: {
+          page,
+          limit: pageSize,
+        },
+      }
+    );
+
+    allRegistrations.push(...response.data);
+    totalPages = response.meta?.totalPages || 1;
+    page += 1;
+  } while (page <= totalPages);
+
+  return allRegistrations;
+};
+
 // Get my registrations
 export const useMyRegistrations = () => {
   return useQuery({
