@@ -13,7 +13,10 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
       throw new Error('JWT_REFRESH_SECRET is not defined');
     }
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        ExtractJwt.fromBodyField('refreshToken'),
+      ]),
       ignoreExpiration: false,
       secretOrKey: secret,
       passReqToCallback: true,
@@ -21,7 +24,15 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
   }
 
   async validate(req: Request, payload: JwtPayload) {
-    const refreshToken = req.get('Authorization')?.replace('Bearer ', '').trim();
+    const refreshTokenFromHeader = req
+      .get('Authorization')
+      ?.replace('Bearer ', '')
+      .trim();
+    const refreshTokenFromBody =
+      typeof req.body?.refreshToken === 'string'
+        ? req.body.refreshToken.trim()
+        : undefined;
+    const refreshToken = refreshTokenFromHeader || refreshTokenFromBody;
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token مطلوب');
