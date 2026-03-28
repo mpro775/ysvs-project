@@ -30,6 +30,7 @@ export const ENDPOINTS = {
   // Events
   EVENTS: {
     BASE: '/events',
+    ALL: '/events/all',
     BY_ID: (id: string) => `/events/id/${id}`,
     BY_SLUG: (slug: string) => `/events/${slug}`,
     SLUG_AVAILABILITY: (slug: string) => `/events/slug-availability/${slug}`,

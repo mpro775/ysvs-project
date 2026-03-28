@@ -156,9 +156,6 @@ export default function AdminEventRegistrantsPage() {
       if (Array.isArray(value)) return value.join('، ');
       if (typeof value === 'object') {
         const maybeFile = value as { originalName?: unknown; url?: unknown };
-        if (typeof maybeFile.originalName === 'string') {
-          return maybeFile.originalName;
-        }
         if (typeof maybeFile.url === 'string') {
           return maybeFile.url;
         }
@@ -170,12 +167,14 @@ export default function AdminEventRegistrantsPage() {
     const data = registrations.data.map((reg) => {
       const user = reg.user as User | undefined;
       const formData = reg.formData || {};
+      const professionalCardFile = getUploadedFile(formData.professionalCardDocument);
       const baseData: Record<string, unknown> = {
         "رقم التسجيل": reg.registrationNumber,
         "الاسم (عربي)": user?.fullNameAr || formData.fullNameAr || "ضيف",
         "الاسم (إنجليزي)": user?.fullNameEn || formData.fullNameEn || "Guest",
         "البريد الإلكتروني": user?.email || formData.email || reg.guestEmail || "-",
         الهاتف: user?.phone || formData.phone || "-",
+        "رابط بطاقة مزاولة المهنة": professionalCardFile?.url || "-",
         الجنس: user?.gender ? getGenderLabel(user.gender) : getGenderLabel(formData.gender),
         الدولة: user?.country || formData.country || "-",
         "الصفة الوظيفية": user?.jobTitle || formData.jobTitle || "-",

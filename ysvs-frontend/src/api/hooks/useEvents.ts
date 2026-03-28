@@ -79,6 +79,19 @@ export const useEvents = (filters?: EventFilters) => {
   });
 };
 
+export const useAdminEvents = (filters?: EventFilters) => {
+  return useQuery({
+    queryKey: ['admin-events', filters],
+    queryFn: async () => {
+      const response = await api.get<unknown, PaginatedResponse<Event>>(
+        ENDPOINTS.EVENTS.ALL,
+        { params: filters }
+      );
+      return response;
+    },
+  });
+};
+
 // Get single event by ID
 export const useEvent = (id: string) => {
   return useQuery({

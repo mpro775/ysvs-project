@@ -26,7 +26,7 @@ import {
   UpdateFormSchemaDto,
   CreateTicketTypeDto,
 } from './dto';
-import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { PaginatedResult } from '../../common/dto/pagination.dto';
 
 @Injectable()
 export class EventsService {
@@ -69,19 +69,24 @@ export class EventsService {
     return savedEvent;
   }
 
-  async findAll(paginationDto: PaginationDto): Promise<PaginatedResult<Event>> {
-    const { page = 1, limit = 10 } = paginationDto;
+  async findAll(queryDto: EventsQueryDto): Promise<PaginatedResult<Event>> {
+    const { page = 1, limit = 10, status } = queryDto;
     const skip = (page - 1) * limit;
+
+    const query: Record<string, unknown> = {};
+    if (status) {
+      query.status = status;
+    }
 
     const [events, total] = await Promise.all([
       this.eventModel
-        .find()
+        .find(query)
         .populate('ticketTypes')
         .skip(skip)
         .limit(limit)
         .sort({ startDate: -1 })
         .exec(),
-      this.eventModel.countDocuments(),
+      this.eventModel.countDocuments(query),
     ]);
 
     return new PaginatedResult(events, total, page, limit);
@@ -110,7 +115,7 @@ export class EventsService {
       this.eventModel
         .find(query)
         .populate('ticketTypes')
-        .select('-formSchema')
+        .select('-formSchema -currentAttendees')
         .skip(skip)
         .limit(limit)
         .sort({ startDate: -1 })
@@ -152,6 +157,7 @@ export class EventsService {
     const event = await this.eventModel
       .findOne({ slug })
       .populate('ticketTypes')
+      .select('-currentAttendees')
       .exec();
 
     if (!event) {
@@ -777,22 +783,12 @@ export class EventsService {
     }
 
     const allowedSpeakerIds = new Set((speakers ?? []).map((speaker) => speaker.id));
-    const typesWithoutSpeakers = new Set<SessionType>([
-      SessionType.BREAK,
-      SessionType.NETWORKING,
-      SessionType.OPENING,
-      SessionType.CLOSING,
-    ]);
 
     for (const item of schedule) {
       const speakerIds = item.speakerIds ?? [];
 
       if (!Array.isArray(speakerIds)) {
         throw new BadRequestException('معرفات المتحدثين في الجلسة يجب أن تكون قائمة');
-      }
-
-      if (!typesWithoutSpeakers.has(item.sessionType) && speakerIds.length === 0) {
-        throw new BadRequestException('الجلسات العلمية تتطلب متحدثاً واحداً على الأقل');
       }
 
       for (const speakerId of speakerIds) {

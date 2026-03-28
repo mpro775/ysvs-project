@@ -11,7 +11,6 @@ import {
   IsArray,
   ArrayMinSize,
   IsUrl,
-  ValidateIf,
   IsLatitude,
   IsLongitude,
 } from 'class-validator';
@@ -187,17 +186,8 @@ class EventScheduleItemDto {
     type: [String],
     description: 'Speaker IDs linked to this session when needed',
   })
-  @ValidateIf(
-    (item: EventScheduleItemDto) =>
-      ![
-        SessionType.BREAK,
-        SessionType.NETWORKING,
-        SessionType.OPENING,
-        SessionType.CLOSING,
-      ].includes(item.sessionType),
-  )
+  @IsOptional()
   @IsArray({ message: 'المتحدثون يجب أن يكونوا قائمة' })
-  @ArrayMinSize(1, { message: 'هذه الجلسة تتطلب متحدثاً واحداً على الأقل' })
   @IsString({ each: true, message: 'معرف المتحدث غير صالح' })
   speakerIds?: string[];
 }

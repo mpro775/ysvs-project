@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowRight, AlertCircle, Plus, Trash2 } from "lucide-react";
@@ -29,7 +29,6 @@ import type { FormField } from "@/types";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 
-const scientificSessionTypes = ["talk", "panel", "workshop"] as const;
 const sessionTypeOptions = [
   { value: "talk", label: "محاضرة علمية" },
   { value: "panel", label: "جلسة نقاش" },
@@ -47,33 +46,119 @@ const streamProviderOptions = [
   { value: "custom", label: "منصة أخرى" },
 ] as const;
 
-const requiresSpeakers = (sessionType: string) =>
-  scientificSessionTypes.includes(sessionType as (typeof scientificSessionTypes)[number]);
-
 const createClientId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
-const toDateInputValue = (dateValue?: Date | string) => {
+const toDateTimeLocalInputValue = (dateValue?: Date | string) => {
   if (!dateValue) return "";
-  return new Date(dateValue).toISOString().slice(0, 10);
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "";
+  const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000;
+  return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 16);
 };
+
+const toDateInputValue = (dateValue?: Date | string) => toDateTimeLocalInputValue(dateValue).slice(0, 10);
 
 const toDateTimeFromDayAndTime = (dateValue: string, timeValue: string) =>
   new Date(`${dateValue}T${timeValue}`);
 
-const toDayKey = (dateValue: string | Date) => new Date(dateValue).toISOString().slice(0, 10);
+const addMinutes = (dateValue: Date, minutes: number) => new Date(dateValue.getTime() + minutes * 60 * 1000);
+
+const normalizeEnumValue = <T extends readonly string[]>(
+  value: unknown,
+  allowedValues: T,
+  fallback: T[number]
+): T[number] => {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalizedValue = value.trim().toLowerCase();
+  return (allowedValues.find((item) => item === normalizedValue) ?? fallback) as T[number];
+};
+
+const toDayKey = (dateValue: string | Date) => toDateInputValue(dateValue);
+
+const formatDateTimePreview = (value: string) => {
+  if (!value) return "-";
+  return value.replace("T", " ");
+};
+
+const findFirstErrorMessage = (errorValue: unknown): string | undefined => {
+  if (!errorValue || typeof errorValue !== "object") {
+    return undefined;
+  }
+
+  if (
+    "message" in errorValue &&
+    typeof (errorValue as { message?: unknown }).message === "string" &&
+    (errorValue as { message: string }).message.trim().length > 0
+  ) {
+    const directMessage = (errorValue as { message: string }).message;
+    if (directMessage !== "Invalid input") {
+      return directMessage;
+    }
+  }
+
+  for (const nestedValue of Object.values(errorValue)) {
+    const nestedMessage = findFirstErrorMessage(nestedValue);
+    if (nestedMessage) {
+      return nestedMessage;
+    }
+  }
+
+  return undefined;
+};
+
+const normalizeOptionalNumber = (value: unknown): number | undefined => {
+  if (value === null || value === undefined || value === "") {
+    return undefined;
+  }
+
+  const numericValue = typeof value === "number" ? value : Number(value);
+  if (Number.isNaN(numericValue)) {
+    return undefined;
+  }
+
+  return numericValue;
+};
+
+const optionalTextSchema = z.preprocess(
+  (value) => (value === null || value === undefined ? undefined : value),
+  z.string().optional()
+);
+
+const optionalUrlSchema = (message: string) =>
+  z.preprocess(
+    (value) => (value === null || value === undefined ? "" : value),
+    z.string().url(message).optional().or(z.literal(""))
+  );
+
+const optionalNumberSchema = (min: number, message?: string) =>
+  z.preprocess(
+    (value) => {
+      if (value === null || value === undefined || value === "") {
+        return undefined;
+      }
+      const parsed = typeof value === "number" ? value : Number(value);
+      return Number.isNaN(parsed) ? undefined : parsed;
+    },
+    message ? z.number().min(min, message).optional() : z.number().min(min).optional()
+  );
+
+type EventEditTab = "basic" | "program" | "form";
 
 const speakerSchema = z.object({
   id: z.string().min(1),
   nameAr: z.string().trim().min(2, "اسم المتحدث مطلوب"),
-  nameEn: z.string().optional(),
+  nameEn: optionalTextSchema,
   titleAr: z.string().trim().min(2, "المسمى الوظيفي مطلوب"),
-  titleEn: z.string().optional(),
-  organizationAr: z.string().optional(),
-  organizationEn: z.string().optional(),
-  bioAr: z.string().optional(),
-  bioEn: z.string().optional(),
-  imageMediaId: z.string().optional(),
-  imageUrl: z.string().optional(),
+  titleEn: optionalTextSchema,
+  organizationAr: optionalTextSchema,
+  organizationEn: optionalTextSchema,
+  bioAr: optionalTextSchema,
+  bioEn: optionalTextSchema,
+  imageMediaId: optionalTextSchema,
+  imageUrl: optionalTextSchema,
 });
 
 const scheduleItemSchema = z
@@ -81,9 +166,9 @@ const scheduleItemSchema = z
     id: z.string().min(1),
     dayId: z.string().min(1, "اختر اليوم المرتبط بهذه الجلسة"),
     titleAr: z.string().trim().min(2, "عنوان الجلسة مطلوب"),
-    titleEn: z.string().optional(),
-    descriptionAr: z.string().optional(),
-    descriptionEn: z.string().optional(),
+    titleEn: optionalTextSchema,
+    descriptionAr: optionalTextSchema,
+    descriptionEn: optionalTextSchema,
     startTime: z.string().min(1, "وقت بداية الجلسة مطلوب"),
     endTime: z.string().min(1, "وقت نهاية الجلسة مطلوب"),
     sessionType: z.enum(sessionTypeOptions.map((item) => item.value) as [
@@ -102,15 +187,15 @@ const liveStreamSchema = z.object({
     (typeof streamProviderOptions)[number]["value"],
     ...(typeof streamProviderOptions)[number]["value"][],
   ]),
-  embedUrl: z.string().url("رابط تضمين البث غير صالح").optional().or(z.literal("")),
-  joinUrl: z.string().url("رابط الانضمام غير صالح").optional().or(z.literal("")),
-  meetingId: z.string().optional(),
-  passcode: z.string().optional(),
-  instructions: z.string().optional(),
-  supportContact: z.string().optional(),
-  joinWindowMinutes: z.number().min(0).optional(),
+  embedUrl: optionalUrlSchema("رابط تضمين البث غير صالح"),
+  joinUrl: optionalUrlSchema("رابط الانضمام غير صالح"),
+  meetingId: optionalTextSchema,
+  passcode: optionalTextSchema,
+  instructions: optionalTextSchema,
+  supportContact: optionalTextSchema,
+  joinWindowMinutes: optionalNumberSchema(0),
   recordingAvailable: z.boolean().optional(),
-  recordingUrl: z.string().url("رابط إعادة البث غير صالح").optional().or(z.literal("")),
+  recordingUrl: optionalUrlSchema("رابط إعادة البث غير صالح"),
 });
 
 const eventDaySchema = z
@@ -119,7 +204,7 @@ const eventDaySchema = z
     date: z.string().min(1, "تاريخ اليوم مطلوب"),
     startTime: z.string().min(1, "وقت بداية اليوم مطلوب"),
     endTime: z.string().min(1, "وقت نهاية اليوم مطلوب"),
-    cmeHours: z.number().min(0, "ساعات CME اليومية لا يمكن أن تكون سالبة"),
+    cmeHours: z.coerce.number().min(0, "ساعات CME اليومية لا يمكن أن تكون سالبة"),
   })
   .refine(
     (value) =>
@@ -139,34 +224,32 @@ const eventSchema = z
       .string()
       .min(3, "الرابط المختصر مطلوب")
       .regex(/^[a-z0-9-]+$/, "الرابط يجب أن يحتوي على أحرف إنجليزية صغيرة وأرقام وشرطات فقط"),
-    descriptionAr: z.string().optional(),
-    descriptionEn: z.string().optional(),
-    coverImage: z.string().url("رابط الصورة غير صالح").optional().or(z.literal("")),
+    descriptionAr: optionalTextSchema,
+    descriptionEn: optionalTextSchema,
+    coverImage: optionalUrlSchema("رابط الصورة غير صالح"),
     startDate: z.string().min(1, "تاريخ البداية مطلوب"),
     endDate: z.string().min(1, "تاريخ النهاية مطلوب"),
-    registrationDeadline: z.string().optional(),
+    registrationDeadline: optionalTextSchema,
     eventMode: z.enum(["in_person", "online"]),
     hasLiveStream: z.boolean(),
     liveStream: liveStreamSchema,
-    venue: z.string().optional(),
-    address: z.string().optional(),
-    city: z.string().optional(),
-    coordinatesLat: z.number().min(-90, "خط العرض يجب أن يكون بين -90 و 90").max(90).optional(),
-    coordinatesLng: z.number().min(-180, "خط الطول يجب أن يكون بين -180 و 180").max(180).optional(),
-    maxAttendees: z.number().min(0).optional(),
-    cmeHours: z.number().min(0).optional(),
+    venue: optionalTextSchema,
+    address: optionalTextSchema,
+    city: optionalTextSchema,
+    coordinatesLat: optionalNumberSchema(-90, "خط العرض يجب أن يكون بين -90 و 90").pipe(
+      z.number().max(90, "خط العرض يجب أن يكون بين -90 و 90").optional()
+    ),
+    coordinatesLng: optionalNumberSchema(-180, "خط الطول يجب أن يكون بين -180 و 180").pipe(
+      z.number().max(180, "خط الطول يجب أن يكون بين -180 و 180").optional()
+    ),
+    maxAttendees: optionalNumberSchema(0),
+    cmeHours: optionalNumberSchema(0),
     registrationOpen: z.boolean(),
     registrationAccess: z.enum(["authenticated_only", "public"]),
     guestEmailMode: z.enum(["required", "optional"]),
-    outcomes: z
-      .array(z.string().trim().min(1, "لا يمكن حفظ نقطة فارغة"))
-      .min(1, "أضف نقطة واحدة على الأقل في مخرجات المؤتمر"),
-    objectives: z
-      .array(z.string().trim().min(1, "لا يمكن حفظ هدف فارغ"))
-      .min(1, "أضف هدفاً واحداً على الأقل"),
-    targetAudience: z
-      .array(z.string().trim().min(1, "لا يمكن حفظ فئة فارغة"))
-      .min(1, "أضف فئة مستهدفة واحدة على الأقل"),
+    outcomes: z.array(z.string().trim().min(1, "لا يمكن حفظ نقطة فارغة")),
+    objectives: z.array(z.string().trim().min(1, "لا يمكن حفظ هدف فارغ")),
+    targetAudience: z.array(z.string().trim().min(1, "لا يمكن حفظ فئة فارغة")),
     eventDays: z.array(eventDaySchema).min(1, "أضف يوماً واحداً على الأقل"),
     speakers: z.array(speakerSchema),
     schedule: z.array(scheduleItemSchema),
@@ -240,14 +323,6 @@ const eventSchema = z
           code: z.ZodIssueCode.custom,
           path: ["schedule", index, "startTime"],
           message: "يجب أن تكون الجلسة ضمن وقت بداية ونهاية المؤتمر",
-        });
-      }
-
-      if (requiresSpeakers(session.sessionType) && session.speakerIds.length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["schedule", index, "speakerIds"],
-          message: "هذه الجلسة تتطلب متحدثاً واحداً على الأقل",
         });
       }
 
@@ -331,10 +406,7 @@ const eventSchema = z
 type EventForm = z.infer<typeof eventSchema>;
 type SlugStatus = "idle" | "checking" | "available" | "taken";
 
-const toDateTimeLocal = (dateValue?: Date | string) => {
-  if (!dateValue) return "";
-  return new Date(dateValue).toISOString().slice(0, 16);
-};
+const toDateTimeLocal = (dateValue?: Date | string) => toDateTimeLocalInputValue(dateValue);
 
 export default function AdminEventEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -344,6 +416,9 @@ export default function AdminEventEditPage() {
   const [formSchema, setFormSchema] = useState<FormField[]>([]);
   const [slugStatus, setSlugStatus] = useState<SlugStatus>("idle");
   const [summaryError, setSummaryError] = useState("");
+  const [activeTab, setActiveTab] = useState<EventEditTab>("basic");
+  const [activeScheduleDayId, setActiveScheduleDayId] = useState("");
+  const [activeScheduleSessionId, setActiveScheduleSessionId] = useState("");
 
   const {
     register,
@@ -351,9 +426,10 @@ export default function AdminEventEditPage() {
     watch,
     setValue,
     reset,
+    getValues,
     formState: { errors },
   } = useForm<EventForm>({
-    resolver: zodResolver(eventSchema),
+    resolver: zodResolver(eventSchema) as Resolver<EventForm>,
     defaultValues: {
       registrationAccess: "authenticated_only",
       guestEmailMode: "required",
@@ -374,9 +450,9 @@ export default function AdminEventEditPage() {
       },
       coordinatesLat: undefined,
       coordinatesLng: undefined,
-      outcomes: [""],
-      objectives: [""],
-      targetAudience: [""],
+      outcomes: [],
+      objectives: [],
+      targetAudience: [],
       eventDays: [
         {
           id: createClientId("day"),
@@ -424,33 +500,41 @@ export default function AdminEventEditPage() {
         startDate: toDateTimeLocal(event.startDate),
         endDate: toDateTimeLocal(event.endDate),
         registrationDeadline: toDateTimeLocal(event.registrationDeadline),
-        eventMode: event.eventMode || "in_person",
+        eventMode: normalizeEnumValue(event.eventMode, ["in_person", "online"] as const, "in_person"),
         hasLiveStream: Boolean(event.hasLiveStream),
         liveStream: {
-          provider: event.liveStream?.provider || "youtube",
+          provider: normalizeEnumValue(
+            event.liveStream?.provider,
+            ["youtube", "vimeo", "zoom", "custom"] as const,
+            "youtube"
+          ),
           embedUrl: event.liveStream?.embedUrl || "",
           joinUrl: event.liveStream?.joinUrl || "",
           meetingId: event.liveStream?.meetingId || "",
           passcode: event.liveStream?.passcode || "",
           instructions: event.liveStream?.instructions || "",
           supportContact: event.liveStream?.supportContact || "",
-          joinWindowMinutes: event.liveStream?.joinWindowMinutes,
+          joinWindowMinutes: normalizeOptionalNumber(event.liveStream?.joinWindowMinutes),
           recordingAvailable: Boolean(event.liveStream?.recordingAvailable),
           recordingUrl: event.liveStream?.recordingUrl || "",
         },
         venue: event.location?.venue || "",
         address: event.location?.address || "",
         city: event.location?.city || "",
-        coordinatesLat: event.location?.coordinates?.lat,
-        coordinatesLng: event.location?.coordinates?.lng,
-        maxAttendees: event.maxAttendees,
+        coordinatesLat: normalizeOptionalNumber(event.location?.coordinates?.lat),
+        coordinatesLng: normalizeOptionalNumber(event.location?.coordinates?.lng),
+        maxAttendees: normalizeOptionalNumber(event.maxAttendees),
         cmeHours: event.cmeHours,
         registrationOpen: event.registrationOpen,
-        registrationAccess: event.registrationAccess || "authenticated_only",
-        guestEmailMode: event.guestEmailMode || "required",
-        outcomes: event.outcomes?.length ? event.outcomes : [""],
-        objectives: event.objectives?.length ? event.objectives : [""],
-        targetAudience: event.targetAudience?.length ? event.targetAudience : [""],
+        registrationAccess: normalizeEnumValue(
+          event.registrationAccess,
+          ["authenticated_only", "public"] as const,
+          "authenticated_only"
+        ),
+        guestEmailMode: normalizeEnumValue(event.guestEmailMode, ["required", "optional"] as const, "required"),
+        outcomes: (event.outcomes || []).map((item) => (item || "").trim()).filter(Boolean),
+        objectives: (event.objectives || []).map((item) => (item || "").trim()).filter(Boolean),
+        targetAudience: (event.targetAudience || []).map((item) => (item || "").trim()).filter(Boolean),
         eventDays: normalizedEventDays,
         speakers:
           event.speakers?.map((speaker) => ({
@@ -489,6 +573,42 @@ export default function AdminEventEditPage() {
       ),
     [eventDays]
   );
+
+  useEffect(() => {
+    if (!sortedEventDays.length) {
+      setActiveScheduleDayId("");
+      return;
+    }
+
+    const hasActiveDay = sortedEventDays.some((day) => day.id === activeScheduleDayId);
+    if (!hasActiveDay) {
+      setActiveScheduleDayId(sortedEventDays[0].id);
+    }
+  }, [sortedEventDays, activeScheduleDayId]);
+
+  const getSortedSessionsForDay = (dayId: string) =>
+    schedule
+      .map((session, index) => ({ session, index }))
+      .filter((item) => item.session.dayId === dayId)
+      .sort((a, b) => new Date(a.session.startTime).getTime() - new Date(b.session.startTime).getTime());
+
+  useEffect(() => {
+    if (!activeScheduleDayId) {
+      setActiveScheduleSessionId("");
+      return;
+    }
+
+    const sessionsForDay = getSortedSessionsForDay(activeScheduleDayId);
+    if (!sessionsForDay.length) {
+      setActiveScheduleSessionId("");
+      return;
+    }
+
+    const hasActiveSession = sessionsForDay.some((item) => item.session.id === activeScheduleSessionId);
+    if (!hasActiveSession) {
+      setActiveScheduleSessionId(sessionsForDay[0].session.id);
+    }
+  }, [activeScheduleDayId, activeScheduleSessionId, schedule]);
 
   const derivedStartDate = useMemo(() => {
     const firstDay = sortedEventDays[0];
@@ -542,7 +662,7 @@ export default function AdminEventEditPage() {
 
   const removeOutcome = (index: number) => {
     const next = outcomes.filter((_, currentIndex) => currentIndex !== index);
-    setValue("outcomes", next.length ? next : [""], { shouldDirty: true, shouldValidate: true });
+    setValue("outcomes", next, { shouldDirty: true, shouldValidate: true });
   };
 
   const addObjective = () => {
@@ -557,7 +677,7 @@ export default function AdminEventEditPage() {
 
   const removeObjective = (index: number) => {
     const next = objectives.filter((_, currentIndex) => currentIndex !== index);
-    setValue("objectives", next.length ? next : [""], { shouldDirty: true, shouldValidate: true });
+    setValue("objectives", next, { shouldDirty: true, shouldValidate: true });
   };
 
   const addTargetAudience = () => {
@@ -572,7 +692,7 @@ export default function AdminEventEditPage() {
 
   const removeTargetAudience = (index: number) => {
     const next = targetAudience.filter((_, currentIndex) => currentIndex !== index);
-    setValue("targetAudience", next.length ? next : [""], { shouldDirty: true, shouldValidate: true });
+    setValue("targetAudience", next, { shouldDirty: true, shouldValidate: true });
   };
 
   const addEventDay = () => {
@@ -685,19 +805,29 @@ export default function AdminEventEditPage() {
     }
   };
 
-  const addScheduleItem = () => {
-    const defaultDay = sortedEventDays[0];
-    const defaultStart = defaultDay
-      ? toDateTimeLocal(toDateTimeFromDayAndTime(defaultDay.date, defaultDay.startTime))
-      : watchedValues.startDate || "";
-    const defaultEnd = defaultDay
-      ? toDateTimeLocal(toDateTimeFromDayAndTime(defaultDay.date, defaultDay.endTime))
-      : watchedValues.startDate || "";
+  const addScheduleItem = (targetDayId?: string) => {
+    const defaultDay =
+      sortedEventDays.find((day) => day.id === targetDayId) ||
+      sortedEventDays.find((day) => day.id === activeScheduleDayId) ||
+      sortedEventDays[0];
+    const daySessions = defaultDay ? getSortedSessionsForDay(defaultDay.id) : [];
+    const dayStart = defaultDay ? toDateTimeFromDayAndTime(defaultDay.date, defaultDay.startTime) : undefined;
+    const dayEnd = defaultDay ? toDateTimeFromDayAndTime(defaultDay.date, defaultDay.endTime) : undefined;
+    const lastSession = daySessions[daySessions.length - 1]?.session;
+    const startBase = lastSession ? new Date(lastSession.endTime) : dayStart;
+    const endBase = startBase && dayEnd ? addMinutes(startBase, 30) : undefined;
+    const defaultStart = startBase ? toDateTimeLocal(startBase) : watchedValues.startDate || "";
+    const defaultEnd = endBase
+      ? toDateTimeLocal(endBase > dayEnd! ? dayEnd! : endBase)
+      : dayEnd
+        ? toDateTimeLocal(dayEnd)
+        : watchedValues.startDate || "";
+    const newSessionId = createClientId("session");
 
     const next = [
       ...schedule,
       {
-        id: createClientId("session"),
+        id: newSessionId,
         dayId: defaultDay?.id || "",
         titleAr: "",
         titleEn: "",
@@ -710,6 +840,10 @@ export default function AdminEventEditPage() {
       },
     ];
     setValue("schedule", next, { shouldDirty: true, shouldValidate: true });
+    if (defaultDay?.id) {
+      setActiveScheduleDayId(defaultDay.id);
+    }
+    setActiveScheduleSessionId(newSessionId);
   };
 
   const updateScheduleField = (
@@ -786,6 +920,7 @@ export default function AdminEventEditPage() {
 
     if (slugStatus === "taken") {
       setSummaryError("لا يمكن حفظ التعديلات لأن الرابط المختصر مستخدم مسبقاً");
+      setActiveTab("basic");
       return;
     }
 
@@ -879,6 +1014,38 @@ export default function AdminEventEditPage() {
     );
   };
 
+  const onInvalid = (formErrors: FieldErrors<EventForm>) => {
+    const normalizedValues = getValues();
+    const fallbackParsed = eventSchema.safeParse(normalizedValues);
+    if (fallbackParsed.success) {
+      onSubmit(fallbackParsed.data);
+      return;
+    }
+
+    const firstIssue = fallbackParsed.error.issues[0];
+    const issuePath = firstIssue?.path?.length ? ` (${firstIssue.path.join(".")})` : "";
+    const issueMessage = firstIssue?.message && firstIssue.message !== "Invalid input"
+      ? firstIssue.message
+      : undefined;
+
+    const firstError = findFirstErrorMessage(formErrors);
+    const readableMessage =
+      issueMessage || !firstError || firstError === "Invalid input"
+        ? "توجد قيم غير صالحة في بعض الحقول. راجع الحقول الرقمية والاختيارات ثم أعد المحاولة"
+        : firstError;
+    setSummaryError(`يرجى تصحيح الأخطاء قبل الحفظ: ${readableMessage}${issueMessage ? issuePath : ""}`);
+
+    const hasProgramErrors = Boolean(
+      formErrors.outcomes ||
+        formErrors.objectives ||
+        formErrors.targetAudience ||
+        formErrors.speakers ||
+        formErrors.schedule
+    );
+
+    setActiveTab(hasProgramErrors ? "program" : "basic");
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4 sm:space-y-6">
@@ -922,8 +1089,8 @@ export default function AdminEventEditPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Tabs defaultValue="basic">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} dir="rtl" className="text-right">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as EventEditTab)}>
           <TabsList>
             <TabsTrigger value="basic">البيانات الأساسية</TabsTrigger>
             <TabsTrigger value="program">البرنامج العلمي</TabsTrigger>
@@ -1140,7 +1307,7 @@ export default function AdminEventEditPage() {
                     </div>
                     <div>
                       <p className="text-muted-foreground">بداية المؤتمر</p>
-                      <p className="font-semibold">{derivedStartDate || "-"}</p>
+                      <p className="font-semibold">{formatDateTimePreview(derivedStartDate)}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">إجمالي CME</p>
@@ -1185,6 +1352,11 @@ export default function AdminEventEditPage() {
                 <div className="space-y-2">
                   <Label htmlFor="descriptionAr">الوصف (عربي)</Label>
                   <Textarea id="descriptionAr" rows={4} {...register("descriptionAr")} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="descriptionEn">الوصف (إنجليزي)</Label>
+                  <Textarea id="descriptionEn" dir="ltr" rows={4} {...register("descriptionEn")} />
                 </div>
 
                 <EventCoverImageField
@@ -1653,152 +1825,238 @@ export default function AdminEventEditPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-end">
-                  <Button type="button" variant="outline" size="sm" onClick={addScheduleItem}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addScheduleItem(activeScheduleDayId)}
+                  >
                     <Plus className="ml-1 h-4 w-4" />
                     إضافة جلسة
                   </Button>
                 </div>
 
-                {!schedule.length && (
-                  <p className="text-sm text-muted-foreground">لم تتم إضافة جلسات للجدول بعد</p>
-                )}
-
-                {schedule.map((session, index) => (
-                  <div key={session.id} className="rounded-lg border p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <p className="text-sm font-medium">جلسة {index + 1}</p>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeScheduleItem(index)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <div className="space-y-1 md:col-span-2">
-                        <Label>عنوان الجلسة *</Label>
-                        <Input
-                          value={session.titleAr}
-                          onChange={(event) => updateScheduleField(index, "titleAr", event.target.value)}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label>نوع الجلسة *</Label>
-                        <Select
-                          value={session.sessionType}
-                          onValueChange={(value) => {
-                            const keepSpeakerIds = requiresSpeakers(value)
-                              ? session.speakerIds || []
-                              : [];
-                            const next = [...schedule];
-                            next[index] = {
-                              ...next[index],
-                              sessionType: value as EventForm["schedule"][number]["sessionType"],
-                              speakerIds: keepSpeakerIds,
-                            };
-                            setValue("schedule", next, { shouldDirty: true, shouldValidate: true });
-                          }}
+                {sortedEventDays.length ? (
+                  <Tabs
+                    dir="rtl"
+                    value={activeScheduleDayId}
+                    onValueChange={setActiveScheduleDayId}
+                    className="space-y-4"
+                  >
+                    <TabsList className="h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
+                      {sortedEventDays.map((day, dayIndex) => (
+                        <TabsTrigger
+                          key={day.id}
+                          value={day.id}
+                          className="rounded-md border bg-background px-3 py-1.5 data-[state=active]:border-primary data-[state=active]:bg-primary/10"
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="اختر نوع الجلسة" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sessionTypeOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                          {`اليوم ${dayIndex + 1}`}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
 
-                      <div className="space-y-1">
-                        <Label>اليوم *</Label>
-                        <Select
-                          value={session.dayId}
-                          onValueChange={(value) => updateScheduleField(index, "dayId", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="اختر اليوم" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sortedEventDays.map((day, dayIndex) => (
-                              <SelectItem key={day.id} value={day.id}>
-                                {`اليوم ${dayIndex + 1} - ${day.date}`}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    {sortedEventDays.map((day, dayIndex) => {
+                      const daySessions = getSortedSessionsForDay(day.id);
+                      const activeSessionEntry =
+                        daySessions.find((item) => item.session.id === activeScheduleSessionId) || daySessions[0];
+                      const activeSession = activeSessionEntry?.session;
+                      const activeSessionIndex = daySessions.findIndex(
+                        (item) => item.session.id === activeSessionEntry?.session.id
+                      );
 
-                      <div className="space-y-1">
-                        <Label>وصف مختصر</Label>
-                        <Input
-                          value={session.descriptionAr || ""}
-                          onChange={(event) => updateScheduleField(index, "descriptionAr", event.target.value)}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label>وقت البداية *</Label>
-                        <Input
-                          type="datetime-local"
-                          value={session.startTime}
-                          onChange={(event) => updateScheduleField(index, "startTime", event.target.value)}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label>وقت النهاية *</Label>
-                        <Input
-                          type="datetime-local"
-                          value={session.endTime}
-                          onChange={(event) => updateScheduleField(index, "endTime", event.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    {requiresSpeakers(session.sessionType) ? (
-                      <div className="mt-3 space-y-2 rounded-md bg-muted/40 p-3">
-                        <p className="text-xs text-muted-foreground">اختر متحدثاً واحداً على الأقل لهذه الجلسة</p>
-                        {!speakers.length ? (
-                          <p className="text-sm text-amber-700">أضف متحدثين أولاً لربطهم بالجلسة</p>
-                        ) : (
-                          <div className="grid gap-2 md:grid-cols-2">
-                            {speakers.map((speaker) => (
-                              <label key={`${session.id}-${speaker.id}`} className="flex items-center gap-2 text-sm">
-                                <Checkbox
-                                  checked={(session.speakerIds || []).includes(speaker.id)}
-                                  onCheckedChange={(checked) =>
-                                    toggleSessionSpeaker(index, speaker.id, checked === true)
-                                  }
-                                />
-                                <span>{speaker.nameAr || "متحدث بدون اسم"}</span>
-                              </label>
-                            ))}
+                      return (
+                        <TabsContent key={day.id} value={day.id} className="space-y-4">
+                          <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                            {`جلسات اليوم ${dayIndex + 1} (${day.date})`}
                           </div>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        هذا النوع لا يتطلب متحدثاً ويمكن نشره كجلسة مستقلة مثل الاستراحة أو الافتتاح.
-                      </p>
-                    )}
 
-                    {(errors.schedule?.[index]?.dayId?.message ||
-                      errors.schedule?.[index]?.titleAr?.message ||
-                      errors.schedule?.[index]?.startTime?.message ||
-                      errors.schedule?.[index]?.endTime?.message ||
-                      errors.schedule?.[index]?.speakerIds?.message) && (
-                      <p className="mt-2 text-sm text-destructive">
-                        {errors.schedule?.[index]?.dayId?.message ||
-                          errors.schedule?.[index]?.titleAr?.message ||
-                          errors.schedule?.[index]?.startTime?.message ||
-                          errors.schedule?.[index]?.endTime?.message ||
-                          errors.schedule?.[index]?.speakerIds?.message}
-                      </p>
-                    )}
+                          {!daySessions.length && (
+                            <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+                              لا توجد جلسات مضافة لهذا اليوم بعد.
+                            </div>
+                          )}
+
+                          {daySessions.length > 0 && activeSession && (
+                            <div className="space-y-4 rounded-lg border p-4">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {daySessions.map(({ session }, sessionOrder) => (
+                                  <Button
+                                    key={session.id}
+                                    type="button"
+                                    variant={session.id === activeSession.id ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setActiveScheduleSessionId(session.id)}
+                                  >
+                                    {`جلسة ${sessionOrder + 1}`}
+                                  </Button>
+                                ))}
+                              </div>
+
+                              {daySessions.length > 1 && (
+                                <div className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2 text-sm">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={activeSessionIndex <= 0}
+                                    onClick={() => setActiveScheduleSessionId(daySessions[activeSessionIndex - 1].session.id)}
+                                  >
+                                    الجلسة السابقة
+                                  </Button>
+                                  <span className="text-muted-foreground">{`التنقل بين ${daySessions.length} جلسات`}</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={activeSessionIndex >= daySessions.length - 1}
+                                    onClick={() => setActiveScheduleSessionId(daySessions[activeSessionIndex + 1].session.id)}
+                                  >
+                                    الجلسة التالية
+                                  </Button>
+                                </div>
+                              )}
+
+                              <div className="rounded-lg border p-4">
+                                <div className="mb-3 flex items-center justify-between">
+                                  <p className="text-sm font-medium">{`جلسة ${activeSessionIndex + 1}`}</p>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeScheduleItem(activeSessionEntry.index)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+
+                                <div className="grid gap-3 md:grid-cols-2">
+                                  <div className="space-y-1 md:col-span-2">
+                                    <Label>عنوان الجلسة *</Label>
+                                    <Input
+                                      value={activeSession.titleAr}
+                                      onChange={(event) =>
+                                        updateScheduleField(activeSessionEntry.index, "titleAr", event.target.value)
+                                      }
+                                    />
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <Label>نوع الجلسة *</Label>
+                                    <Select
+                                      value={activeSession.sessionType}
+                                      onValueChange={(value) => {
+                                        const next = [...schedule];
+                                        next[activeSessionEntry.index] = {
+                                          ...next[activeSessionEntry.index],
+                                          sessionType: value as EventForm["schedule"][number]["sessionType"],
+                                        };
+                                        setValue("schedule", next, { shouldDirty: true, shouldValidate: true });
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="اختر نوع الجلسة" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {sessionTypeOptions.map((option) => (
+                                          <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <Label>اليوم</Label>
+                                    <Input value={`اليوم ${dayIndex + 1} - ${day.date}`} readOnly disabled />
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <Label>وصف مختصر</Label>
+                                    <Input
+                                      value={activeSession.descriptionAr || ""}
+                                      onChange={(event) =>
+                                        updateScheduleField(activeSessionEntry.index, "descriptionAr", event.target.value)
+                                      }
+                                    />
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <Label>وقت البداية *</Label>
+                                    <Input
+                                      type="datetime-local"
+                                      value={activeSession.startTime}
+                                      onChange={(event) =>
+                                        updateScheduleField(activeSessionEntry.index, "startTime", event.target.value)
+                                      }
+                                    />
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <Label>وقت النهاية *</Label>
+                                    <Input
+                                      type="datetime-local"
+                                      value={activeSession.endTime}
+                                      onChange={(event) =>
+                                        updateScheduleField(activeSessionEntry.index, "endTime", event.target.value)
+                                      }
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="mt-3 space-y-2 rounded-md bg-muted/40 p-3">
+                                  <p className="text-xs text-muted-foreground">المتحدثون اختياريون حالياً ويمكن إضافتهم لاحقاً</p>
+                                  {!speakers.length ? (
+                                    <p className="text-sm text-amber-700">لا يوجد متحدثون بعد، ويمكن حفظ الجلسة بدون متحدثين</p>
+                                  ) : (
+                                    <div className="grid gap-2 md:grid-cols-2">
+                                      {speakers.map((speaker) => (
+                                        <label key={`${activeSession.id}-${speaker.id}`} className="flex items-center gap-2 text-sm">
+                                          <Checkbox
+                                            checked={(activeSession.speakerIds || []).includes(speaker.id)}
+                                            onCheckedChange={(checked) =>
+                                              toggleSessionSpeaker(activeSessionEntry.index, speaker.id, checked === true)
+                                            }
+                                          />
+                                          <span>{speaker.nameAr || "متحدث بدون اسم"}</span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {(errors.schedule?.[activeSessionEntry.index]?.dayId?.message ||
+                                  errors.schedule?.[activeSessionEntry.index]?.titleAr?.message ||
+                                  errors.schedule?.[activeSessionEntry.index]?.startTime?.message ||
+                                  errors.schedule?.[activeSessionEntry.index]?.endTime?.message ||
+                                  errors.schedule?.[activeSessionEntry.index]?.speakerIds?.message) && (
+                                  <p className="mt-2 text-sm text-destructive">
+                                    {errors.schedule?.[activeSessionEntry.index]?.dayId?.message ||
+                                      errors.schedule?.[activeSessionEntry.index]?.titleAr?.message ||
+                                      errors.schedule?.[activeSessionEntry.index]?.startTime?.message ||
+                                      errors.schedule?.[activeSessionEntry.index]?.endTime?.message ||
+                                      errors.schedule?.[activeSessionEntry.index]?.speakerIds?.message}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex justify-end">
+                            <Button type="button" variant="outline" size="sm" onClick={() => addScheduleItem(day.id)}>
+                              <Plus className="ml-1 h-4 w-4" />
+                              إضافة جلسة جديدة لهذا اليوم
+                            </Button>
+                          </div>
+                        </TabsContent>
+                      );
+                    })}
+                  </Tabs>
+                ) : (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    أضف يوماً واحداً على الأقل أولاً، ثم أضف جلسات الجدول الزمني.
                   </div>
-                ))}
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1829,6 +2087,9 @@ export default function AdminEventEditPage() {
             {isPending ? 'جاري حفظ التغييرات...' : 'حفظ التغييرات'}
           </Button>
         </div>
+        {slugStatus === "taken" && (
+          <p className="mt-3 text-sm text-destructive">لا يمكن الحفظ لأن الرابط المختصر مستخدم مسبقاً.</p>
+        )}
       </form>
     </div>
   );
