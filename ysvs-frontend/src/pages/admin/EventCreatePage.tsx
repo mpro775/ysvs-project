@@ -106,6 +106,20 @@ const optionalUrlSchema = (message: string) =>
     z.string().url(message).optional().or(z.literal(""))
   );
 
+const optionalMediaUrlSchema = (message: string) =>
+  z.preprocess(
+    (value) => (value === null || value === undefined ? "" : value),
+    z
+      .string()
+      .trim()
+      .refine(
+        (value) => !value || value.startsWith("/") || z.string().url().safeParse(value).success,
+        message
+      )
+      .optional()
+      .or(z.literal(""))
+  );
+
 const optionalNumberSchema = (min: number, message?: string) =>
   z.preprocess(
     (value) => {
@@ -200,7 +214,7 @@ const eventSchema = z
       ),
     descriptionAr: optionalTextSchema,
     descriptionEn: optionalTextSchema,
-    coverImage: optionalUrlSchema("رابط الصورة غير صالح"),
+    coverImage: optionalMediaUrlSchema("رابط الصورة غير صالح"),
     startDate: z.string().min(1, "تاريخ البداية مطلوب"),
     endDate: z.string().min(1, "تاريخ النهاية مطلوب"),
     registrationDeadline: optionalTextSchema,

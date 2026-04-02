@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import {
   Registration,
@@ -84,6 +84,16 @@ export class RegistrationService {
     private mediaService: MediaService,
     private readonly notificationsPublisherService: NotificationsPublisherService,
   ) {}
+
+  private resolveEventQuery(eventId: string): { $in: Array<string | Types.ObjectId> } {
+    const values: Array<string | Types.ObjectId> = [eventId];
+
+    if (Types.ObjectId.isValid(eventId)) {
+      values.push(new Types.ObjectId(eventId));
+    }
+
+    return { $in: values };
+  }
 
   async uploadRegistrationFile(
     eventId: string,
@@ -225,12 +235,12 @@ export class RegistrationService {
     // Check if participant already registered
     const existingRegistration = user
       ? await this.registrationModel.findOne({
-          event: eventId,
+          event: this.resolveEventQuery(eventId),
           user: user._id,
         })
       : normalizedGuestEmail
         ? await this.registrationModel.findOne({
-            event: eventId,
+            event: this.resolveEventQuery(eventId),
             guestEmailNormalized: normalizedGuestEmail,
           })
         : null;
@@ -349,14 +359,14 @@ export class RegistrationService {
 
     const [registrations, total] = await Promise.all([
       this.registrationModel
-        .find({ event: eventId })
+        .find({ event: this.resolveEventQuery(eventId) })
         .populate('user', 'fullNameAr fullNameEn email phone')
         .populate('ticketType', 'nameAr nameEn price')
         .skip(skip)
         .limit(limit)
         .sort({ createdAt: -1 })
         .exec(),
-      this.registrationModel.countDocuments({ event: eventId }),
+      this.registrationModel.countDocuments({ event: this.resolveEventQuery(eventId) }),
     ]);
 
     return new PaginatedResult(registrations, total, page, limit);
@@ -376,7 +386,7 @@ export class RegistrationService {
     userId: string,
   ): Promise<Registration | null> {
     return this.registrationModel
-      .findOne({ event: eventId, user: userId })
+      .findOne({ event: this.resolveEventQuery(eventId), user: userId })
       .populate('event', 'titleAr titleEn slug startDate endDate')
       .populate('ticketType', 'nameAr nameEn price')
       .exec();
@@ -475,7 +485,7 @@ export class RegistrationService {
   async getAttendedRegistrations(eventId: string): Promise<Registration[]> {
     return this.registrationModel
       .find({
-        event: eventId,
+        event: this.resolveEventQuery(eventId),
         status: RegistrationStatus.ATTENDED,
         certificateIssued: false,
       })
