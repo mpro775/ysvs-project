@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { resolveMediaUrl } from '@/lib/media';
 import { useMedia, useUploadMedia } from '@/api/hooks/useMedia';
 import { InlineLoader } from '@/components/shared/LoadingSpinner';
 
@@ -31,6 +32,7 @@ export function SpeakerImageField({ value, onChange, disabled }: SpeakerImageFie
     () => (mediaData?.data || []).filter((item) => item.mimeType.startsWith('image/')),
     [mediaData?.data],
   );
+  const previewImageUrl = value?.imageUrl ? resolveMediaUrl(value.imageUrl) : '';
 
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -49,7 +51,7 @@ export function SpeakerImageField({ value, onChange, disabled }: SpeakerImageFie
     <div className="space-y-2 rounded-md border p-3">
       <div className="mb-2 overflow-hidden rounded-md border bg-muted/20">
         {value?.imageUrl ? (
-          <img src={value.imageUrl} alt="صورة المتحدث" className="h-28 w-full object-cover" />
+          <img src={previewImageUrl} alt="صورة المتحدث" className="h-28 w-full object-cover" />
         ) : (
           <div className="flex h-28 w-full items-center justify-center text-muted-foreground">
             <ImageIcon className="h-6 w-6" />
@@ -125,6 +127,7 @@ export function SpeakerImageField({ value, onChange, disabled }: SpeakerImageFie
             ) : imageItems.length ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {imageItems.map((item) => {
+                  const imageUrl = resolveMediaUrl(item.url);
                   const isSelected = value?.imageMediaId === item._id;
 
                   return (
@@ -140,7 +143,7 @@ export function SpeakerImageField({ value, onChange, disabled }: SpeakerImageFie
                         isSelected && 'border-primary-600 ring-1 ring-primary-600',
                       )}
                     >
-                      <img src={item.url} alt={item.originalName} className="h-28 w-full object-cover" />
+                      <img src={imageUrl} alt={item.originalName} className="h-28 w-full object-cover" />
                       <div className="p-2">
                         <p className="truncate text-xs">{item.originalName}</p>
                       </div>

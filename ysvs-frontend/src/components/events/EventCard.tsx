@@ -7,6 +7,7 @@ import type { Event } from "@/types";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { cn, getEventDisplayStatus } from "@/lib/utils";
+import { resolveMediaUrl } from "@/lib/media";
 
 interface EventCardProps {
   event: Event;
@@ -40,7 +41,7 @@ export function EventCard({ event }: EventCardProps) {
       <div className="relative aspect-[16/9] overflow-hidden bg-neutral-100">
         {event.coverImage ? (
           <img
-            src={event.coverImage}
+            src={resolveMediaUrl(event.coverImage)}
             alt={event.titleAr}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
           />

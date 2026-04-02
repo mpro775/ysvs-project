@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { resolveMediaUrl } from '@/lib/media';
 import { useMedia, useUploadMedia } from '@/api/hooks/useMedia';
 import { InlineLoader } from '@/components/shared/LoadingSpinner';
 
@@ -39,6 +40,7 @@ export function EventCoverImageField({
       ),
     [mediaData?.data],
   );
+  const previewImageUrl = value ? resolveMediaUrl(value) : '';
 
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -63,7 +65,7 @@ export function EventCoverImageField({
         <div className="mb-3 overflow-hidden rounded-md border bg-muted/20">
           {value ? (
             <img
-              src={value}
+              src={previewImageUrl}
               alt="صورة غلاف المؤتمر"
               className="h-48 w-full object-cover"
             />
@@ -145,7 +147,8 @@ export function EventCoverImageField({
             ) : imageItems.length ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {imageItems.map((item) => {
-                  const isSelected = value === item.url;
+                  const imageUrl = resolveMediaUrl(item.url);
+                  const isSelected = value === item.url || previewImageUrl === imageUrl;
 
                   return (
                     <button
@@ -161,7 +164,7 @@ export function EventCoverImageField({
                       )}
                     >
                       <img
-                        src={item.url}
+                        src={imageUrl}
                         alt={item.originalName}
                         className="h-36 w-full object-cover"
                       />

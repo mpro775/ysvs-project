@@ -19,6 +19,7 @@ import {
 } from "@/api/hooks/useMedia";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { resolveMediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
 export default function AdminMediaPage() {
@@ -135,7 +136,7 @@ export default function AdminMediaPage() {
                     <div className="relative aspect-square bg-muted">
                       {item.mimeType.startsWith("image/") ? (
                         <img
-                          src={item.url}
+                          src={resolveMediaUrl(item.url)}
                           alt={item.originalName}
                           className="h-full w-full object-cover"
                         />
@@ -166,7 +167,7 @@ export default function AdminMediaPage() {
                     <div className="flex h-12 w-12 items-center justify-center rounded bg-muted">
                       {item.mimeType.startsWith("image/") ? (
                         <img
-                          src={item.thumbnailUrl || item.url}
+                          src={resolveMediaUrl(item.thumbnailUrl || item.url)}
                           alt={item.originalName}
                           className="h-full w-full rounded object-cover"
                         />

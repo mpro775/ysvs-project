@@ -26,6 +26,7 @@ import { CountdownTimer } from "@/components/home/CountdownTimer";
 import { EventLocationMap } from "@/components/events/EventLocationMap";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
+import { resolveMediaUrl } from "@/lib/media";
 import { cn, getEventDisplayStatus } from "@/lib/utils";
 
 const toDayKey = (dateValue: string | Date) => new Date(dateValue).toISOString().slice(0, 10);
@@ -257,7 +258,7 @@ export default function EventDetailPage() {
         {event.coverImage && (
           <div
             className="absolute inset-0 bg-cover bg-center opacity-20"
-            style={{ backgroundImage: `url(${event.coverImage})` }}
+            style={{ backgroundImage: `url(${resolveMediaUrl(event.coverImage)})` }}
           />
         )}
         <div className="container relative mx-auto px-4 py-10 md:py-14">
@@ -509,7 +510,7 @@ export default function EventDetailPage() {
                             <div className="mb-3 flex flex-row-reverse items-center gap-3">
                               {(speaker.imageUrl || speaker.image) ? (
                                 <img
-                                  src={speaker.imageUrl || speaker.image}
+                                  src={resolveMediaUrl(speaker.imageUrl || speaker.image)}
                                   alt={speaker.nameAr}
                                   className="h-14 w-14 rounded-full object-cover"
                                 />

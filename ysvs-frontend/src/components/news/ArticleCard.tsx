@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { resolveMediaUrl } from '@/lib/media';
 import type { Article } from '@/types';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
@@ -17,7 +18,7 @@ export function ArticleCard({ article }: ArticleCardProps) {
         <div className="relative aspect-[16/9] overflow-hidden bg-neutral-100">
           {article.coverImage ? (
             <img
-              src={article.coverImage}
+              src={resolveMediaUrl(article.coverImage)}
               alt={article.titleAr}
               className="h-full w-full object-cover transition-transform group-hover:scale-105"
             />

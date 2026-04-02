@@ -3,6 +3,7 @@ import { ArrowRight, Calendar, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useArticleBySlug } from '@/api/hooks/useContent';
+import { resolveMediaUrl } from '@/lib/media';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 
@@ -47,7 +48,7 @@ export default function NewsDetailPage() {
         {article.coverImage && (
           <div className="mb-8 overflow-hidden rounded-xl">
             <img
-              src={article.coverImage}
+              src={resolveMediaUrl(article.coverImage)}
               alt={article.titleAr}
               className="aspect-[2/1] w-full object-cover"
             />

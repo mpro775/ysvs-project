@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Calendar, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Article } from "@/types";
+import { resolveMediaUrl } from "@/lib/media";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -27,7 +28,7 @@ export function LatestNewsShowcaseCard({ article }: LatestNewsShowcaseCardProps)
     <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_6px_18px_rgba(80,18,18,0.1)] dark:shadow-[0_6px_18px_rgba(0,0,0,0.35)]">
       <div className="relative h-40 overflow-hidden bg-muted/40 sm:h-44">
         {article.coverImage ? (
-          <img src={article.coverImage} alt={article.titleAr} className="h-full w-full object-cover" />
+          <img src={resolveMediaUrl(article.coverImage)} alt={article.titleAr} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted-foreground">لا توجد صورة</div>
         )}

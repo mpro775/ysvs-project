@@ -3,6 +3,7 @@ import { ArrowLeft, Calendar, MapPin, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn, getEventDisplayStatus } from '@/lib/utils';
+import { resolveMediaUrl } from '@/lib/media';
 import type { Event } from '@/types';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
@@ -32,7 +33,7 @@ export function UpcomingEventShowcaseCard({ event }: UpcomingEventShowcaseCardPr
     <article className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_8px_26px_rgba(80,18,18,0.1)] dark:shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
       <div className="relative h-48 overflow-hidden bg-muted/40">
         {event.coverImage ? (
-          <img src={event.coverImage} alt={event.titleAr} className="h-full w-full object-cover" />
+          <img src={resolveMediaUrl(event.coverImage)} alt={event.titleAr} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted-foreground">لا توجد صورة</div>
         )}

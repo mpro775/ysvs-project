@@ -25,7 +25,15 @@ const articleSchema = z.object({
   slug: z.string().min(3, "الرابط المختصر مطلوب"),
   excerptAr: z.string().optional(),
   excerptEn: z.string().optional(),
-  coverImage: z.string().url("رابط الصورة غير صالح").optional().or(z.literal("")),
+  coverImage: z
+    .string()
+    .trim()
+    .refine(
+      (value) => !value || value.startsWith("/") || z.string().url().safeParse(value).success,
+      "رابط الصورة غير صالح"
+    )
+    .optional()
+    .or(z.literal("")),
   tags: z.string().optional(),
   contentAr: z.string().min(10, "المحتوى مطلوب"),
   contentEn: z.string().min(10, "المحتوى الإنجليزي مطلوب"),
