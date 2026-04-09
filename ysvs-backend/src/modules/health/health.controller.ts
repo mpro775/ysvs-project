@@ -3,7 +3,6 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('Health')
-@Version(VERSION_NEUTRAL)
 @Controller('health')
 export class HealthController {
   private buildHealthPayload() {
@@ -15,6 +14,7 @@ export class HealthController {
   }
 
   @Public()
+  @Version(VERSION_NEUTRAL)
   @Get()
   @ApiOperation({ summary: 'Health check endpoint' })
   @ApiResponse({ status: 200, description: 'Service is healthy' })
@@ -23,6 +23,7 @@ export class HealthController {
   }
 
   @Public()
+  @Version(VERSION_NEUTRAL)
   @Get('live')
   @ApiOperation({ summary: 'Liveness probe endpoint' })
   @ApiResponse({ status: 200, description: 'Service is alive' })
@@ -31,6 +32,7 @@ export class HealthController {
   }
 
   @Public()
+  @Version(VERSION_NEUTRAL)
   @Get('ready')
   @ApiOperation({ summary: 'Readiness probe endpoint' })
   @ApiResponse({ status: 200, description: 'Service is ready' })
