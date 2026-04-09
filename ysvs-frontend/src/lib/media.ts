@@ -1,19 +1,12 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL as string | undefined;
+const DEFAULT_API_BASE_URL = 'https://api.ysvs.smartagency-ye.com/api/v1';
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || DEFAULT_API_BASE_URL;
 
 function getApiOrigin(): string {
-  if (API_BASE_URL) {
-    try {
-      return new URL(API_BASE_URL).origin;
-    } catch {
-      // Fallback to window origin below.
-    }
+  try {
+    return new URL(API_BASE_URL).origin;
+  } catch {
+    return '';
   }
-
-  if (typeof window !== 'undefined') {
-    return window.location.origin;
-  }
-
-  return '';
 }
 
 export function resolveMediaUrl(url?: string | null): string {
