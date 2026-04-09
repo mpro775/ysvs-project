@@ -53,7 +53,7 @@ services:
       - app-network
       - platform-network
     labels:
-      - traefik.docker.network=platform-network
+      - traefik.docker.network=vx50i5vf3rgexls4p2anjuan
       - traefik.http.services.ysvs-api.loadbalancer.server.port=3000
 
   frontend:
@@ -74,9 +74,8 @@ services:
       - app-network
       - platform-network
     labels:
-      - traefik.docker.network=platform-network
+      - traefik.docker.network=vx50i5vf3rgexls4p2anjuan
       - traefik.http.services.ysvs-frontend.loadbalancer.server.port=80
-
   redis:
     container_name: ${PROJECT_SLUG}-redis
     image: redis:7-alpine
