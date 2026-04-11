@@ -104,10 +104,12 @@ export default function AdminArticlesPage() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-5 sm:space-y-6 lg:space-y-7">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl">إدارة الأخبار</h1>
+          <h1 className="text-xl font-bold leading-tight sm:text-2xl lg:text-3xl">
+            إدارة الأخبار
+          </h1>
           <p className="text-sm text-muted-foreground">
             إضافة وتعديل الأخبار والمقالات
           </p>
@@ -214,11 +216,108 @@ export default function AdminArticlesPage() {
         </Select>
       </div>
 
-      <div className="-mx-4 overflow-x-auto rounded-lg border bg-card sm:mx-0">
-        <Table className="min-w-[480px]">
+      <div className="space-y-3 md:hidden">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="space-y-3 rounded-lg border bg-card p-4">
+              <Skeleton className="h-5 w-4/5" />
+              <Skeleton className="h-4 w-2/3" />
+              <div className="grid grid-cols-2 gap-2">
+                <Skeleton className="h-5 w-full" />
+                <Skeleton className="h-5 w-full" />
+              </div>
+              <Skeleton className="h-9 w-10" />
+            </div>
+          ))
+        ) : data?.data?.length ? (
+          data.data.map((article) => (
+            <div key={article._id} className="space-y-3 rounded-lg border bg-card p-4">
+              <div className="space-y-1">
+                <h3 className="text-base font-semibold leading-6 break-words">
+                  {article.titleAr}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-6 break-words">
+                  {article.titleEn}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  variant={article.status === 'published' ? 'default' : 'secondary'}
+                >
+                  {article.status === 'published' ? 'منشور' : 'مسودة'}
+                </Badge>
+                {article.isFeatured && <Badge variant="outline">مميز</Badge>}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">التصنيف</p>
+                  <p className="leading-6 break-words">{getCategoryName(article.category)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">تاريخ النشر</p>
+                  <p>
+                    {article.publishedAt
+                      ? format(new Date(article.publishedAt), 'd MMM yyyy', {
+                          locale: ar,
+                        })
+                      : '-'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link
+                        to={`/news/${article.slug}`}
+                        target="_blank"
+                        className="flex items-center gap-2"
+                      >
+                        <Eye className="h-4 w-4" />
+                        عرض
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        to={`/admin/articles/${article._id}/edit`}
+                        className="flex items-center gap-2"
+                      >
+                        <Pencil className="h-4 w-4" />
+                        تعديل
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setDeleteArticle(article)}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="ml-2 h-4 w-4" />
+                      حذف
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-lg border bg-card p-2">
+            <EmptyState title="لا توجد أخبار" description="لم يتم العثور على أخبار" />
+          </div>
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-lg border bg-card md:block">
+        <Table className="min-w-[760px] xl:min-w-full">
           <TableHeader>
             <TableRow>
-              <TableHead>العنوان</TableHead>
+              <TableHead className="w-[42%] whitespace-normal">العنوان</TableHead>
               <TableHead>التصنيف</TableHead>
               <TableHead>الحالة</TableHead>
               <TableHead>تاريخ النشر</TableHead>
@@ -249,10 +348,10 @@ export default function AdminArticlesPage() {
             ) : data?.data?.length ? (
               data.data.map((article) => (
                 <TableRow key={article._id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{article.titleAr}</p>
-                      <p className="text-sm text-muted-foreground">
+                  <TableCell className="max-w-[340px] whitespace-normal align-top xl:max-w-[500px]">
+                    <div className="space-y-1">
+                      <p className="font-medium leading-6 break-words">{article.titleAr}</p>
+                      <p className="text-sm text-muted-foreground leading-6 break-words">
                         {article.titleEn}
                       </p>
                       {article.isFeatured && (

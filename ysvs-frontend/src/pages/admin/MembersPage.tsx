@@ -118,9 +118,9 @@ export default function AdminMembersPage() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-5 sm:space-y-6 lg:space-y-7">
       <div>
-        <h1 className="text-xl font-bold sm:text-2xl">إدارة الأعضاء</h1>
+        <h1 className="text-xl font-bold leading-tight sm:text-2xl lg:text-3xl">إدارة الأعضاء</h1>
         <p className="text-sm text-muted-foreground">مراجعة وتوثيق أعضاء الجمعية</p>
       </div>
 
@@ -150,11 +150,127 @@ export default function AdminMembersPage() {
         <Button type="submit">بحث</Button>
       </form>
 
-      <div className="-mx-4 overflow-x-auto rounded-lg border bg-card sm:mx-0">
-        <Table className="min-w-[920px]">
+      <div className="space-y-3 md:hidden">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="space-y-3 rounded-lg border bg-card p-4">
+              <Skeleton className="h-5 w-2/3" />
+              <Skeleton className="h-4 w-1/2" />
+              <div className="grid grid-cols-2 gap-2">
+                <Skeleton className="h-5 w-full" />
+                <Skeleton className="h-5 w-full" />
+              </div>
+              <Skeleton className="h-9 w-full" />
+            </div>
+          ))
+        ) : members.length ? (
+          members.map((member) => {
+            const statusLabel = getStatusLabel(member);
+            const canReview =
+              member.professionalVerification?.status === ProfessionalVerificationStatus.PENDING;
+
+            return (
+              <div key={member._id} className="space-y-3 rounded-lg border bg-card p-4">
+                <div className="flex items-center gap-3">
+                  <Avatar>
+                    <AvatarFallback>{member.fullNameAr.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 space-y-1">
+                    <p className="font-semibold leading-6 break-words">{member.fullNameAr}</p>
+                    <p className="text-sm text-muted-foreground leading-6 break-words">
+                      {member.fullNameEn}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-sm text-muted-foreground break-all" dir="ltr">
+                  {member.email}
+                </p>
+
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="space-y-1">
+                    <p className="text-muted-foreground">الحالة</p>
+                    <Badge variant={getStatusVariant(member)}>{statusLabel}</Badge>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-muted-foreground">آخر تحديث</p>
+                    <p>
+                      {member.professionalVerification?.lastSubmittedAt
+                        ? format(
+                            new Date(member.professionalVerification.lastSubmittedAt),
+                            'd MMM yyyy',
+                            {
+                              locale: ar,
+                            },
+                          )
+                        : format(new Date(member.createdAt), 'd MMM yyyy', { locale: ar })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-sm">
+                  <p className="text-muted-foreground">بطاقة المزاولة</p>
+                  {member.professionalVerification?.document?.url ? (
+                    <a
+                      href={member.professionalVerification.document.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary-600 hover:underline"
+                    >
+                      عرض الملف
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground">غير مرفوع</span>
+                  )}
+                </div>
+
+                <div className="text-sm">
+                  <p className="text-muted-foreground">سبب الرفض</p>
+                  <p className="leading-6 break-words text-muted-foreground">
+                    {member.professionalVerification?.rejectionReason || '-'}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleApprove(member)}
+                    disabled={!canReview || isReviewPending}
+                    className="gap-1"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    اعتماد
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleReject(member)}
+                    disabled={!canReview || isReviewPending}
+                    className="gap-1"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    رفض
+                  </Button>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="rounded-lg border bg-card p-2">
+            <EmptyState
+              icon={Users}
+              title="لا توجد نتائج"
+              description="لم يتم العثور على أعضاء يطابقون معايير البحث"
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-lg border bg-card md:block">
+        <Table className="min-w-[940px] xl:min-w-full">
           <TableHeader>
             <TableRow>
-              <TableHead>العضو</TableHead>
+              <TableHead className="w-[32%] whitespace-normal">العضو</TableHead>
               <TableHead>البريد الإلكتروني</TableHead>
               <TableHead>الحالة</TableHead>
               <TableHead>بطاقة المزاولة</TableHead>
@@ -198,14 +314,16 @@ export default function AdminMembersPage() {
 
                 return (
                   <TableRow key={member._id}>
-                    <TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal xl:max-w-[420px]">
                       <div className="flex items-center gap-3">
                         <Avatar>
                           <AvatarFallback>{member.fullNameAr.charAt(0)}</AvatarFallback>
                         </Avatar>
-                        <div>
-                          <p className="font-medium">{member.fullNameAr}</p>
-                          <p className="text-sm text-muted-foreground">{member.fullNameEn}</p>
+                        <div className="min-w-0">
+                          <p className="font-medium leading-6 break-words">{member.fullNameAr}</p>
+                          <p className="text-sm text-muted-foreground leading-6 break-words">
+                            {member.fullNameEn}
+                          </p>
                         </div>
                       </div>
                     </TableCell>

@@ -153,9 +153,9 @@ export default function ContactMessagesPage() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-5 sm:space-y-6 lg:space-y-7">
       <div>
-        <h1 className="text-xl font-bold sm:text-2xl">رسائل التواصل</h1>
+        <h1 className="text-xl font-bold leading-tight sm:text-2xl lg:text-3xl">رسائل التواصل</h1>
         <p className="text-sm text-muted-foreground">
           متابعة رسائل نموذج تواصل معنا والرد عليها من لوحة التحكم
         </p>
@@ -246,12 +246,118 @@ export default function ContactMessagesPage() {
         </div>
       </div>
 
-      <div className="-mx-4 overflow-x-auto rounded-lg border bg-card sm:mx-0">
-        <Table className="min-w-[900px]">
+      <div className="space-y-3 md:hidden">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="space-y-3 rounded-lg border bg-card p-4">
+              <Skeleton className="h-5 w-2/3" />
+              <Skeleton className="h-4 w-3/4" />
+              <div className="grid grid-cols-2 gap-2">
+                <Skeleton className="h-5 w-full" />
+                <Skeleton className="h-5 w-full" />
+              </div>
+              <Skeleton className="h-9 w-full" />
+            </div>
+          ))
+        ) : data?.data.length ? (
+          data.data.map((message) => (
+            <div key={message._id} className="space-y-3 rounded-lg border bg-card p-4">
+              <div className="space-y-1">
+                <p className="font-semibold leading-6 break-words">{message.name}</p>
+                <p className="text-xs text-muted-foreground break-all" dir="ltr">
+                  {message.email}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="font-medium leading-6 break-words">{message.subject}</p>
+                <p className="text-xs text-muted-foreground leading-6 break-words line-clamp-3">
+                  {message.message}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">الحالة</p>
+                  <Badge variant={getStatusVariant(message.status)}>
+                    {STATUS_LABELS[message.status]}
+                  </Badge>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">القراءة</p>
+                  <Badge variant={message.isRead ? 'secondary' : 'default'}>
+                    {message.isRead ? 'مقروءة' : 'غير مقروءة'}
+                  </Badge>
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                {format(new Date(message.createdAt), 'd MMM yyyy - HH:mm', {
+                  locale: ar,
+                })}
+              </p>
+
+              <Select
+                value={message.status}
+                disabled={isUpdatingStatus}
+                onValueChange={(value) => {
+                  updateStatus({
+                    id: message._id,
+                    status: value as ContactMessageStatus,
+                  });
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="تغيير الحالة" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">جديدة</SelectItem>
+                  <SelectItem value="in_progress">قيد المعالجة</SelectItem>
+                  <SelectItem value="replied">تم الرد</SelectItem>
+                  <SelectItem value="archived">مؤرشفة</SelectItem>
+                  <SelectItem value="spam">سبام</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  disabled={isUpdatingRead}
+                  onClick={() => updateReadState({ id: message._id, isRead: !message.isRead })}
+                  title={message.isRead ? 'تحديد كغير مقروءة' : 'تحديد كمقروءة'}
+                >
+                  {message.isRead ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
+
+                <Button variant="secondary" size="sm" onClick={() => openReply(message)}>
+                  <Reply className="ml-2 h-4 w-4" />
+                  رد
+                </Button>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-lg border bg-card p-2">
+            <EmptyState
+              icon={Mail}
+              title="لا توجد رسائل"
+              description="لم يتم العثور على رسائل تواصل ضمن الفلاتر الحالية"
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-lg border bg-card md:block">
+        <Table className="min-w-[940px] xl:min-w-full">
           <TableHeader>
             <TableRow>
               <TableHead>المرسل</TableHead>
-              <TableHead>الموضوع</TableHead>
+              <TableHead className="w-[30%] whitespace-normal">الموضوع</TableHead>
               <TableHead>الحالة</TableHead>
               <TableHead>القراءة</TableHead>
               <TableHead>تاريخ الإرسال</TableHead>
@@ -293,10 +399,10 @@ export default function ContactMessagesPage() {
                       </p>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="max-w-[320px] whitespace-normal xl:max-w-[420px]">
                     <div className="space-y-1">
-                      <p className="font-medium">{message.subject}</p>
-                      <p className="line-clamp-2 text-xs text-muted-foreground">
+                      <p className="font-medium leading-6 break-words">{message.subject}</p>
+                      <p className="line-clamp-2 text-xs text-muted-foreground leading-6 break-words">
                         {message.message}
                       </p>
                     </div>
