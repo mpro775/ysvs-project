@@ -28,6 +28,10 @@ import { InlineLoader } from "@/components/shared/LoadingSpinner";
 import type { FormField } from "@/types";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
+import {
+  ALL_DEFAULT_PROFILE_FIELD_IDS,
+  DEFAULT_PROFILE_FIELD_OPTIONS,
+} from "@/constants/defaultProfileFields";
 
 const sessionTypeOptions = [
   { value: "talk", label: "محاضرة علمية" },
@@ -433,6 +437,8 @@ export default function AdminEventEditPage() {
   const [activeTab, setActiveTab] = useState<EventEditTab>("basic");
   const [activeScheduleDayId, setActiveScheduleDayId] = useState("");
   const [activeScheduleSessionId, setActiveScheduleSessionId] = useState("");
+  const [includeDefaultProfileFields, setIncludeDefaultProfileFields] = useState(true);
+  const [defaultProfileFieldIds, setDefaultProfileFieldIds] = useState<string[]>([...ALL_DEFAULT_PROFILE_FIELD_IDS]);
 
   const {
     register,
@@ -567,6 +573,12 @@ export default function AdminEventEditPage() {
           })) || [],
       });
       setFormSchema(event.formSchema || []);
+      setIncludeDefaultProfileFields(event.includeDefaultProfileFields !== false);
+      setDefaultProfileFieldIds(
+        Array.isArray(event.defaultProfileFieldIds)
+          ? event.defaultProfileFieldIds
+          : [...ALL_DEFAULT_PROFILE_FIELD_IDS],
+      );
     }
   }, [event, reset]);
 
@@ -1016,6 +1028,8 @@ export default function AdminEventEditPage() {
             .sort((a, b) => a.startTime.getTime() - b.startTime.getTime()),
           cmeHours: totalCmeHours,
           formSchema,
+          includeDefaultProfileFields,
+          defaultProfileFieldIds: includeDefaultProfileFields ? defaultProfileFieldIds : [],
           registrationAccess: rest.registrationAccess,
           guestEmailMode: rest.guestEmailMode,
         },
@@ -1058,6 +1072,23 @@ export default function AdminEventEditPage() {
     );
 
     setActiveTab(hasProgramErrors ? "program" : "basic");
+  };
+
+  const toggleDefaultProfileField = (fieldId: string, checked: boolean) => {
+    if (checked) {
+      setDefaultProfileFieldIds((prev) => (prev.includes(fieldId) ? prev : [...prev, fieldId]));
+      return;
+    }
+
+    setDefaultProfileFieldIds((prev) => prev.filter((id) => id !== fieldId));
+  };
+
+  const selectAllDefaultProfileFields = () => {
+    setDefaultProfileFieldIds([...ALL_DEFAULT_PROFILE_FIELD_IDS]);
+  };
+
+  const clearDefaultProfileFields = () => {
+    setDefaultProfileFieldIds([]);
   };
 
   if (isLoading) {
@@ -2085,6 +2116,50 @@ export default function AdminEventEditPage() {
                   عدّل هنا الحقول الإضافية الخاصة بهذا المؤتمر فقط. الحقول الأساسية
                   (الاسم عربي/إنجليزي، البريد، الهاتف، الوصف الوظيفي، النوع، مكان العمل)
                   تُدار تلقائياً من الحساب للعضو وتظهر للضيف بدون إضافتها هنا.
+                </div>
+                <div className="mb-4 space-y-3 rounded-lg border p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium">إظهار الحقول الافتراضية</p>
+                      <p className="text-xs text-muted-foreground">
+                        عند التعطيل سيتم الاكتفاء بالبريد الإلكتروني للضيف فقط.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={includeDefaultProfileFields}
+                      onCheckedChange={(checked) => setIncludeDefaultProfileFields(checked === true)}
+                    />
+                  </div>
+
+                  {includeDefaultProfileFields && (
+                    <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-medium">
+                          اختر الحقول الافتراضية المطلوبة ({defaultProfileFieldIds.length})
+                        </p>
+                        <div className="flex gap-2">
+                          <Button type="button" variant="outline" size="sm" onClick={selectAllDefaultProfileFields}>
+                            اختيار الكل
+                          </Button>
+                          <Button type="button" variant="outline" size="sm" onClick={clearDefaultProfileFields}>
+                            إلغاء الكل
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {DEFAULT_PROFILE_FIELD_OPTIONS.map((field) => (
+                          <label key={field.id} className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={defaultProfileFieldIds.includes(field.id)}
+                              onCheckedChange={(checked) => toggleDefaultProfileField(field.id, checked === true)}
+                            />
+                            <span>{field.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <FormBuilder initialSchema={formSchema} onChange={setFormSchema} />
               </CardContent>

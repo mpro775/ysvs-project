@@ -31,23 +31,13 @@ import { ar } from "date-fns/locale";
 import * as XLSX from "xlsx";
 import type { FormField, Registration, UploadedFormFile, User } from "@/types";
 import { toast } from "sonner";
+import {
+  ALL_DEFAULT_PROFILE_FIELD_IDS,
+  DEFAULT_PROFILE_FIELD_IDS,
+} from "@/constants/defaultProfileFields";
 
 const OTHER_OPTION_VALUE = "__other__";
 const getOtherFieldId = (fieldId: string) => `${fieldId}__other`;
-const defaultProfileFieldIds = new Set([
-  'fullNameAr',
-  'fullNameEn',
-  'email',
-  'phone',
-  'country',
-  'jobTitle',
-  'specialty',
-  'gender',
-  'workplace',
-  'professionalCardDocument',
-  'profileDeclaration',
-]);
-
 const getGenderLabel = (value?: unknown) => {
   if (value === 'male') return 'ذكر';
   if (value === 'female') return 'أنثى';
@@ -62,6 +52,12 @@ export default function AdminEventRegistrantsPage() {
   const { mutate: markAttendance, isPending } = useMarkAttendance();
   const [detailsRegistration, setDetailsRegistration] = useState<Registration | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const activeDefaultProfileFieldIds = new Set(
+    event?.includeDefaultProfileFields === false
+      ? []
+      : event?.defaultProfileFieldIds ?? ALL_DEFAULT_PROFILE_FIELD_IDS,
+  );
+  const hasDefaultProfileField = (fieldId: string) => activeDefaultProfileFieldIds.has(fieldId);
 
   const formatPrimitiveValue = (value: unknown): string => {
     if (value === null || value === undefined || value === "") {
@@ -183,16 +179,7 @@ export default function AdminEventRegistrantsPage() {
         const professionalCardFile = getUploadedFile(formData.professionalCardDocument);
         const baseData: Record<string, unknown> = {
           "رقم التسجيل": reg.registrationNumber,
-          "الاسم (عربي)": user?.fullNameAr || formData.fullNameAr || "ضيف",
-          "الاسم (إنجليزي)": user?.fullNameEn || formData.fullNameEn || "Guest",
           "البريد الإلكتروني": user?.email || formData.email || reg.guestEmail || "-",
-          الهاتف: user?.phone || formData.phone || "-",
-          "رابط بطاقة مزاولة المهنة": professionalCardFile?.url || "-",
-          الجنس: user?.gender ? getGenderLabel(user.gender) : getGenderLabel(formData.gender),
-          الدولة: user?.country || formData.country || "-",
-          "الصفة الوظيفية": user?.jobTitle || formData.jobTitle || "-",
-          التخصص: user?.specialty || formData.specialty || "-",
-          "جهة العمل / المستشفى / الجامعة": user?.workplace || formData.workplace || "-",
           الحالة:
             reg.status === "attended"
               ? "حضر"
@@ -202,9 +189,37 @@ export default function AdminEventRegistrantsPage() {
           "تاريخ التسجيل": format(new Date(reg.createdAt), "yyyy-MM-dd"),
         };
 
+        if (hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.fullNameAr)) {
+          baseData["الاسم (عربي)"] = user?.fullNameAr || formData.fullNameAr || "ضيف";
+        }
+        if (hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.fullNameEn)) {
+          baseData["الاسم (إنجليزي)"] = user?.fullNameEn || formData.fullNameEn || "Guest";
+        }
+        if (hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.phone)) {
+          baseData["الهاتف"] = user?.phone || formData.phone || "-";
+        }
+        if (hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.professionalCardDocument)) {
+          baseData["رابط بطاقة مزاولة المهنة"] = professionalCardFile?.url || "-";
+        }
+        if (hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.gender)) {
+          baseData["الجنس"] = user?.gender ? getGenderLabel(user.gender) : getGenderLabel(formData.gender);
+        }
+        if (hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.country)) {
+          baseData["الدولة"] = user?.country || formData.country || "-";
+        }
+        if (hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.jobTitle)) {
+          baseData["الصفة الوظيفية"] = user?.jobTitle || formData.jobTitle || "-";
+        }
+        if (hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.specialty)) {
+          baseData["التخصص"] = user?.specialty || formData.specialty || "-";
+        }
+        if (hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.workplace)) {
+          baseData["جهة العمل / المستشفى / الجامعة"] = user?.workplace || formData.workplace || "-";
+        }
+
         if (event.formSchema) {
           event.formSchema
-            .filter((field) => !defaultProfileFieldIds.has(field.id))
+            .filter((field) => !activeDefaultProfileFieldIds.has(field.id))
             .forEach((field) => {
               if (field.type === "section") {
                 return;
@@ -459,20 +474,24 @@ export default function AdminEventRegistrantsPage() {
 
           {detailsRegistration && (
             <div className="space-y-3">
-              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
-                <p className="text-sm font-semibold text-foreground">الاسم (عربي)</p>
-                <p className="text-sm text-muted-foreground">
-                  {(detailsRegistration.user as User | undefined)?.fullNameAr ||
-                    String(detailsRegistration.formData.fullNameAr || '-')}
-                </p>
-              </div>
-              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
-                <p className="text-sm font-semibold text-foreground">الاسم (إنجليزي)</p>
-                <p className="text-sm text-muted-foreground">
-                  {(detailsRegistration.user as User | undefined)?.fullNameEn ||
-                    String(detailsRegistration.formData.fullNameEn || '-')}
-                </p>
-              </div>
+              {hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.fullNameAr) && (
+                <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                  <p className="text-sm font-semibold text-foreground">الاسم (عربي)</p>
+                  <p className="text-sm text-muted-foreground">
+                    {(detailsRegistration.user as User | undefined)?.fullNameAr ||
+                      String(detailsRegistration.formData.fullNameAr || '-')}
+                  </p>
+                </div>
+              )}
+              {hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.fullNameEn) && (
+                <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                  <p className="text-sm font-semibold text-foreground">الاسم (إنجليزي)</p>
+                  <p className="text-sm text-muted-foreground">
+                    {(detailsRegistration.user as User | undefined)?.fullNameEn ||
+                      String(detailsRegistration.formData.fullNameEn || '-')}
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
                 <p className="text-sm font-semibold text-foreground">البريد الإلكتروني</p>
                 <p className="text-sm text-muted-foreground">
@@ -480,52 +499,64 @@ export default function AdminEventRegistrantsPage() {
                     String(detailsRegistration.formData.email || detailsRegistration.guestEmail || '-')}
                 </p>
               </div>
-              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
-                <p className="text-sm font-semibold text-foreground">رقم الهاتف</p>
-                <p className="text-sm text-muted-foreground">
-                  {(detailsRegistration.user as User | undefined)?.phone ||
-                    String(detailsRegistration.formData.phone || '-')}
-                </p>
-              </div>
-              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
-                <p className="text-sm font-semibold text-foreground">الصفة الوظيفية</p>
-                <p className="text-sm text-muted-foreground">
-                  {(detailsRegistration.user as User | undefined)?.jobTitle ||
-                    String(detailsRegistration.formData.jobTitle || '-')}
-                </p>
-              </div>
-              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
-                <p className="text-sm font-semibold text-foreground">الجنس</p>
-                <p className="text-sm text-muted-foreground">
-                  {(detailsRegistration.user as User | undefined)?.gender
-                    ? getGenderLabel((detailsRegistration.user as User).gender)
-                    : getGenderLabel(detailsRegistration.formData.gender)}
-                </p>
-              </div>
-              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
-                <p className="text-sm font-semibold text-foreground">الدولة</p>
-                <p className="text-sm text-muted-foreground">
-                  {(detailsRegistration.user as User | undefined)?.country ||
-                    String(detailsRegistration.formData.country || '-')}
-                </p>
-              </div>
-              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
-                <p className="text-sm font-semibold text-foreground">التخصص</p>
-                <p className="text-sm text-muted-foreground">
-                  {(detailsRegistration.user as User | undefined)?.specialty ||
-                    String(detailsRegistration.formData.specialty || '-')}
-                </p>
-              </div>
-              <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
-                <p className="text-sm font-semibold text-foreground">جهة العمل / المستشفى / الجامعة</p>
-                <p className="text-sm text-muted-foreground">
-                  {(detailsRegistration.user as User | undefined)?.workplace ||
-                    String(detailsRegistration.formData.workplace || '-')}
-                </p>
-              </div>
+              {hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.phone) && (
+                <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                  <p className="text-sm font-semibold text-foreground">رقم الهاتف</p>
+                  <p className="text-sm text-muted-foreground">
+                    {(detailsRegistration.user as User | undefined)?.phone ||
+                      String(detailsRegistration.formData.phone || '-')}
+                  </p>
+                </div>
+              )}
+              {hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.jobTitle) && (
+                <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                  <p className="text-sm font-semibold text-foreground">الصفة الوظيفية</p>
+                  <p className="text-sm text-muted-foreground">
+                    {(detailsRegistration.user as User | undefined)?.jobTitle ||
+                      String(detailsRegistration.formData.jobTitle || '-')}
+                  </p>
+                </div>
+              )}
+              {hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.gender) && (
+                <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                  <p className="text-sm font-semibold text-foreground">الجنس</p>
+                  <p className="text-sm text-muted-foreground">
+                    {(detailsRegistration.user as User | undefined)?.gender
+                      ? getGenderLabel((detailsRegistration.user as User).gender)
+                      : getGenderLabel(detailsRegistration.formData.gender)}
+                  </p>
+                </div>
+              )}
+              {hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.country) && (
+                <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                  <p className="text-sm font-semibold text-foreground">الدولة</p>
+                  <p className="text-sm text-muted-foreground">
+                    {(detailsRegistration.user as User | undefined)?.country ||
+                      String(detailsRegistration.formData.country || '-')}
+                  </p>
+                </div>
+              )}
+              {hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.specialty) && (
+                <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                  <p className="text-sm font-semibold text-foreground">التخصص</p>
+                  <p className="text-sm text-muted-foreground">
+                    {(detailsRegistration.user as User | undefined)?.specialty ||
+                      String(detailsRegistration.formData.specialty || '-')}
+                  </p>
+                </div>
+              )}
+              {hasDefaultProfileField(DEFAULT_PROFILE_FIELD_IDS.workplace) && (
+                <div className="grid grid-cols-1 gap-2 rounded-md border p-3 sm:grid-cols-[220px_1fr]">
+                  <p className="text-sm font-semibold text-foreground">جهة العمل / المستشفى / الجامعة</p>
+                  <p className="text-sm text-muted-foreground">
+                    {(detailsRegistration.user as User | undefined)?.workplace ||
+                      String(detailsRegistration.formData.workplace || '-')}
+                  </p>
+                </div>
+              )}
 
               {event.formSchema
-                ?.filter((field) => !defaultProfileFieldIds.has(field.id))
+                ?.filter((field) => !activeDefaultProfileFieldIds.has(field.id))
                 ?.filter((field) => field.type !== "section")
                 .map((field) => {
                   const display = getFieldDisplay(field, detailsRegistration.formData);

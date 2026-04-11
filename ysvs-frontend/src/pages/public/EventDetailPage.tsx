@@ -764,6 +764,8 @@ export default function EventDetailPage() {
                           schema={event.formSchema}
                           isAuthenticated={isAuthenticated}
                           guestRegistrationEnabled={allowsGuestRegistration}
+                          includeDefaultProfileFields={event.includeDefaultProfileFields}
+                          defaultProfileFieldIds={event.defaultProfileFieldIds}
                         />
                       </CardContent>
                     </Card>

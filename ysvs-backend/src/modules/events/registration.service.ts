@@ -30,20 +30,10 @@ import { MediaService } from '../media/media.service';
 import { MediaType } from '../media/dto';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { NotificationsPublisherService } from '../notifications/notifications.publisher.service';
-
-const DEFAULT_PROFILE_FIELD_IDS = {
-  FULL_NAME_AR: 'fullNameAr',
-  FULL_NAME_EN: 'fullNameEn',
-  EMAIL: 'email',
-  PHONE: 'phone',
-  COUNTRY: 'country',
-  JOB_TITLE: 'jobTitle',
-  SPECIALTY: 'specialty',
-  GENDER: 'gender',
-  WORKPLACE: 'workplace',
-  PROFESSIONAL_CARD_DOCUMENT: 'professionalCardDocument',
-  PROFILE_DECLARATION: 'profileDeclaration',
-} as const;
+import {
+  ALL_DEFAULT_PROFILE_FIELD_IDS,
+  DEFAULT_PROFILE_FIELD_IDS,
+} from './constants/default-profile-fields';
 
 const OTHER_OPTION_VALUE = '__other__';
 const getOtherFieldId = (fieldId: string) => `${fieldId}__other`;
@@ -121,8 +111,10 @@ export class RegistrationService {
     }
 
     const field = event.formSchema.find((f) => f.id === fieldId);
+    const activeDefaultProfileFieldIds = this.getActiveDefaultProfileFieldIds(event);
     const isDefaultProfessionalCardField =
-      fieldId === DEFAULT_PROFILE_FIELD_IDS.PROFESSIONAL_CARD_DOCUMENT;
+      fieldId === DEFAULT_PROFILE_FIELD_IDS.PROFESSIONAL_CARD_DOCUMENT &&
+      activeDefaultProfileFieldIds.has(DEFAULT_PROFILE_FIELD_IDS.PROFESSIONAL_CARD_DOCUMENT);
 
     if (!field && !isDefaultProfessionalCardField) {
       throw new BadRequestException('حقل الملف غير موجود في نموذج المؤتمر');
@@ -183,6 +175,8 @@ export class RegistrationService {
       throw new BadRequestException('تم الوصول للحد الأقصى من المسجلين');
     }
 
+    const activeDefaultProfileFieldIds = this.getActiveDefaultProfileFieldIds(event);
+
     const guestProfile = this.extractGuestProfileData(createRegistrationDto.formData);
     let normalizedGuestEmail: string | undefined =
       createRegistrationDto.guestEmail?.trim().toLowerCase() ||
@@ -222,10 +216,14 @@ export class RegistrationService {
     }
 
     if (!user) {
-      this.validateGuestProfileData(guestProfile);
-
       const guestEmailRequired =
         guestEmailMode === GuestEmailMode.REQUIRED || event.cmeHours > 0;
+
+      this.validateGuestProfileData(
+        guestProfile,
+        activeDefaultProfileFieldIds,
+        guestEmailRequired,
+      );
 
       if (guestEmailRequired && !normalizedGuestEmail) {
         throw new BadRequestException('البريد الإلكتروني مطلوب للضيف في هذا المؤتمر');
@@ -627,61 +625,98 @@ export class RegistrationService {
     };
   }
 
-  private validateGuestProfileData(guestProfile: GuestProfileData): void {
-    if (!guestProfile.fullNameAr) {
+  private validateGuestProfileData(
+    guestProfile: GuestProfileData,
+    activeDefaultProfileFieldIds: Set<string>,
+    guestEmailRequired: boolean,
+  ): void {
+    if (activeDefaultProfileFieldIds.has(DEFAULT_PROFILE_FIELD_IDS.FULL_NAME_AR) && !guestProfile.fullNameAr) {
       throw new BadRequestException('الاسم بالعربي مطلوب للضيف');
     }
 
-    if (!guestProfile.fullNameEn) {
+    if (activeDefaultProfileFieldIds.has(DEFAULT_PROFILE_FIELD_IDS.FULL_NAME_EN) && !guestProfile.fullNameEn) {
       throw new BadRequestException('الاسم بالإنجليزي مطلوب للضيف');
     }
 
-    if (!guestProfile.email) {
+    const requiresEmailFallbackOnly = activeDefaultProfileFieldIds.size === 0;
+    const shouldRequireEmail =
+      requiresEmailFallbackOnly ||
+      activeDefaultProfileFieldIds.has(DEFAULT_PROFILE_FIELD_IDS.EMAIL) ||
+      guestEmailRequired;
+    if (shouldRequireEmail && !guestProfile.email) {
       throw new BadRequestException('البريد الإلكتروني مطلوب للضيف');
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(guestProfile.email)) {
+    if (guestProfile.email && !emailRegex.test(guestProfile.email)) {
       throw new BadRequestException('البريد الإلكتروني للضيف غير صالح');
     }
 
-    if (!guestProfile.phone) {
+    if (activeDefaultProfileFieldIds.has(DEFAULT_PROFILE_FIELD_IDS.PHONE) && !guestProfile.phone) {
       throw new BadRequestException('رقم الهاتف مطلوب للضيف');
     }
 
     const normalizedPhone = guestProfile.phone.replace(/[\s\-().]/g, '');
     const phoneRegex = /^(?:\+?967\d{0,9}|7\d{2,8})$/;
-    if (!phoneRegex.test(normalizedPhone)) {
+    if (guestProfile.phone && !phoneRegex.test(normalizedPhone)) {
       throw new BadRequestException('رقم الهاتف للضيف غير صالح');
     }
 
-    if (!guestProfile.country) {
+    if (activeDefaultProfileFieldIds.has(DEFAULT_PROFILE_FIELD_IDS.COUNTRY) && !guestProfile.country) {
       throw new BadRequestException('الدولة مطلوبة للضيف');
     }
 
-    if (!guestProfile.jobTitle) {
+    if (activeDefaultProfileFieldIds.has(DEFAULT_PROFILE_FIELD_IDS.JOB_TITLE) && !guestProfile.jobTitle) {
       throw new BadRequestException('الصفة الوظيفية مطلوبة للضيف');
     }
 
-    if (!guestProfile.specialty) {
+    if (activeDefaultProfileFieldIds.has(DEFAULT_PROFILE_FIELD_IDS.SPECIALTY) && !guestProfile.specialty) {
       throw new BadRequestException('التخصص مطلوب للضيف');
     }
 
-    if (!guestProfile.workplace) {
+    if (activeDefaultProfileFieldIds.has(DEFAULT_PROFILE_FIELD_IDS.WORKPLACE) && !guestProfile.workplace) {
       throw new BadRequestException('جهة العمل / المستشفى / الجامعة مطلوبة للضيف');
     }
 
-    if (!['male', 'female'].includes(guestProfile.gender)) {
+    if (
+      activeDefaultProfileFieldIds.has(DEFAULT_PROFILE_FIELD_IDS.GENDER) &&
+      !['male', 'female'].includes(guestProfile.gender)
+    ) {
       throw new BadRequestException('الجنس مطلوب للضيف');
     }
 
-    if (!guestProfile.professionalCardDocument?.url) {
+    if (
+      activeDefaultProfileFieldIds.has(DEFAULT_PROFILE_FIELD_IDS.PROFESSIONAL_CARD_DOCUMENT) &&
+      !guestProfile.professionalCardDocument?.url
+    ) {
       throw new BadRequestException('رفع صورة بطاقة مزاولة المهنة مطلوب للضيف');
     }
 
-    if (!guestProfile.profileDeclaration) {
+    if (
+      activeDefaultProfileFieldIds.has(DEFAULT_PROFILE_FIELD_IDS.PROFILE_DECLARATION) &&
+      !guestProfile.profileDeclaration
+    ) {
       throw new BadRequestException('يجب الموافقة على الإقرار قبل إرسال التسجيل');
     }
+  }
+
+  private getActiveDefaultProfileFieldIds(event: EventDocument): Set<string> {
+    if (event.includeDefaultProfileFields === false) {
+      return new Set<string>();
+    }
+
+    const savedIds = Array.isArray(event.defaultProfileFieldIds)
+      ? event.defaultProfileFieldIds
+      : ALL_DEFAULT_PROFILE_FIELD_IDS;
+    const normalizedIds = [...new Set(savedIds.map((item) => String(item).trim()))].filter(
+      Boolean,
+    );
+
+    const validIds = normalizedIds.filter((fieldId) =>
+      ALL_DEFAULT_PROFILE_FIELD_IDS.includes(fieldId as (typeof ALL_DEFAULT_PROFILE_FIELD_IDS)[number]),
+    );
+
+    return new Set(validIds);
   }
 
   private resolveSelectableField(

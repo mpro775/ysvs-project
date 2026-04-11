@@ -63,6 +63,8 @@ interface CreateEventData {
   schedule?: EventScheduleItem[];
   eventDays?: EventDay[];
   formSchema?: FormField[];
+  includeDefaultProfileFields?: boolean;
+  defaultProfileFieldIds?: string[];
 }
 
 // Get all events

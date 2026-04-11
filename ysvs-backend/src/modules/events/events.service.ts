@@ -18,6 +18,7 @@ import {
   FormField,
   EventDay,
 } from './schemas/event.schema';
+import { ALL_DEFAULT_PROFILE_FIELD_IDS } from './constants/default-profile-fields';
 import { TicketType, TicketTypeDocument } from './schemas/ticket-type.schema';
 import {
   CreateEventDto,
@@ -33,18 +34,8 @@ export class EventsService {
   private readonly eventsCacheVersionKey = 'events:cache-version';
   private readonly eventsCacheVersionTtl = 24 * 60 * 60 * 1000;
 
-  private readonly protectedProfileFieldIds = new Set([
-    'fullNameAr',
-    'fullNameEn',
-    'email',
-    'phone',
-    'country',
-    'jobTitle',
-    'specialty',
-    'gender',
-    'workplace',
-    'professionalCardDocument',
-    'profileDeclaration',
+  private readonly protectedProfileFieldIds = new Set<string>([
+    ...ALL_DEFAULT_PROFILE_FIELD_IDS,
   ]);
 
   constructor(
@@ -378,6 +369,8 @@ export class EventsService {
       | 'eventDays'
       | 'cmeHours'
       | 'formSchema'
+      | 'includeDefaultProfileFields'
+      | 'defaultProfileFieldIds'
     >,
     enforceFutureStartDate: boolean,
     requireExplicitScheduleDayId: boolean,
@@ -408,13 +401,29 @@ export class EventsService {
     );
     this.validateScheduleSpeakers(payload.speakers, payload.schedule);
     this.validateProtectedProfileFields(payload.formSchema);
+    this.validateSelectedDefaultProfileFields(
+      payload.includeDefaultProfileFields,
+      payload.defaultProfileFieldIds,
+    );
   }
 
   private normalizeEventTimeline<T extends Partial<UpdateEventDto>>(payload: T): T {
+    const shouldNormalizeDefaultProfileFields =
+      Object.prototype.hasOwnProperty.call(payload, 'includeDefaultProfileFields') ||
+      Object.prototype.hasOwnProperty.call(payload, 'defaultProfileFieldIds');
+    const defaultProfileSettings = shouldNormalizeDefaultProfileFields
+      ? this.normalizeDefaultProfileFieldSettings(
+          payload.includeDefaultProfileFields,
+          payload.defaultProfileFieldIds,
+        )
+      : {};
     const eventDays = this.normalizeEventDays(payload.eventDays);
 
     if (!eventDays.length) {
-      return payload;
+      return {
+        ...payload,
+        ...defaultProfileSettings,
+      };
     }
 
     const sortedDays = [...eventDays].sort(
@@ -424,6 +433,7 @@ export class EventsService {
 
     return {
       ...payload,
+      ...defaultProfileSettings,
       eventDays: sortedDays,
       startDate: sortedDays[0].startTime,
       endDate: sortedDays[sortedDays.length - 1].endTime,
@@ -539,6 +549,56 @@ export class EventsService {
         );
       }
     }
+  }
+
+  private validateSelectedDefaultProfileFields(
+    includeDefaultProfileFields?: boolean,
+    defaultProfileFieldIds?: string[],
+  ): void {
+    const normalized = this.normalizeDefaultProfileFieldSettings(
+      includeDefaultProfileFields,
+      defaultProfileFieldIds,
+    );
+
+    if (!normalized.includeDefaultProfileFields && normalized.defaultProfileFieldIds.length > 0) {
+      throw new BadRequestException(
+        'لا يمكن اختيار حقول افتراضية مع تعطيل إظهار الحقول الافتراضية',
+      );
+    }
+  }
+
+  private normalizeDefaultProfileFieldSettings(
+    includeDefaultProfileFields?: boolean,
+    defaultProfileFieldIds?: string[],
+  ): { includeDefaultProfileFields: boolean; defaultProfileFieldIds: string[] } {
+    const include = includeDefaultProfileFields !== false;
+
+    if (!include) {
+      return {
+        includeDefaultProfileFields: false,
+        defaultProfileFieldIds: [],
+      };
+    }
+
+    const requestedIds =
+      defaultProfileFieldIds === undefined
+        ? ALL_DEFAULT_PROFILE_FIELD_IDS
+        : defaultProfileFieldIds;
+    const normalizedUniqueIds = [...new Set(requestedIds.map((item) => String(item).trim()))].filter(
+      Boolean,
+    );
+
+    const invalidId = normalizedUniqueIds.find(
+      (fieldId) => !this.protectedProfileFieldIds.has(fieldId),
+    );
+    if (invalidId) {
+      throw new BadRequestException(`حقل افتراضي غير صالح: ${invalidId}`);
+    }
+
+    return {
+      includeDefaultProfileFields: true,
+      defaultProfileFieldIds: normalizedUniqueIds,
+    };
   }
 
   private validateEventDates(

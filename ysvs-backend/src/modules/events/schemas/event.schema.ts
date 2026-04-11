@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, HydratedDocument, Types } from 'mongoose';
+import { ALL_DEFAULT_PROFILE_FIELD_IDS } from '../constants/default-profile-fields';
 
 export type EventDocument = HydratedDocument<Event>;
 
@@ -243,6 +244,12 @@ export class Event extends Document {
 
   @Prop({ type: [Object], default: [] })
   formSchema: FormField[];
+
+  @Prop({ default: true })
+  includeDefaultProfileFields: boolean;
+
+  @Prop({ type: [String], default: ALL_DEFAULT_PROFILE_FIELD_IDS })
+  defaultProfileFieldIds: string[];
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'TicketType' }] })
   ticketTypes: Types.ObjectId[];

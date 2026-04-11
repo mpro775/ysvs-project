@@ -466,4 +466,23 @@ export class CreateEventDto {
   @ValidateNested({ each: true })
   @Type(() => FormFieldDto)
   formSchema?: FormFieldDto[];
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    description: 'Whether to include default profile fields in registration form',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  includeDefaultProfileFields?: boolean;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Selected default profile fields to include when enabled',
+    example: ['email', 'phone', 'country'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  defaultProfileFieldIds?: string[];
 }

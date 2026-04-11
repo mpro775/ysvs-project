@@ -20,25 +20,17 @@ import { InlineLoader } from '@/components/shared/LoadingSpinner';
 import type { FormField, UploadedFormFile } from '@/types';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
+import {
+  ALL_DEFAULT_PROFILE_FIELD_IDS,
+  DEFAULT_PROFILE_FIELD_IDS,
+} from '@/constants/defaultProfileFields';
 
 const OTHER_OPTION_VALUE = '__other__';
 const getOtherFieldId = (fieldId: string) => `${fieldId}__other`;
 
-const PROFILE_FIELD_IDS = {
-  fullNameAr: 'fullNameAr',
-  fullNameEn: 'fullNameEn',
-  email: 'email',
-  phone: 'phone',
-  gender: 'gender',
-  country: 'country',
-  jobTitle: 'jobTitle',
-  specialty: 'specialty',
-  workplace: 'workplace',
-  professionalCardDocument: 'professionalCardDocument',
-  profileDeclaration: 'profileDeclaration',
-} as const;
+const PROFILE_FIELD_IDS = DEFAULT_PROFILE_FIELD_IDS;
 
-const baseProfileFieldIds = new Set<string>(Object.values(PROFILE_FIELD_IDS));
+const baseProfileFieldIds = new Set<string>(ALL_DEFAULT_PROFILE_FIELD_IDS);
 
 const genderOptions = [
   { value: 'male', label: 'ذكر' },
@@ -76,122 +68,166 @@ const countryOptions = [
   { value: 'other', label: 'دولة أخرى' },
 ];
 
-const buildBaseProfileFields = (isGuest: boolean): FormField[] => [
-  {
-    id: PROFILE_FIELD_IDS.fullNameAr,
-    type: 'text',
-    label: 'الاسم الكامل (عربي)',
-    labelEn: 'Full Name (Arabic)',
-    placeholder: 'د. أحمد محمد',
-    required: true,
-    order: 0,
-    validation: { minLength: 3 },
-  },
-  {
-    id: PROFILE_FIELD_IDS.fullNameEn,
-    type: 'text',
-    label: 'الاسم الكامل (إنجليزي)',
-    labelEn: 'Full Name (English)',
-    placeholder: 'Dr. Ahmed Mohammed',
-    required: true,
-    order: 1,
-    validation: { minLength: 3 },
-  },
-  {
-    id: PROFILE_FIELD_IDS.email,
-    type: 'email',
-    label: 'البريد الإلكتروني',
-    labelEn: 'Email',
-    placeholder: 'you@example.com',
-    required: true,
-    order: 2,
-  },
-  {
-    id: PROFILE_FIELD_IDS.phone,
-    type: 'phone',
-    label: 'رقم الهاتف',
-    labelEn: 'Phone',
-    placeholder: '+967 xxx xxx xxx',
-    required: true,
-    order: 3,
-  },
-  {
-    id: PROFILE_FIELD_IDS.gender,
-    type: 'select',
-    label: 'الجنس',
-    labelEn: 'Gender',
-    required: true,
-    order: 4,
-    options: genderOptions,
-  },
-  {
-    id: PROFILE_FIELD_IDS.country,
-    type: 'select',
-    label: 'الدولة',
-    labelEn: 'Country',
-    required: true,
-    order: 5,
-    options: countryOptions,
-    allowOther: true,
-  },
-  {
-    id: PROFILE_FIELD_IDS.jobTitle,
-    type: 'select',
-    label: 'الصفة الوظيفية',
-    labelEn: 'Job Title',
-    required: true,
-    order: 6,
-    options: jobTitleOptions,
-    allowOther: true,
-  },
-  {
-    id: PROFILE_FIELD_IDS.specialty,
-    type: 'select',
-    label: 'التخصص',
-    labelEn: 'Specialty',
-    required: true,
-    order: 7,
-    options: specialtyOptions,
-    allowOther: true,
-  },
-  {
-    id: PROFILE_FIELD_IDS.workplace,
-    type: 'text',
-    label: 'جهة العمل / المستشفى / الجامعة',
-    labelEn: 'Workplace / Hospital / University',
-    placeholder: 'مستشفى الثورة العام',
-    required: true,
-    order: 8,
-    validation: { minLength: 2 },
-  },
-  {
-    id: PROFILE_FIELD_IDS.professionalCardDocument,
-    type: 'file',
-    label: 'رفع ملف بطاقة مزاولة المهنة',
-    labelEn: 'Professional License Card Upload',
-    required: isGuest,
-    order: 9,
-    validation: {
-      fileTypes: ['.jpg', '.jpeg', '.png', '.pdf'],
-      maxFileSize: 10,
-    },
-  },
-  {
-    id: PROFILE_FIELD_IDS.profileDeclaration,
-    type: 'checkbox',
-    label:
-      'أقر بأن جميع البيانات المدخلة صحيحة، وأتحمل المسؤولية عن صحة المستند المرفوع.',
-    labelEn: 'I confirm all provided data and uploaded document are correct.',
-    required: isGuest,
-    order: 10,
-  },
-];
+const buildBaseProfileFields = (isGuest: boolean, activeDefaultProfileFieldIds: Set<string>): FormField[] => {
+  if (isGuest && activeDefaultProfileFieldIds.size === 0) {
+    return [
+      {
+        id: PROFILE_FIELD_IDS.email,
+        type: 'email',
+        label: 'البريد الإلكتروني',
+        labelEn: 'Email',
+        placeholder: 'you@example.com',
+        required: true,
+        order: 0,
+      },
+    ];
+  }
+
+  const fields: FormField[] = [];
+  const addField = (field: Omit<FormField, 'order'>) => {
+    fields.push({ ...field, order: fields.length });
+  };
+
+  if (activeDefaultProfileFieldIds.has(PROFILE_FIELD_IDS.fullNameAr)) {
+    addField({
+      id: PROFILE_FIELD_IDS.fullNameAr,
+      type: 'text',
+      label: 'الاسم الكامل (عربي)',
+      labelEn: 'Full Name (Arabic)',
+      placeholder: 'د. أحمد محمد',
+      required: true,
+      validation: { minLength: 3 },
+    });
+  }
+
+  if (activeDefaultProfileFieldIds.has(PROFILE_FIELD_IDS.fullNameEn)) {
+    addField({
+      id: PROFILE_FIELD_IDS.fullNameEn,
+      type: 'text',
+      label: 'الاسم الكامل (إنجليزي)',
+      labelEn: 'Full Name (English)',
+      placeholder: 'Dr. Ahmed Mohammed',
+      required: true,
+      validation: { minLength: 3 },
+    });
+  }
+
+  if (activeDefaultProfileFieldIds.has(PROFILE_FIELD_IDS.email)) {
+    addField({
+      id: PROFILE_FIELD_IDS.email,
+      type: 'email',
+      label: 'البريد الإلكتروني',
+      labelEn: 'Email',
+      placeholder: 'you@example.com',
+      required: true,
+    });
+  }
+
+  if (activeDefaultProfileFieldIds.has(PROFILE_FIELD_IDS.phone)) {
+    addField({
+      id: PROFILE_FIELD_IDS.phone,
+      type: 'phone',
+      label: 'رقم الهاتف',
+      labelEn: 'Phone',
+      placeholder: '+967 xxx xxx xxx',
+      required: true,
+    });
+  }
+
+  if (activeDefaultProfileFieldIds.has(PROFILE_FIELD_IDS.gender)) {
+    addField({
+      id: PROFILE_FIELD_IDS.gender,
+      type: 'select',
+      label: 'الجنس',
+      labelEn: 'Gender',
+      required: true,
+      options: genderOptions,
+    });
+  }
+
+  if (activeDefaultProfileFieldIds.has(PROFILE_FIELD_IDS.country)) {
+    addField({
+      id: PROFILE_FIELD_IDS.country,
+      type: 'select',
+      label: 'الدولة',
+      labelEn: 'Country',
+      required: true,
+      options: countryOptions,
+      allowOther: true,
+    });
+  }
+
+  if (activeDefaultProfileFieldIds.has(PROFILE_FIELD_IDS.jobTitle)) {
+    addField({
+      id: PROFILE_FIELD_IDS.jobTitle,
+      type: 'select',
+      label: 'الصفة الوظيفية',
+      labelEn: 'Job Title',
+      required: true,
+      options: jobTitleOptions,
+      allowOther: true,
+    });
+  }
+
+  if (activeDefaultProfileFieldIds.has(PROFILE_FIELD_IDS.specialty)) {
+    addField({
+      id: PROFILE_FIELD_IDS.specialty,
+      type: 'select',
+      label: 'التخصص',
+      labelEn: 'Specialty',
+      required: true,
+      options: specialtyOptions,
+      allowOther: true,
+    });
+  }
+
+  if (activeDefaultProfileFieldIds.has(PROFILE_FIELD_IDS.workplace)) {
+    addField({
+      id: PROFILE_FIELD_IDS.workplace,
+      type: 'text',
+      label: 'جهة العمل / المستشفى / الجامعة',
+      labelEn: 'Workplace / Hospital / University',
+      placeholder: 'مستشفى الثورة العام',
+      required: true,
+      validation: { minLength: 2 },
+    });
+  }
+
+  if (activeDefaultProfileFieldIds.has(PROFILE_FIELD_IDS.professionalCardDocument)) {
+    addField({
+      id: PROFILE_FIELD_IDS.professionalCardDocument,
+      type: 'file',
+      label: 'رفع ملف بطاقة مزاولة المهنة',
+      labelEn: 'Professional License Card Upload',
+      required: isGuest,
+      validation: {
+        fileTypes: ['.jpg', '.jpeg', '.png', '.pdf'],
+        maxFileSize: 10,
+      },
+    });
+  }
+
+  if (activeDefaultProfileFieldIds.has(PROFILE_FIELD_IDS.profileDeclaration)) {
+    addField({
+      id: PROFILE_FIELD_IDS.profileDeclaration,
+      type: 'checkbox',
+      label:
+        'أقر بأن جميع البيانات المدخلة صحيحة، وأتحمل المسؤولية عن صحة المستند المرفوع.',
+      labelEn: 'I confirm all provided data and uploaded document are correct.',
+      required: isGuest,
+    });
+  }
+
+  return fields;
+};
 
 interface DynamicFormProps {
   eventId: string;
   schema: FormField[];
   isAuthenticated: boolean;
   guestRegistrationEnabled: boolean;
+  includeDefaultProfileFields?: boolean;
+  defaultProfileFieldIds?: string[];
 }
 
 // Build Zod schema dynamically
@@ -492,6 +528,8 @@ export function DynamicForm({
   schema,
   isAuthenticated,
   guestRegistrationEnabled,
+  includeDefaultProfileFields,
+  defaultProfileFieldIds,
 }: DynamicFormProps) {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -500,8 +538,24 @@ export function DynamicForm({
   const { mutateAsync: uploadRegistrationFile } = useUploadRegistrationFile();
 
   const isGuest = guestRegistrationEnabled && !isAuthenticated;
+  const activeDefaultProfileFieldIds = useMemo(() => {
+    if (includeDefaultProfileFields === false) {
+      return new Set<string>();
+    }
+
+    if (defaultProfileFieldIds === undefined) {
+      return new Set<string>(ALL_DEFAULT_PROFILE_FIELD_IDS);
+    }
+
+    return new Set<string>(
+      defaultProfileFieldIds.filter((fieldId) => baseProfileFieldIds.has(fieldId)),
+    );
+  }, [includeDefaultProfileFields, defaultProfileFieldIds]);
   const sortedSchema = [...schema].sort((a, b) => a.order - b.order);
-  const baseProfileFields = useMemo(() => buildBaseProfileFields(isGuest), [isGuest]);
+  const baseProfileFields = useMemo(
+    () => buildBaseProfileFields(isGuest, activeDefaultProfileFieldIds),
+    [isGuest, activeDefaultProfileFieldIds],
+  );
   const eventSpecificSchema = useMemo(
     () => sortedSchema.filter((field) => !baseProfileFieldIds.has(field.id)),
     [sortedSchema],
@@ -670,7 +724,7 @@ export function DynamicForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 text-right" dir="rtl">
-      {!isGuest && (
+      {!isGuest && baseProfileFields.length > 0 && (
         <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
           تم تعبئة البيانات الأساسية من حسابك تلقائياً، ويمكنك تعديلها قبل إرسال التسجيل.
           {user?.fullNameAr ? ` (${user.fullNameAr})` : ''}
@@ -678,14 +732,16 @@ export function DynamicForm({
         </div>
       )}
 
-      <div className="space-y-4 rounded-lg border p-4">
-        <p className="text-sm font-semibold">
-          {isGuest ? 'البيانات الأساسية للضيف' : 'البيانات الأساسية للتسجيل'}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          تشمل هذه البيانات: الاسم عربي/إنجليزي، الهاتف، البريد، الجنس، الدولة، الصفة الوظيفية، التخصص، جهة العمل.
-        </p>
-      </div>
+      {baseProfileFields.length > 0 && (
+        <div className="space-y-4 rounded-lg border p-4">
+          <p className="text-sm font-semibold">
+            {isGuest ? 'البيانات الأساسية للضيف' : 'البيانات الأساسية للتسجيل'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            تم تحديد هذه الحقول من إعدادات المؤتمر ويمكن تعديلها قبل إرسال التسجيل.
+          </p>
+        </div>
+      )}
 
       {allFields.map((field, index) => {
         const value = watch(field.id);

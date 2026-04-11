@@ -263,6 +263,8 @@ export interface Event {
   schedule?: EventScheduleItem[];
   eventDays?: EventDay[];
   formSchema: FormField[];
+  includeDefaultProfileFields?: boolean;
+  defaultProfileFieldIds?: string[];
   ticketTypes?: string[];
   cmeHours: number;
   createdBy?: string;
