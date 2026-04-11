@@ -1,0 +1,65 @@
+version: "3.8"
+
+services:
+  # ==================================
+  # 🟢 Backend API (YSVS)
+  # ==================================
+  ysvs-backend:
+    build: ./ysvs-backend
+    container_name: ysvs-backend
+    restart: unless-stopped
+    env_file:
+      - ./ysvs-backend/.env
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=ysvs-redis
+      - REDIS_PORT=6379
+    # نستخدم expose فقط ليراه Nginx Proxy Manager داخلياً
+    expose:
+      - "3000"
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - web-network
+    depends_on:
+      - ysvs-redis
+
+  # ==================================
+  # 🔵 Frontend Website (YSVS)
+  # ==================================
+  ysvs-frontend:
+    build: ./ysvs-frontend
+    container_name: ysvs-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - web-network
+    depends_on:
+      - ysvs-backend
+
+  # ==================================
+  # 🟠 Redis (Cache / Session)
+  # ==================================
+  ysvs-redis:
+    image: redis:alpine
+    container_name: ysvs-redis
+    restart: unless-stopped
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - web-network
+    command: redis-server --appendonly yes
+
+# ==================================
+# 🌐 Network & Volumes
+# ==================================
+volumes:
+  redis_data:
+  uploads:
+
+networks:
+  web-network:
+    external: true
