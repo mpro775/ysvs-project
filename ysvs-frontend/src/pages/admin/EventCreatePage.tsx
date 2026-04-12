@@ -49,6 +49,9 @@ const streamProviderOptions = [
   { value: "custom", label: "منصة أخرى" },
 ] as const;
 
+const registrationAccessOptions = ["authenticated_only", "public"] as const;
+const guestEmailModeOptions = ["required", "optional"] as const;
+
 const createClientId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
 const toDateTimeLocalInputValue = (dateValue?: Date | string) => {
@@ -65,6 +68,19 @@ const toDateTimeFromDayAndTime = (dateValue: string, timeValue: string) =>
   new Date(`${dateValue}T${timeValue}`);
 
 const addMinutes = (dateValue: Date, minutes: number) => new Date(dateValue.getTime() + minutes * 60 * 1000);
+
+const normalizeEnumValue = <T extends readonly string[]>(
+  value: unknown,
+  allowedValues: T,
+  fallback: T[number]
+): T[number] => {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalizedValue = value.trim().toLowerCase();
+  return (allowedValues.find((item) => item === normalizedValue) ?? fallback) as T[number];
+};
 
 const toDayKey = (dateValue: string | Date) => toDateInputValue(dateValue);
 
@@ -529,7 +545,16 @@ export default function AdminEventCreatePage() {
   const speakers = watchedValues.speakers || [];
   const schedule = watchedValues.schedule || [];
   const liveStream = watchedValues.liveStream;
-  const registrationAccessValue = watchedValues.registrationAccess ?? "authenticated_only";
+  const registrationAccessValue = normalizeEnumValue(
+    watchedValues.registrationAccess,
+    registrationAccessOptions,
+    "authenticated_only"
+  );
+  const guestEmailModeValue = normalizeEnumValue(
+    watchedValues.guestEmailMode,
+    guestEmailModeOptions,
+    "required"
+  );
 
   const sortedEventDays = useMemo(
     () =>
@@ -887,10 +912,14 @@ export default function AdminEventCreatePage() {
       ...rest
     } = data;
 
-    const normalizedRegistrationAccess = rest.registrationAccess ?? "authenticated_only";
+    const normalizedRegistrationAccess = normalizeEnumValue(
+      rest.registrationAccess,
+      registrationAccessOptions,
+      "authenticated_only"
+    );
     const normalizedGuestEmailMode =
       normalizedRegistrationAccess === "public"
-        ? rest.guestEmailMode ?? "required"
+        ? normalizeEnumValue(rest.guestEmailMode, guestEmailModeOptions, "required")
         : "required";
 
     if (slugStatus === "taken") {
@@ -1581,7 +1610,7 @@ export default function AdminEventCreatePage() {
                     control={control}
                     render={({ field }) => (
                       <Select
-                        value={field.value ?? "authenticated_only"}
+                        value={registrationAccessValue}
                         onValueChange={(value: "authenticated_only" | "public") => {
                           field.onChange(value);
                         }}
@@ -1605,7 +1634,7 @@ export default function AdminEventCreatePage() {
                     control={control}
                     render={({ field }) => (
                       <Select
-                        value={field.value ?? "required"}
+                        value={guestEmailModeValue}
                         onValueChange={(value: "required" | "optional") => {
                           field.onChange(value);
                         }}

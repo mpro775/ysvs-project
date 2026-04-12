@@ -50,6 +50,9 @@ const streamProviderOptions = [
   { value: "custom", label: "منصة أخرى" },
 ] as const;
 
+const registrationAccessOptions = ["authenticated_only", "public"] as const;
+const guestEmailModeOptions = ["required", "optional"] as const;
+
 const createClientId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
 const toDateTimeLocalInputValue = (dateValue?: Date | string) => {
@@ -547,12 +550,8 @@ export default function AdminEventEditPage() {
         maxAttendees: normalizeOptionalNumber(event.maxAttendees),
         cmeHours: event.cmeHours,
         registrationOpen: event.registrationOpen,
-        registrationAccess: normalizeEnumValue(
-          event.registrationAccess,
-          ["authenticated_only", "public"] as const,
-          "authenticated_only"
-        ),
-        guestEmailMode: normalizeEnumValue(event.guestEmailMode, ["required", "optional"] as const, "required"),
+        registrationAccess: normalizeEnumValue(event.registrationAccess, registrationAccessOptions, "authenticated_only"),
+        guestEmailMode: normalizeEnumValue(event.guestEmailMode, guestEmailModeOptions, "required"),
         outcomes: (event.outcomes || []).map((item) => (item || "").trim()).filter(Boolean),
         objectives: (event.objectives || []).map((item) => (item || "").trim()).filter(Boolean),
         targetAudience: (event.targetAudience || []).map((item) => (item || "").trim()).filter(Boolean),
@@ -592,7 +591,18 @@ export default function AdminEventEditPage() {
   const speakers = watchedValues.speakers || [];
   const schedule = watchedValues.schedule || [];
   const liveStream = watchedValues.liveStream;
-  const registrationAccessValue = watchedValues.registrationAccess ?? "authenticated_only";
+  const eventRegistrationAccess = normalizeEnumValue(event?.registrationAccess, registrationAccessOptions, "authenticated_only");
+  const eventGuestEmailMode = normalizeEnumValue(event?.guestEmailMode, guestEmailModeOptions, "required");
+  const registrationAccessValue = normalizeEnumValue(
+    watchedValues.registrationAccess,
+    registrationAccessOptions,
+    eventRegistrationAccess
+  );
+  const guestEmailModeValue = normalizeEnumValue(
+    watchedValues.guestEmailMode,
+    guestEmailModeOptions,
+    eventGuestEmailMode
+  );
 
   const sortedEventDays = useMemo(
     () =>
@@ -946,10 +956,14 @@ export default function AdminEventEditPage() {
       ...rest
     } = data;
 
-    const normalizedRegistrationAccess = rest.registrationAccess ?? "authenticated_only";
+    const normalizedRegistrationAccess = normalizeEnumValue(
+      rest.registrationAccess,
+      registrationAccessOptions,
+      eventRegistrationAccess
+    );
     const normalizedGuestEmailMode =
       normalizedRegistrationAccess === "public"
-        ? rest.guestEmailMode ?? "required"
+        ? normalizeEnumValue(rest.guestEmailMode, guestEmailModeOptions, eventGuestEmailMode)
         : "required";
 
     if (slugStatus === "taken") {
@@ -1492,7 +1506,7 @@ export default function AdminEventEditPage() {
                       control={control}
                       render={({ field }) => (
                         <Select
-                          value={field.value ?? "authenticated_only"}
+                          value={registrationAccessValue}
                           onValueChange={(value: "authenticated_only" | "public") => {
                             field.onChange(value);
                           }}
@@ -1516,7 +1530,7 @@ export default function AdminEventEditPage() {
                       control={control}
                       render={({ field }) => (
                         <Select
-                          value={field.value ?? "required"}
+                          value={guestEmailModeValue}
                           onValueChange={(value: "required" | "optional") => {
                             field.onChange(value);
                           }}
