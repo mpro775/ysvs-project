@@ -384,29 +384,33 @@ export default function EventDetailPage() {
           {/* Main Content */}
           <div className="lg:col-span-2" ref={tabsContainerRef}>
             <Tabs value={activeTab} onValueChange={handleTabChange}>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--event-border)] bg-[var(--event-surface)] px-3 py-2 text-sm">
+                <p className="font-medium text-foreground">استخدم التابات للتنقل السريع بين تفاصيل المؤتمر.</p>
+                <span className="text-xs text-muted-foreground">يمكنك التمرير افقياً على الجوال</span>
+              </div>
               <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto rounded-xl border border-[var(--event-border)] bg-[var(--event-surface-muted)] p-1">
                 <TabsTrigger
                   value="about"
-                  className="h-11 flex-none px-4 data-[state=active]:border-[var(--event-border-strong)] data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  className="event-detail-tab-trigger h-11 flex-none px-4 data-[state=active]:border-[var(--event-border-strong)] data-[state=active]:bg-background data-[state=active]:text-foreground"
                 >
                   نبذة عن المؤتمر
                 </TabsTrigger>
                 <TabsTrigger
                   value="speakers"
-                  className="h-11 flex-none px-4 data-[state=active]:border-[var(--event-border-strong)] data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  className="event-detail-tab-trigger h-11 flex-none px-4 data-[state=active]:border-[var(--event-border-strong)] data-[state=active]:bg-background data-[state=active]:text-foreground"
                 >
                   المتحدثون
                 </TabsTrigger>
                 <TabsTrigger
                   value="schedule"
-                  className="h-11 flex-none px-4 data-[state=active]:border-[var(--event-border-strong)] data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  className="event-detail-tab-trigger h-11 flex-none px-4 data-[state=active]:border-[var(--event-border-strong)] data-[state=active]:bg-background data-[state=active]:text-foreground"
                 >
                   الجدول
                 </TabsTrigger>
                 {canRegister && (
                   <TabsTrigger
                     value="register"
-                    className="h-11 flex-none px-4 data-[state=active]:border-[var(--event-border-strong)] data-[state=active]:bg-background data-[state=active]:text-foreground"
+                    className="event-detail-tab-trigger event-register-tab-trigger h-11 flex-none px-4"
                   >
                     التسجيل
                   </TabsTrigger>

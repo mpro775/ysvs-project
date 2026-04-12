@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm, type FieldErrors, type Resolver } from "react-hook-form";
+import { Controller, useForm, type FieldErrors, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, ArrowRight, Check, AlertCircle, Plus, Trash2 } from "lucide-react";
@@ -460,6 +460,7 @@ export default function AdminEventCreatePage() {
   const { mutate: createEvent, isPending } = useCreateEvent();
 
   const {
+    control,
     register,
     handleSubmit,
     watch,
@@ -528,6 +529,7 @@ export default function AdminEventCreatePage() {
   const speakers = watchedValues.speakers || [];
   const schedule = watchedValues.schedule || [];
   const liveStream = watchedValues.liveStream;
+  const registrationAccessValue = watchedValues.registrationAccess ?? "authenticated_only";
 
   const sortedEventDays = useMemo(
     () =>
@@ -885,6 +887,12 @@ export default function AdminEventCreatePage() {
       ...rest
     } = data;
 
+    const normalizedRegistrationAccess = rest.registrationAccess ?? "authenticated_only";
+    const normalizedGuestEmailMode =
+      normalizedRegistrationAccess === "public"
+        ? rest.guestEmailMode ?? "required"
+        : "required";
+
     if (slugStatus === "taken") {
       setStepError("لا يمكن إنشاء المؤتمر لأن الرابط المختصر مستخدم مسبقاً");
       setCurrentStep(0);
@@ -968,8 +976,8 @@ export default function AdminEventCreatePage() {
         formSchema,
         includeDefaultProfileFields,
         defaultProfileFieldIds: includeDefaultProfileFields ? defaultProfileFieldIds : [],
-        registrationAccess: rest.registrationAccess,
-        guestEmailMode: rest.guestEmailMode,
+        registrationAccess: normalizedRegistrationAccess,
+        guestEmailMode: normalizedGuestEmailMode,
       },
       {
         onSuccess: () => {
@@ -1568,40 +1576,52 @@ export default function AdminEventCreatePage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="registrationAccess">صلاحية التسجيل</Label>
-                  <Select
-                    value={watchedValues.registrationAccess}
-                    onValueChange={(value: "authenticated_only" | "public") =>
-                      setValue("registrationAccess", value, { shouldDirty: true })
-                    }
-                  >
-                    <SelectTrigger id="registrationAccess">
-                      <SelectValue placeholder="اختر صلاحية التسجيل" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="authenticated_only">فقط من لديهم حساب</SelectItem>
-                      <SelectItem value="public">متاح للجميع (بما فيهم الضيوف)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Controller
+                    name="registrationAccess"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? "authenticated_only"}
+                        onValueChange={(value: "authenticated_only" | "public") => {
+                          field.onChange(value);
+                        }}
+                      >
+                        <SelectTrigger id="registrationAccess">
+                          <SelectValue placeholder="اختر صلاحية التسجيل" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="authenticated_only">فقط من لديهم حساب</SelectItem>
+                          <SelectItem value="public">متاح للجميع (بما فيهم الضيوف)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="guestEmailMode">بريد الضيف</Label>
-                  <Select
-                    value={watchedValues.guestEmailMode}
-                    onValueChange={(value: "required" | "optional") =>
-                      setValue("guestEmailMode", value, { shouldDirty: true })
-                    }
-                    disabled={watchedValues.registrationAccess !== "public"}
-                  >
-                    <SelectTrigger id="guestEmailMode">
-                      <SelectValue placeholder="اختر سياسة البريد" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="required">إجباري</SelectItem>
-                      <SelectItem value="optional">اختياري</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {watchedValues.registrationAccess !== "public" && (
+                  <Controller
+                    name="guestEmailMode"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? "required"}
+                        onValueChange={(value: "required" | "optional") => {
+                          field.onChange(value);
+                        }}
+                        disabled={registrationAccessValue !== "public"}
+                      >
+                        <SelectTrigger id="guestEmailMode">
+                          <SelectValue placeholder="اختر سياسة البريد" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="required">إجباري</SelectItem>
+                          <SelectItem value="optional">اختياري</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {registrationAccessValue !== "public" && (
                     <p className="text-xs text-muted-foreground">يتاح هذا الخيار عند السماح بتسجيل الضيوف</p>
                   )}
                 </div>

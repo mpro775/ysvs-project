@@ -183,7 +183,14 @@
     --event-surface: #ffffff;
     --event-surface-muted: #fdf1f1;
     --event-border: #f2d6d6;
+    --event-border-strong: #e6a6a6;
     --event-accent: #f19a34;
+    --event-register-tab-bg: #fff1df;
+    --event-register-tab-border: #f8c287;
+    --event-register-tab-text: #8f4700;
+    --event-register-tab-hover: #ffe7c6;
+    --event-register-tab-active-bg: #ffd39a;
+    --event-register-tab-active-text: #6e3400;
     background: var(--event-page-bg);
   }
 
@@ -194,7 +201,14 @@
     --event-surface: #191a1d;
     --event-surface-muted: #24181a;
     --event-border: #3a2326;
+    --event-border-strong: #74434a;
     --event-accent: #f2b36a;
+    --event-register-tab-bg: #3a2a16;
+    --event-register-tab-border: #7d5630;
+    --event-register-tab-text: #ffd9ad;
+    --event-register-tab-hover: #4a3319;
+    --event-register-tab-active-bg: #5a3d1d;
+    --event-register-tab-active-text: #ffe5c6;
   }
 
   .event-detail-hero {
@@ -229,6 +243,32 @@
   .event-rich-content ol {
     padding-right: 1.25rem;
     padding-left: 0;
+  }
+
+  .event-detail-tab-trigger {
+    transition: transform 0.18s ease, border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .event-detail-tab-trigger:hover {
+    transform: translateY(-1px);
+  }
+
+  .event-register-tab-trigger {
+    border-color: var(--event-register-tab-border);
+    background: var(--event-register-tab-bg);
+    color: var(--event-register-tab-text);
+  }
+
+  .event-register-tab-trigger:hover {
+    border-color: var(--event-register-tab-border);
+    background: var(--event-register-tab-hover);
+  }
+
+  .event-register-tab-trigger[data-state="active"] {
+    border-color: var(--event-register-tab-border);
+    background: var(--event-register-tab-active-bg);
+    color: var(--event-register-tab-active-text);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--event-register-tab-border) 42%, transparent);
   }
 
   .ysvs-loader {
