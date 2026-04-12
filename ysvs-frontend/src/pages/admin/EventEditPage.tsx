@@ -604,6 +604,40 @@ export default function AdminEventEditPage() {
     eventGuestEmailMode
   );
 
+  useEffect(() => {
+    const normalizedRegistrationAccess = normalizeEnumValue(
+      watchedValues.registrationAccess,
+      registrationAccessOptions,
+      eventRegistrationAccess
+    );
+
+    if (watchedValues.registrationAccess !== normalizedRegistrationAccess) {
+      setValue("registrationAccess", normalizedRegistrationAccess, {
+        shouldDirty: false,
+        shouldValidate: false,
+      });
+      return;
+    }
+
+    const normalizedGuestEmailMode =
+      normalizedRegistrationAccess === "public"
+        ? normalizeEnumValue(watchedValues.guestEmailMode, guestEmailModeOptions, eventGuestEmailMode)
+        : "required";
+
+    if (watchedValues.guestEmailMode !== normalizedGuestEmailMode) {
+      setValue("guestEmailMode", normalizedGuestEmailMode, {
+        shouldDirty: false,
+        shouldValidate: false,
+      });
+    }
+  }, [
+    watchedValues.registrationAccess,
+    watchedValues.guestEmailMode,
+    eventRegistrationAccess,
+    eventGuestEmailMode,
+    setValue,
+  ]);
+
   const sortedEventDays = useMemo(
     () =>
       [...eventDays].sort(
@@ -1066,7 +1100,23 @@ export default function AdminEventEditPage() {
 
   const onInvalid = (formErrors: FieldErrors<EventForm>) => {
     const normalizedValues = getValues();
-    const fallbackParsed = eventSchema.safeParse(normalizedValues);
+    const normalizedRegistrationAccess = normalizeEnumValue(
+      normalizedValues.registrationAccess,
+      registrationAccessOptions,
+      eventRegistrationAccess
+    );
+    const normalizedGuestEmailMode =
+      normalizedRegistrationAccess === "public"
+        ? normalizeEnumValue(normalizedValues.guestEmailMode, guestEmailModeOptions, eventGuestEmailMode)
+        : "required";
+
+    const sanitizedValues: EventForm = {
+      ...normalizedValues,
+      registrationAccess: normalizedRegistrationAccess,
+      guestEmailMode: normalizedGuestEmailMode,
+    };
+
+    const fallbackParsed = eventSchema.safeParse(sanitizedValues);
     if (fallbackParsed.success) {
       onSubmit(fallbackParsed.data);
       return;

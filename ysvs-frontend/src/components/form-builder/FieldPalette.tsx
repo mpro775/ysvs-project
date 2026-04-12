@@ -47,15 +47,15 @@ export function FieldPalette({ onSelect, onClose }: FieldPaletteProps) {
       <CardContent>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
           {fieldTypes.map((field) => (
-            <button
-              key={field.type}
-              type="button"
-              onClick={() => onSelect(field.type)}
-              className="flex flex-col items-center gap-2 rounded-lg border p-3 text-sm transition-colors hover:bg-primary-50 hover:border-primary-200"
-            >
-              <div className="text-primary-600">{field.icon}</div>
-              <span>{field.label}</span>
-            </button>
+              <button
+                key={field.type}
+                type="button"
+                onClick={() => onSelect(field.type)}
+                className="flex flex-col items-center gap-2 rounded-lg border border-border bg-card p-3 text-sm text-foreground transition-colors hover:border-primary/40 hover:bg-accent/40"
+              >
+                <div className="text-primary">{field.icon}</div>
+                <span>{field.label}</span>
+              </button>
           ))}
         </div>
       </CardContent>

@@ -55,9 +55,9 @@ export function SortableField({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex items-center gap-2 rounded-lg border bg-white p-3 transition-colors',
-        isSelected && 'border-primary-500 ring-1 ring-primary-500',
-        isDragging && 'opacity-50'
+        'flex items-center gap-2 rounded-lg border border-border bg-card p-3 text-foreground transition-colors hover:bg-accent/40',
+        isSelected && 'border-primary ring-1 ring-primary/40 bg-accent/30',
+        isDragging && 'opacity-60'
       )}
     >
       {/* Drag Handle */}
@@ -112,7 +112,7 @@ export function SortableField({
           type="button"
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-destructive hover:text-destructive"
+          className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
           onClick={onDelete}
         >
           <Trash2 className="h-4 w-4" />
